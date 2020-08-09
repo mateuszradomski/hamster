@@ -1,2 +1,2 @@
 debug:
-	g++ hamster.cpp -o hamster -lglfw
+	g++ -g hamster.cpp -o hamster -lglfw -lGL -lGLEW
