@@ -6,6 +6,7 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
+#include "hamster_util.cpp"
 #include "hamster_graphics.cpp"
 
 const int width = 800;
