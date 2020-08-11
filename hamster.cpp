@@ -25,9 +25,9 @@ int main()
 	glewInit();
 
 	Mesh *basic_mesh = mesh_create_basic();
+	Mesh *obj_mesh = mesh_create_from_obj("model.obj");
 	GLuint basic_program = program_create_basic();
 
-	obj_load("model.obj");
 
 	glUseProgram(basic_program);
 	glBindVertexArray(basic_mesh->vao);
@@ -35,7 +35,14 @@ int main()
 	while(!glfwWindowShouldClose(window))
 	{
 		glClear(GL_COLOR_BUFFER_BIT);
-		glDrawArrays(GL_TRIANGLES, 0, 3);
+
+		// glBindVertexArray(basic_mesh->vao);
+		// glDrawArrays(GL_TRIANGLES, 0, 3);
+
+		glBindVertexArray(obj_mesh->vao);
+		glDrawElements(GL_TRIANGLES, 2904, GL_UNSIGNED_INT, NULL);
+		assert(glGetError() == GL_NO_ERROR);
+
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
