@@ -2,6 +2,7 @@ struct Mesh
 {
 	GLuint vao;
 	GLuint vbo;
+	GLuint ebo;
 	float *vertices;
 	unsigned int *indices;
 };
@@ -136,7 +137,72 @@ mesh_create_basic()
 static Mesh*
 mesh_create_from_obj(const char *filename)
 {
+	OBJModel *obj = obj_load(filename);
+
+	unsigned int vertices_count = 0;
+	for(unsigned int i = 0; i < obj->faces.length; i++)
+	{
+		assert(obj->faces[i].vertex_ids.length == obj->faces[i].normal_ids.length);	
+		vertices_count += (obj->faces[i].vertex_ids.length - 2)	* 3;
+	}
+
 	Mesh *mesh = (Mesh *)malloc(sizeof(Mesh));
+
+	unsigned int vertices_size = vertices_count * sizeof(float) * 3;
+	unsigned int indices_size = vertices_count * sizeof(unsigned int) * 3;
+	mesh->vertices = (float *)malloc(vertices_size);
+	mesh->indices = (unsigned int *)malloc(indices_size);
+
+	// TODO: This doesn't have to be this complex!!!
+	unsigned int vertex_head = 0;
+	unsigned int indices_length = 0;
+	for(unsigned int i = 0; i < obj->faces.length; i++)
+	{
+		unsigned int face_size = obj->faces[i].vertex_ids.length;
+		for(unsigned int j = 0; j < face_size; ++j)
+		{
+			// NOTE: This * 3 is stupid and complex, i should really
+			// the vertices a struct of 3 floats
+			void *dest = mesh->vertices + vertex_head; 
+			void *src = &obj->vertices[obj->faces[i].vertex_ids[j] * 3];
+			unsigned int size = sizeof(float) * 3;
+			memcpy(dest, src, size);
+			vertex_head += size;
+
+			dest = mesh->vertices + vertex_head;
+			src = &obj->normals[obj->faces[i].normal_ids[j] * 3];
+			size = sizeof(float) * 3;
+			memcpy(dest, src, size);
+			vertex_head += size;
+		}
+
+		int t = 0;
+		for(unsigned int k = 0; k < (face_size - 2) * 3; k++)
+		{
+			mesh->indices[indices_length++] = i * face_size + ((k - (t / 3)) % face_size);
+			t++;
+		}
+	}
+
+	glGenBuffers(1, &mesh->vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
+	glBufferData(GL_ARRAY_BUFFER, vertices_size, mesh->vertices, GL_STATIC_DRAW);
+
+	glGenBuffers(1, &mesh->ebo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->ebo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_size, mesh->indices, GL_STATIC_DRAW);
+
+	glGenVertexArrays(1, &mesh->vao);
+	glBindVertexArray(mesh->vao);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
+
+	glBindVertexArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
 	return mesh;
 }
 
