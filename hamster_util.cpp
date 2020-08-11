@@ -8,6 +8,7 @@ struct Array
 	unsigned int capacity;
 
 	Array();
+	~Array();
 
 	void push(T val);
 	T pop();
@@ -20,6 +21,12 @@ template <typename T>
 Array<T>::Array():
 	data(nullptr), length(0), capacity(0)
 { }
+
+template <typename T>
+Array<T>::~Array()
+{
+	free(data);
+}
 
 template <typename T>
 void Array<T>::push(T val)
