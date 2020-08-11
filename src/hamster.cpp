@@ -25,7 +25,7 @@ int main()
 	glewInit();
 
 	Mesh *basic_mesh = mesh_create_basic();
-	Mesh *obj_mesh = mesh_create_from_obj("model.obj");
+	Mesh *obj_mesh = mesh_create_from_obj("data/model.obj");
 	GLuint basic_program = program_create_basic();
 
 	glUseProgram(basic_program);
