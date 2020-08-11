@@ -3,7 +3,102 @@ struct Mesh
 	GLuint vao;
 	GLuint vbo;
 	float *vertices;
+	unsigned int *indices;
 };
+
+struct OBJFace
+{
+	Array<unsigned int> vertex_ids;
+	// NOTE: We want to read in the texture in the future but we are
+	// not doing it just now. Idealy the obj model would flag what type
+	// of face it read
+	// unsigned int texture_id;
+	Array<unsigned int> normal_ids;
+};
+
+struct OBJModel
+{
+	// NOTE: We dont support the w element in geo vertex reading 
+	Array<float> vertices;
+	Array<float> normals;
+	Array<OBJFace> faces;
+};
+
+static OBJModel *
+obj_load(const char *filename)
+{
+	FILE *f = fopen(filename, "r");
+	assert(f);
+
+	char *line = NULL;
+	size_t line_len = 0;
+
+	OBJModel *model = (OBJModel *)malloc(sizeof(OBJModel));
+	memset(model, 0, sizeof(*model));
+	while(getline(&line, &line_len, f) != -1)
+	{
+		// TODO: better rules of skipping a line
+		if(line[0] != 'v' && line[0] != 'f') {
+			continue;
+		}
+
+		char *beginning = strtok(line, " ");
+		assert(beginning);
+
+		if(strings_match(beginning, "v")) {
+			char *xpart = strtok(NULL, " ");
+			char *ypart = strtok(NULL, " ");
+			char *zpart = strtok(NULL, " ");
+
+			assert(xpart && ypart && zpart);
+
+			// TODO: Make a vec3 struct for this
+			model->vertices.push(atof(xpart));
+			model->vertices.push(atof(ypart));
+			model->vertices.push(atof(zpart));
+		} else if(strings_match(beginning, "vn")) {
+			char *xpart = strtok(NULL, " ");
+			char *ypart = strtok(NULL, " ");
+			char *zpart = strtok(NULL, " ");
+
+			assert(xpart && ypart && zpart);
+			model->normals.push(atof(xpart));
+			model->normals.push(atof(ypart));
+			model->normals.push(atof(zpart));
+		} else if(strings_match(beginning, "f")) {
+			char *part = strtok(NULL, " ");
+			model->faces.push(OBJFace { });
+			OBJFace *face = &model->faces[model->faces.length - 1];
+
+			while(part) {
+				char *token = strsep(&part, "/");
+
+				if(strlen(token) > 0) { 
+					face->vertex_ids.push(atoi(token));
+				}
+
+				token = strsep(&part, "/");
+				if(strlen(token) > 0) { 
+					// NOTE: not yet implemented
+					assert(false);
+				}
+
+				token = strsep(&part, "/");
+				if(strlen(token) > 0) { 
+					face->normal_ids.push(atoi(token));
+				}
+
+				part = strtok(NULL, " ");
+			}
+		}
+	}
+
+	fclose(f);
+
+	printf("vertices: %d\tnormals: %d\tfaces: %d\n", model->vertices.length, model->normals.length, model->faces.length);
+
+	return model;
+}
 
 static Mesh*
 mesh_create_basic()
@@ -35,6 +130,13 @@ mesh_create_basic()
 	mesh->vertices = (float *)malloc(sizeof(vertices));
 	memcpy(mesh->vertices, vertices, sizeof(vertices));
 
+	return mesh;
+}
+
+static Mesh*
+mesh_create_from_obj(const char *filename)
+{
+	Mesh *mesh = (Mesh *)malloc(sizeof(Mesh));
 	return mesh;
 }
 

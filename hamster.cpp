@@ -27,6 +27,8 @@ int main()
 	Mesh *basic_mesh = mesh_create_basic();
 	GLuint basic_program = program_create_basic();
 
+	obj_load("model.obj");
+
 	glUseProgram(basic_program);
 	glBindVertexArray(basic_mesh->vao);
 
