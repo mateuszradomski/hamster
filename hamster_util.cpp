@@ -34,7 +34,7 @@ void Array<T>::push(T val)
 	if(length == capacity)
 	{
 		capacity += ALLOC_CHUNK_SIZE;
-		data = (T *)realloc(data, capacity);
+		data = (T *)realloc(data, capacity * sizeof(T));
 		assert(data);
 	}
 
@@ -61,4 +61,9 @@ T &Array<T>::operator[](unsigned int index)
 {
 	assert(index <= length - 1);
 	return data[index];
+}
+
+bool strings_match(const char *str1, const char *str2)
+{
+	return strcmp(str1, str2) == 0;
 }
