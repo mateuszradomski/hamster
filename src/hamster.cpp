@@ -29,6 +29,16 @@ int main()
 	Mesh *obj_mesh = mesh_create_from_obj("data/model.obj");
 	GLuint basic_program = program_create_basic();
 
+	Camera camera = {};
+	camera.position = Vec3(0.0f, 0.0f, 3.0f);
+	camera.front = Vec3(0.0f, 0.0f, 1.0f); // Where we look
+	camera_calculate_vectors(&camera);
+
+	// const Vec3 world_up = Vec3(0.0f, 1.0f, 0.0f); // Don't repeat yourself
+	Mat4 lookat = look_at(camera.front, camera.position, camera.up);
+	Mat4 proj = create_perspective((f32)width/(f32)height, 90.0f, 0.1f, 10.0f);
+	Mat4 model = Mat4(1.0f);
+
 	glUseProgram(basic_program);
 	glBindVertexArray(basic_mesh->vao);
 
@@ -38,6 +48,13 @@ int main()
 
 		// glBindVertexArray(basic_mesh->vao);
 		// glDrawArrays(GL_TRIANGLES, 0, 3);
+
+		GLint uniform_location = glGetUniformLocation(basic_program, "view");
+		glUniformMatrix4fv(uniform_location, 1, GL_FALSE, lookat.a1d);
+		uniform_location = glGetUniformLocation(basic_program, "proj");
+		glUniformMatrix4fv(uniform_location, 1, GL_FALSE, proj.a1d);
+		uniform_location = glGetUniformLocation(basic_program, "model");
+		glUniformMatrix4fv(uniform_location, 1, GL_FALSE, model.a1d);
 
 		glBindVertexArray(obj_mesh->vao);
 		glDrawElements(GL_TRIANGLES, 2904, GL_UNSIGNED_INT, NULL);

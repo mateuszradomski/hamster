@@ -228,8 +228,11 @@ program_create_basic()
 	const char *vertex_shader_src = "#version 330 core\n"
 									"layout (location = 0) in vec3 vertex_pos;\n"
 									"layout (location = 1) in vec3 normal;\n"
+									"uniform mat4 proj;\n"
+									"uniform mat4 view;\n"
+									"uniform mat4 model;\n"
 									"void main() {\n"
-									"	gl_Position = vec4(vertex_pos.x, vertex_pos.y, vertex_pos.z, 1.0);\n"
+									"	gl_Position = proj * view * model * vec4(vertex_pos.x, vertex_pos.y, vertex_pos.z, 1.0);\n"
 									"}\0";
 	
 	GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
@@ -258,4 +261,12 @@ program_create_basic()
 	assert(program_ok);
 
 	return program;
+}
+
+static void
+camera_calculate_vectors(Camera *cam)
+{
+	const Vec3 world_up(0.0f, 1.0f, 0.0f);
+	cam->right = noz(cross(cam->front, world_up));
+	cam->up = noz(cross(cam->right, cam->front));
 }
