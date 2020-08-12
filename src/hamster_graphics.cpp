@@ -25,22 +25,22 @@ obj_load(const char *filename)
 			char *xpart = strtok(NULL, " ");
 			char *ypart = strtok(NULL, " ");
 			char *zpart = strtok(NULL, " ");
-
 			assert(xpart && ypart && zpart);
 
-			// TODO: Make a vec3 struct for this
-			model->vertices.push(atof(xpart));
-			model->vertices.push(atof(ypart));
-			model->vertices.push(atof(zpart));
+			f32 x = atof(xpart);
+			f32 y = atof(ypart);
+			f32 z = atof(zpart);
+			model->vertices.push(Vec3(x, y, z));
 		} else if(strings_match(beginning, "vn")) {
 			char *xpart = strtok(NULL, " ");
 			char *ypart = strtok(NULL, " ");
 			char *zpart = strtok(NULL, " ");
-
 			assert(xpart && ypart && zpart);
-			model->normals.push(atof(xpart));
-			model->normals.push(atof(ypart));
-			model->normals.push(atof(zpart));
+
+			f32 x = atof(xpart);
+			f32 y = atof(ypart);
+			f32 z = atof(zpart);
+			model->normals.push(Vec3(x, y, z));
 		} else if(strings_match(beginning, "f")) {
 			char *part = strtok(NULL, " ");
 			model->faces.push(OBJFace { });
@@ -71,7 +71,7 @@ obj_load(const char *filename)
 
 	fclose(f);
 
-	printf("vertices: %d\tnormals: %d\tfaces: %d\n", model->vertices.length, model->normals.length, model->faces.length);
+	printf("vertices: %d\tnormals: %d\tfaces: %d\n", model->vertices.length * 3, model->normals.length * 3, model->faces.length);
 
 	return model;
 }
@@ -139,16 +139,15 @@ mesh_create_from_obj(const char *filename)
 		unsigned int face_size = obj->faces[i].vertex_ids.length;
 		for(unsigned int j = 0; j < face_size; ++j)
 		{
-			// NOTE: This * 3 is stupid and complex, i should really
-			// the vertices a struct of 3 floats
+			// NOTE: We decrement the array index because obj indexes starting from 1
 			void *dest = &mesh->vertices[vertex_length];
-			void *src = &obj->vertices[(obj->faces[i].vertex_ids[j] - 1) * 3];
+			void *src = &obj->vertices[obj->faces[i].vertex_ids[j] - 1];
 			unsigned int size = sizeof(float) * 3;
 			memcpy(dest, src, size);
 			vertex_length += 3;
 
 			dest = &mesh->vertices[vertex_length];
-			src = &obj->normals[(obj->faces[i].normal_ids[j] - 1) * 3];
+			src = &obj->normals[obj->faces[i].normal_ids[j] - 1];
 			size = sizeof(float) * 3;
 			memcpy(dest, src, size);
 			vertex_length += 3;

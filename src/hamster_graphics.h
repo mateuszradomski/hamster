@@ -22,8 +22,8 @@ struct OBJFace
 struct OBJModel
 {
 	// NOTE: We dont support the w element in geo vertex reading 
-	Array<float> vertices;
-	Array<float> normals;
+	Array<Vec3> vertices;
+	Array<Vec3> normals;
 	Array<OBJFace> faces;
 };
 
