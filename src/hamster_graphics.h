@@ -1,0 +1,39 @@
+#ifndef HAMSTER_GRAPHICS_H
+
+struct Mesh
+{
+	GLuint vao;
+	GLuint vbo;
+	GLuint ebo;
+	float *vertices;
+	unsigned int *indices;
+};
+
+struct OBJFace
+{
+	Array<unsigned int> vertex_ids;
+	// NOTE: We want to read in the texture in the future but we are
+	// not doing it just now. Idealy the obj model would flag what type
+	// of face it read
+	// unsigned int texture_id;
+	Array<unsigned int> normal_ids;
+};
+
+struct OBJModel
+{
+	// NOTE: We dont support the w element in geo vertex reading 
+	Array<float> vertices;
+	Array<float> normals;
+	Array<OBJFace> faces;
+};
+
+static OBJModel * obj_load(const char *filename);
+static Mesh* mesh_create_basic();
+static Mesh* mesh_create_from_obj(const char *filename);
+
+static bool program_shader_check_error(GLuint shader);
+static bool program_check_error(GLuint program);
+static GLuint program_create_basic();
+
+#define HAMSTER_GRAPHICS_H
+#endif
