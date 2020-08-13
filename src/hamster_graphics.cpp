@@ -231,7 +231,11 @@ program_create_basic()
 									"uniform mat4 proj;\n"
 									"uniform mat4 view;\n"
 									"uniform mat4 model;\n"
+									"out vec3 pixel_pos;\n"
+									"out vec3 pixel_normal;\n"
 									"void main() {\n"
+									"	pixel_pos = vec3(model * vec4(vertex_pos, 1.0));\n"
+									"	pixel_normal = mat3(transpose(inverse(model))) * normal;\n"
 									"	gl_Position = proj * view * model * vec4(vertex_pos.x, vertex_pos.y, vertex_pos.z, 1.0);\n"
 									"}\0";
 	
@@ -242,9 +246,25 @@ program_create_basic()
 	assert(vertex_compiled);
 
 	const char *fragment_shader_src = "#version 330 core\n"
+									"struct Light {\n"
+									"	vec3 position;\n"
+									"	vec3 direction;\n"
+									"	float cutoff;\n"
+									"	float outer_cutoff;\n"
+									"};\n"
+									"in vec3 pixel_pos;\n"
+									"in vec3 pixel_normal;\n"
 									"out vec4 pixel_color;\n"
+									"uniform Light light;\n"
 									"void main() {\n"
-									"	pixel_color = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
+									"	vec3 lightdir = normalize(light.position - pixel_pos);\n"
+									"	float diff = max(dot(pixel_normal, lightdir), 0.0);\n"
+									"	float theta = dot(lightdir, normalize(-light.direction));\n"
+									"	float epsilon = light.cutoff - light.outer_cutoff;\n" // Switched because of how cosine works
+									"	float intensity = clamp((theta - light.outer_cutoff) / epsilon, 0.2, 1.0);\n"
+									"	\n"
+									"	float shade = diff * intensity;\n"
+									"	pixel_color = vec4(shade, shade, shade, 1.0);\n"
 									"}";
 
 	GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);

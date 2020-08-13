@@ -31,7 +31,7 @@ int main()
 
 	Camera camera = {};
 	camera.position = Vec3(0.0f, 0.0f, 3.0f);
-	camera.front = Vec3(0.0f, 0.0f, 1.0f); // Where we look
+	camera.front = negate(noz(camera.position)); // Where we look
 	camera_calculate_vectors(&camera);
 
 	// const Vec3 world_up = Vec3(0.0f, 1.0f, 0.0f); // Don't repeat yourself
@@ -39,12 +39,16 @@ int main()
 	Mat4 proj = create_perspective((f32)width/(f32)height, 90.0f, 0.1f, 10.0f);
 	Mat4 model = Mat4(1.0f);
 
+	model = rot_around_vec(model, to_radians(22.5f), Vec3(0.0f, 1.0f, 0.0f));
+
 	glUseProgram(basic_program);
 	glBindVertexArray(basic_mesh->vao);
 
+	glEnable(GL_DEPTH_TEST);
+
 	while(!glfwWindowShouldClose(window))
 	{
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		// glBindVertexArray(basic_mesh->vao);
 		// glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -55,6 +59,15 @@ int main()
 		glUniformMatrix4fv(uniform_location, 1, GL_FALSE, proj.a1d);
 		uniform_location = glGetUniformLocation(basic_program, "model");
 		glUniformMatrix4fv(uniform_location, 1, GL_FALSE, model.a1d);
+
+		uniform_location = glGetUniformLocation(basic_program, "light.position");
+		glUniform3fv(uniform_location, 1, camera.position.m);
+		uniform_location = glGetUniformLocation(basic_program, "light.direction");
+		glUniform3fv(uniform_location, 1, camera.front.m);
+		uniform_location = glGetUniformLocation(basic_program, "light.cutoff");
+		glUniform1f(uniform_location, cosf(to_radians(12.5f)));
+		uniform_location = glGetUniformLocation(basic_program, "light.outer_cutoff");
+		glUniform1f(uniform_location, cosf(to_radians(15.5f)));
 
 		glBindVertexArray(obj_mesh->vao);
 		glDrawElements(GL_TRIANGLES, 2904, GL_UNSIGNED_INT, NULL);
