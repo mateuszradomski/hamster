@@ -10,20 +10,42 @@
 #include "hamster_util.cpp"
 #include "hamster_graphics.cpp"
 
-const int width = 800;
-const int height = 600;
-
-int main()
+struct Window
 {
-	glfwInit();
+	GLFWwindow *ptr;
+	int width;
+	int height;
+
+	Window() :
+		ptr(NULL), width(800), height(600)
+	{ }
+};
+
+struct ProgramState
+{
+	Window window;
+};
+
+static Window
+create_opengl_window()
+{
+	assert(glfwInit());
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-	GLFWwindow *window = glfwCreateWindow(width, height, "hamster", NULL, NULL);
-	glfwMakeContextCurrent(window);
+	Window window;
+	window.ptr = glfwCreateWindow(window.width, window.height, "hamster", NULL, NULL);
+	glfwMakeContextCurrent(window.ptr);
+	assert(glewInit() == 0); // That means no errors
 
-	glewInit();
+	return window;
+}
+
+int main()
+{
+	ProgramState state = {};
+	state.window = create_opengl_window();
 
 	Mesh *basic_mesh = mesh_create_basic();
 	Mesh *obj_mesh = mesh_create_from_obj("data/model.obj");
@@ -36,7 +58,8 @@ int main()
 
 	// const Vec3 world_up = Vec3(0.0f, 1.0f, 0.0f); // Don't repeat yourself
 	Mat4 lookat = look_at(camera.front, camera.position, camera.up);
-	Mat4 proj = create_perspective((f32)width/(f32)height, 90.0f, 0.1f, 10.0f);
+	f32 aspect_ratio = (f32)state.window.width/(f32)state.window.height;
+	Mat4 proj = create_perspective(aspect_ratio, 90.0f, 0.1f, 10.0f);
 	Mat4 model = Mat4(1.0f);
 
 	model = rot_around_vec(model, to_radians(22.5f), Vec3(0.0f, 1.0f, 0.0f));
@@ -46,7 +69,7 @@ int main()
 
 	glEnable(GL_DEPTH_TEST);
 
-	while(!glfwWindowShouldClose(window))
+	while(!glfwWindowShouldClose(state.window.ptr))
 	{
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -73,7 +96,7 @@ int main()
 		glDrawElements(GL_TRIANGLES, 2904, GL_UNSIGNED_INT, NULL);
 		assert(glGetError() == GL_NO_ERROR);
 
-		glfwSwapBuffers(window);
+		glfwSwapBuffers(state.window.ptr);
 		glfwPollEvents();
 	}
 
