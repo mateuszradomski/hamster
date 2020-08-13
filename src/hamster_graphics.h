@@ -5,8 +5,8 @@ struct Mesh
 	GLuint vao;
 	GLuint vbo;
 	GLuint ebo;
-	float *vertices;
-	unsigned int *indices;
+	Array<f32> vertices;
+	Array<unsigned int> indices;
 };
 
 struct OBJFace

@@ -100,11 +100,12 @@ mesh_create_basic()
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	Mesh *mesh = (Mesh *)malloc(sizeof(Mesh));
+	mesh->vertices = Array<float>();
 
 	mesh->vao = vao;
 	mesh->vbo = vbo;
-	mesh->vertices = (float *)malloc(sizeof(vertices));
-	memcpy(mesh->vertices, vertices, sizeof(vertices));
+	mesh->vertices.reserve(sizeof(vertices));
+	memcpy(mesh->vertices.data, vertices, sizeof(vertices));
 
 	return mesh;
 }
@@ -125,39 +126,37 @@ mesh_create_from_obj(const char *filename)
 	}
 
 	Mesh *mesh = (Mesh *)malloc(sizeof(Mesh));
+	mesh->vertices = Array<float>();
+	mesh->indices = Array<unsigned int>();
 
 	unsigned int vertices_size = vertices_count * sizeof(float) * 6;
 	unsigned int indices_size = faces_count * sizeof(unsigned int);
-	mesh->vertices = (float *)malloc(vertices_size);
-	mesh->indices = (unsigned int *)malloc(indices_size);
+	mesh->vertices.reserve(vertices_size);
+	mesh->indices.reserve(indices_size);
 
 	// TODO: This doesn't have to be this complex!!!
-	unsigned int vertex_length = 0;
-	unsigned int indices_length = 0;
 	for(unsigned int i = 0; i < obj->faces.length; i++)
 	{
 		unsigned int face_size = obj->faces[i].vertex_ids.length;
 		for(unsigned int j = 0; j < face_size; ++j)
 		{
 			// NOTE: We decrement the array index because obj indexes starting from 1
-			void *dest = &mesh->vertices[vertex_length];
-			void *src = &obj->vertices[obj->faces[i].vertex_ids[j] - 1];
-			unsigned int size = sizeof(float) * 3;
-			memcpy(dest, src, size);
-			vertex_length += 3;
+			auto src = &obj->vertices[obj->faces[i].vertex_ids[j] - 1];
+			mesh->vertices.push(src->x);
+			mesh->vertices.push(src->y);
+			mesh->vertices.push(src->z);
 
-			dest = &mesh->vertices[vertex_length];
 			src = &obj->normals[obj->faces[i].normal_ids[j] - 1];
-			size = sizeof(float) * 3;
-			memcpy(dest, src, size);
-			vertex_length += 3;
+			mesh->vertices.push(src->x);
+			mesh->vertices.push(src->y);
+			mesh->vertices.push(src->z);
 		}
 
 		int t = 0;
 		for(unsigned int k = 0; k < (face_size - 2) * 3; k++)
 		{
-			unsigned int face_id = (vertex_length / 6) - face_size;
-			mesh->indices[indices_length++] = face_id + ((k - (t / 3)) % face_size);
+			unsigned int face_id = (mesh->vertices.length / 6) - face_size;
+			mesh->indices.push(face_id + ((k - (t / 3)) % face_size));
 			t++;
 		}
 	}
@@ -167,11 +166,11 @@ mesh_create_from_obj(const char *filename)
 
 	glGenBuffers(1, &mesh->vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
-	glBufferData(GL_ARRAY_BUFFER, vertices_size, mesh->vertices, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, vertices_size, mesh->vertices.data, GL_STATIC_DRAW);
 
 	glGenBuffers(1, &mesh->ebo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->ebo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_size, mesh->indices, GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_size, mesh->indices.data, GL_STATIC_DRAW);
 
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_TRUE, 6 * sizeof(float), nullptr);
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_TRUE, 6 * sizeof(float), (void *)(3 * sizeof(float)));

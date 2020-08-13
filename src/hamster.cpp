@@ -93,7 +93,7 @@ int main()
 		glUniform1f(uniform_location, cosf(to_radians(15.5f)));
 
 		glBindVertexArray(obj_mesh->vao);
-		glDrawElements(GL_TRIANGLES, 2904, GL_UNSIGNED_INT, NULL);
+		glDrawElements(GL_TRIANGLES, obj_mesh->indices.length, GL_UNSIGNED_INT, NULL);
 		assert(glGetError() == GL_NO_ERROR);
 
 		glfwSwapBuffers(state.window.ptr);

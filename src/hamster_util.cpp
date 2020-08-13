@@ -52,7 +52,7 @@ template <typename T>
 void Array<T>::reserve(unsigned int size)
 {
 	capacity += size;
-	data = (T *)realloc(data, capacity);
+	data = (T *)realloc(data, capacity * sizeof(T));
 	assert(data);
 }
 
