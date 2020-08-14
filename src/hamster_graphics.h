@@ -1,14 +1,5 @@
 #ifndef HAMSTER_GRAPHICS_H
 
-struct Model
-{
-	GLuint vao;
-	GLuint vbo;
-	GLuint ebo;
-	Array<f32> vertices;
-	Array<unsigned int> indices;
-};
-
 struct MeshFace
 {
 	Array<unsigned int> vertex_ids;
@@ -25,6 +16,18 @@ struct Mesh
 	Array<Vec3> vertices;
 	Array<Vec3> normals;
 	Array<MeshFace> faces;
+};
+
+struct Model
+{
+	GLuint vao;
+	GLuint vbo;
+	GLuint ebo;
+
+	Array<Mesh *> meshes;
+
+	Array<f32> vertices;
+	Array<unsigned int> indices;
 };
 
 struct Camera

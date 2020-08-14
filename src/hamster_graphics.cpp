@@ -126,9 +126,11 @@ model_create_from_obj(const char *filename)
 	}
 
 	Model *model = (Model *)malloc(sizeof(Model));
+	model->meshes = Array<Mesh *>();
+	model->meshes.push(obj);
+
 	model->vertices = Array<float>();
 	model->indices = Array<unsigned int>();
-
 	unsigned int vertices_size = vertices_count * sizeof(float) * 6;
 	unsigned int indices_size = faces_count * sizeof(unsigned int);
 	model->vertices.reserve(vertices_size);
@@ -180,8 +182,6 @@ model_create_from_obj(const char *filename)
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-	free(obj);
 
 	return model;
 }
