@@ -1,6 +1,6 @@
 #include "hamster_graphics.h"
 
-static OBJModel *
+static Mesh *
 obj_load(const char *filename)
 {
 	FILE *f = fopen(filename, "r");
@@ -9,8 +9,8 @@ obj_load(const char *filename)
 	char *line = NULL;
 	size_t line_len = 0;
 
-	OBJModel *model = (OBJModel *)malloc(sizeof(OBJModel));
-	memset(model, 0, sizeof(*model));
+	Mesh *mesh = (Mesh *)malloc(sizeof(Mesh));
+	memset(mesh, 0, sizeof(*mesh));
 	while(getline(&line, &line_len, f) != -1)
 	{
 		// TODO: better rules of skipping a line
@@ -30,7 +30,7 @@ obj_load(const char *filename)
 			f32 x = atof(xpart);
 			f32 y = atof(ypart);
 			f32 z = atof(zpart);
-			model->vertices.push(Vec3(x, y, z));
+			mesh->vertices.push(Vec3(x, y, z));
 		} else if(strings_match(beginning, "vn")) {
 			char *xpart = strtok(NULL, " ");
 			char *ypart = strtok(NULL, " ");
@@ -40,11 +40,11 @@ obj_load(const char *filename)
 			f32 x = atof(xpart);
 			f32 y = atof(ypart);
 			f32 z = atof(zpart);
-			model->normals.push(Vec3(x, y, z));
+			mesh->normals.push(Vec3(x, y, z));
 		} else if(strings_match(beginning, "f")) {
 			char *part = strtok(NULL, " ");
-			model->faces.push(OBJFace { });
-			OBJFace *face = &model->faces[model->faces.length - 1];
+			mesh->faces.push(MeshFace { });
+			MeshFace *face = &mesh->faces[mesh->faces.length - 1];
 
 			while(part) {
 				char *token = strsep(&part, "/");
@@ -71,13 +71,13 @@ obj_load(const char *filename)
 
 	fclose(f);
 
-	printf("vertices: %d\tnormals: %d\tfaces: %d\n", model->vertices.length * 3, model->normals.length * 3, model->faces.length);
+	printf("vertices: %d\tnormals: %d\tfaces: %d\n", mesh->vertices.length * 3, mesh->normals.length * 3, mesh->faces.length);
 
-	return model;
+	return mesh;
 }
 
-static Mesh*
-mesh_create_basic()
+static Model*
+model_create_basic()
 {
 	float vertices[] = {
     -0.5f, -0.5f, 0.0f,
@@ -99,21 +99,21 @@ mesh_create_basic()
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-	Mesh *mesh = (Mesh *)malloc(sizeof(Mesh));
-	mesh->vertices = Array<float>();
+	Model *model = (Model *)malloc(sizeof(Model));
+	model->vertices = Array<float>();
 
-	mesh->vao = vao;
-	mesh->vbo = vbo;
-	mesh->vertices.reserve(sizeof(vertices));
-	memcpy(mesh->vertices.data, vertices, sizeof(vertices));
+	model->vao = vao;
+	model->vbo = vbo;
+	model->vertices.reserve(sizeof(vertices));
+	memcpy(model->vertices.data, vertices, sizeof(vertices));
 
-	return mesh;
+	return model;
 }
 
-static Mesh*
-mesh_create_from_obj(const char *filename)
+static Model*
+model_create_from_obj(const char *filename)
 {
-	OBJModel *obj = obj_load(filename);
+	Mesh *obj = obj_load(filename);
 
 	unsigned int vertices_count = 0;
 	unsigned int faces_count = 0;
@@ -125,14 +125,14 @@ mesh_create_from_obj(const char *filename)
 		faces_count += (face_size - 2) * 3;
 	}
 
-	Mesh *mesh = (Mesh *)malloc(sizeof(Mesh));
-	mesh->vertices = Array<float>();
-	mesh->indices = Array<unsigned int>();
+	Model *model = (Model *)malloc(sizeof(Model));
+	model->vertices = Array<float>();
+	model->indices = Array<unsigned int>();
 
 	unsigned int vertices_size = vertices_count * sizeof(float) * 6;
 	unsigned int indices_size = faces_count * sizeof(unsigned int);
-	mesh->vertices.reserve(vertices_size);
-	mesh->indices.reserve(indices_size);
+	model->vertices.reserve(vertices_size);
+	model->indices.reserve(indices_size);
 
 	// TODO: This doesn't have to be this complex!!!
 	for(unsigned int i = 0; i < obj->faces.length; i++)
@@ -142,35 +142,35 @@ mesh_create_from_obj(const char *filename)
 		{
 			// NOTE: We decrement the array index because obj indexes starting from 1
 			auto src = &obj->vertices[obj->faces[i].vertex_ids[j] - 1];
-			mesh->vertices.push(src->x);
-			mesh->vertices.push(src->y);
-			mesh->vertices.push(src->z);
+			model->vertices.push(src->x);
+			model->vertices.push(src->y);
+			model->vertices.push(src->z);
 
 			src = &obj->normals[obj->faces[i].normal_ids[j] - 1];
-			mesh->vertices.push(src->x);
-			mesh->vertices.push(src->y);
-			mesh->vertices.push(src->z);
+			model->vertices.push(src->x);
+			model->vertices.push(src->y);
+			model->vertices.push(src->z);
 		}
 
 		int t = 0;
 		for(unsigned int k = 0; k < (face_size - 2) * 3; k++)
 		{
-			unsigned int face_id = (mesh->vertices.length / 6) - face_size;
-			mesh->indices.push(face_id + ((k - (t / 3)) % face_size));
+			unsigned int face_id = (model->vertices.length / 6) - face_size;
+			model->indices.push(face_id + ((k - (t / 3)) % face_size));
 			t++;
 		}
 	}
 
-	glGenVertexArrays(1, &mesh->vao);
-	glBindVertexArray(mesh->vao);
+	glGenVertexArrays(1, &model->vao);
+	glBindVertexArray(model->vao);
 
-	glGenBuffers(1, &mesh->vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
-	glBufferData(GL_ARRAY_BUFFER, vertices_size, mesh->vertices.data, GL_STATIC_DRAW);
+	glGenBuffers(1, &model->vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, model->vbo);
+	glBufferData(GL_ARRAY_BUFFER, vertices_size, model->vertices.data, GL_STATIC_DRAW);
 
-	glGenBuffers(1, &mesh->ebo);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->ebo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_size, mesh->indices.data, GL_STATIC_DRAW);
+	glGenBuffers(1, &model->ebo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model->ebo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_size, model->indices.data, GL_STATIC_DRAW);
 
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_TRUE, 6 * sizeof(float), nullptr);
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_TRUE, 6 * sizeof(float), (void *)(3 * sizeof(float)));
@@ -183,7 +183,7 @@ mesh_create_from_obj(const char *filename)
 
 	free(obj);
 
-	return mesh;
+	return model;
 }
 
 // Takes a compiled shader, checks if it produced an error

@@ -47,8 +47,8 @@ int main()
 	ProgramState state = {};
 	state.window = create_opengl_window();
 
-	Mesh *basic_mesh = mesh_create_basic();
-	Mesh *obj_mesh = mesh_create_from_obj("data/model.obj");
+	Model *basic_model = model_create_basic();
+	Model *obj_model = model_create_from_obj("data/model.obj");
 	GLuint basic_program = program_create_basic();
 
 	Camera camera = {};
@@ -65,7 +65,7 @@ int main()
 	model = rot_around_vec(model, to_radians(22.5f), Vec3(0.0f, 1.0f, 0.0f));
 
 	glUseProgram(basic_program);
-	glBindVertexArray(basic_mesh->vao);
+	glBindVertexArray(basic_model->vao);
 
 	glEnable(GL_DEPTH_TEST);
 
@@ -73,7 +73,7 @@ int main()
 	{
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		// glBindVertexArray(basic_mesh->vao);
+		// glBindVertexArray(basic_model->vao);
 		// glDrawArrays(GL_TRIANGLES, 0, 3);
 
 		GLint uniform_location = glGetUniformLocation(basic_program, "view");
@@ -92,8 +92,8 @@ int main()
 		uniform_location = glGetUniformLocation(basic_program, "light.outer_cutoff");
 		glUniform1f(uniform_location, cosf(to_radians(15.5f)));
 
-		glBindVertexArray(obj_mesh->vao);
-		glDrawElements(GL_TRIANGLES, obj_mesh->indices.length, GL_UNSIGNED_INT, NULL);
+		glBindVertexArray(obj_model->vao);
+		glDrawElements(GL_TRIANGLES, obj_model->indices.length, GL_UNSIGNED_INT, NULL);
 		assert(glGetError() == GL_NO_ERROR);
 
 		glfwSwapBuffers(state.window.ptr);

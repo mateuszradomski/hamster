@@ -1,6 +1,6 @@
 #ifndef HAMSTER_GRAPHICS_H
 
-struct Mesh
+struct Model
 {
 	GLuint vao;
 	GLuint vbo;
@@ -9,7 +9,7 @@ struct Mesh
 	Array<unsigned int> indices;
 };
 
-struct OBJFace
+struct MeshFace
 {
 	Array<unsigned int> vertex_ids;
 	// NOTE: We want to read in the texture in the future but we are
@@ -19,12 +19,12 @@ struct OBJFace
 	Array<unsigned int> normal_ids;
 };
 
-struct OBJModel
+struct Mesh
 {
 	// NOTE: We dont support the w element in geo vertex reading 
 	Array<Vec3> vertices;
 	Array<Vec3> normals;
-	Array<OBJFace> faces;
+	Array<MeshFace> faces;
 };
 
 struct Camera
@@ -35,9 +35,9 @@ struct Camera
 	Vec3 right; 
 };
 
-static OBJModel * obj_load(const char *filename);
-static Mesh* mesh_create_basic();
-static Mesh* mesh_create_from_obj(const char *filename);
+static Mesh * obj_load(const char *filename);
+static Model* model_create_basic();
+static Model* model_create_from_obj(const char *filename);
 
 static bool program_shader_check_error(GLuint shader);
 static bool program_check_error(GLuint program);
