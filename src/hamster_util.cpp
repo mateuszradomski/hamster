@@ -13,6 +13,8 @@ struct Array
 	void push(T val);
 	T pop();
 
+	bool contains(T val);
+
 	void reserve(unsigned int size);
 	T &operator[](unsigned int index);
 };
@@ -61,6 +63,23 @@ T &Array<T>::operator[](unsigned int index)
 {
 	assert(index <= length - 1);
 	return data[index];
+}
+
+template <typename T>
+bool Array<T>::contains(T val)
+{
+	bool result = false;
+
+	for(unsigned int i = 0; i < length; i++)
+	{
+		if(data[i] == val)
+		{
+			result = true;
+			break;
+		}
+	}
+
+	return result;
 }
 
 bool strings_match(const char *str1, const char *str2)
