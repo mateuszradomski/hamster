@@ -6,22 +6,23 @@ struct Array
 	T* data;
 	unsigned int length;
 	unsigned int capacity;
-
+	
 	Array();
 	~Array();
-
+	
 	void push(T val);
 	T pop();
-
+	void clear();
+	
 	bool contains(T val);
-
+	
 	void reserve(unsigned int size);
 	T &operator[](unsigned int index);
 };
 
 template <typename T>
 Array<T>::Array():
-	data(nullptr), length(0), capacity(0)
+data(nullptr), length(0), capacity(0)
 { }
 
 template <typename T>
@@ -39,7 +40,7 @@ void Array<T>::push(T val)
 		data = (T *)realloc(data, capacity * sizeof(T));
 		assert(data);
 	}
-
+	
 	data[length++] = val;
 }
 
@@ -48,6 +49,13 @@ T Array<T>::pop()
 {
 	assert(length != 0);
 	return data[--length];
+}
+
+template <typename T>
+void Array<T>::clear()
+{
+	memset(this->data, 0, sizeof(T) * this->length);
+	this->length = 0;
 }
 
 template <typename T>
@@ -69,7 +77,7 @@ template <typename T>
 bool Array<T>::contains(T val)
 {
 	bool result = false;
-
+	
 	for(unsigned int i = 0; i < length; i++)
 	{
 		if(data[i] == val)
@@ -78,7 +86,7 @@ bool Array<T>::contains(T val)
 			break;
 		}
 	}
-
+	
 	return result;
 }
 
