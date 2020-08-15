@@ -18,16 +18,23 @@ struct Mesh
 	Array<MeshFace> faces;
 };
 
+enum ModelState
+{
+	MODEL_STATE_GOURAUD_SHADED = 0x1,
+	MODEL_STATE_MESH_NORMALS_SHADED = 0x2,
+};
+
 struct Model
 {
 	GLuint vao;
 	GLuint vbo;
 	GLuint ebo;
-
+	
 	Array<Mesh *> meshes;
-
 	Array<f32> vertices;
 	Array<unsigned int> indices;
+	
+	ModelState state;
 };
 
 struct Camera
@@ -41,6 +48,8 @@ struct Camera
 static Mesh * obj_load(const char *filename);
 static Model* model_create_basic();
 static Model* model_create_from_obj(const char *filename);
+static void model_gouraud_shade(Model *model);
+static void model_mesh_normals_shade(Model *model);
 
 static bool program_shader_check_error(GLuint shader);
 static bool program_check_error(GLuint program);

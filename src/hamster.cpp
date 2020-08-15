@@ -49,7 +49,6 @@ int main()
 	
 	Model *basic_model = model_create_basic();
 	Model *obj_model = model_create_from_obj("data/model.obj");
-	model_gouraud_shade(obj_model);
 	GLuint basic_program = program_create_basic();
 	
 	Camera camera = {};
@@ -77,6 +76,17 @@ int main()
 		
 		model = rot_around_vec(Mat4(1.0), glfwGetTime(), Vec3(0.0f, 1.0f, 0.0f));
 		
+		if(glfwGetKey(state.window.ptr, GLFW_KEY_M) &&
+		   (obj_model->state & MODEL_STATE_GOURAUD_SHADED))
+		{
+			model_mesh_normals_shade(obj_model);
+		}
+		
+		if(glfwGetKey(state.window.ptr, GLFW_KEY_N) && obj_model->state & MODEL_STATE_MESH_NORMALS_SHADED)
+		{
+			model_gouraud_shade(obj_model);
+		}
+		
 		GLint uniform_location = glGetUniformLocation(basic_program, "view");
 		glUniformMatrix4fv(uniform_location, 1, GL_FALSE, lookat.a1d);
 		uniform_location = glGetUniformLocation(basic_program, "proj");
@@ -92,7 +102,7 @@ int main()
 		glUniform1f(uniform_location, cosf(to_radians(12.5f)));
 		uniform_location = glGetUniformLocation(basic_program, "light.outer_cutoff");
 		glUniform1f(uniform_location, cosf(to_radians(15.5f)));
-
+		
 		glBindVertexArray(obj_model->vao);
 		glDrawElements(GL_TRIANGLES, obj_model->indices.length, GL_UNSIGNED_INT, NULL);
 		assert(glGetError() == GL_NO_ERROR);

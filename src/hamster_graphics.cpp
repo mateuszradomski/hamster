@@ -126,6 +126,7 @@ model_create_from_obj(const char *filename)
 	}
 	
 	Model *model = (Model *)malloc(sizeof(Model));
+	memset(model, 0, sizeof(Model));
 	model->meshes = Array<Mesh *>();
 	model->meshes.push(obj);
 	
@@ -136,7 +137,6 @@ model_create_from_obj(const char *filename)
 	model->vertices.reserve(vertices_size);
 	model->indices.reserve(indices_size);
 	
-	// TODO: This doesn't have to be this complex!!!
 	for(unsigned int i = 0; i < obj->faces.length; i++)
 	{
 		unsigned int face_size = obj->faces[i].vertex_ids.length;
@@ -182,6 +182,9 @@ model_create_from_obj(const char *filename)
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	
+	model->state = (ModelState)(model->state | MODEL_STATE_MESH_NORMALS_SHADED);
+	model->state = (ModelState)(model->state & ~MODEL_STATE_GOURAUD_SHADED);
 	
 	return model;
 }
@@ -254,6 +257,46 @@ model_gouraud_shade(Model *model)
 	glBindBuffer(GL_ARRAY_BUFFER, model->vbo);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, vertices_size, model->vertices.data);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	
+	model->state = (ModelState)(model->state | MODEL_STATE_GOURAUD_SHADED);
+	model->state = (ModelState)(model->state & ~MODEL_STATE_MESH_NORMALS_SHADED);
+}
+
+static void
+model_mesh_normals_shade(Model *model)
+{
+	// NOTE: we only support one mesh right now
+	assert(model->meshes.length == 1);
+	Mesh *mesh = model->meshes[0];
+	
+	unsigned int vertices_size = model->vertices.length * sizeof(float);
+	model->vertices.clear();
+	model->vertices.reserve(vertices_size);
+	
+	for(unsigned int i = 0; i < mesh->faces.length; i++)
+	{
+		unsigned int face_size = mesh->faces[i].vertex_ids.length;
+		for(unsigned int j = 0; j < face_size; ++j)
+		{
+			// NOTE: We decrement the array index because obj indexes starting from 1
+			auto src = &mesh->vertices[mesh->faces[i].vertex_ids[j] - 1];
+			model->vertices.push(src->x);
+			model->vertices.push(src->y);
+			model->vertices.push(src->z);
+			
+			src = &mesh->normals[mesh->faces[i].normal_ids[j] - 1];
+			model->vertices.push(src->x);
+			model->vertices.push(src->y);
+			model->vertices.push(src->z);
+		}
+	}
+	
+	glBindBuffer(GL_ARRAY_BUFFER, model->vbo);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, vertices_size, model->vertices.data);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	
+	model->state = (ModelState)(model->state | MODEL_STATE_MESH_NORMALS_SHADED);
+	model->state = (ModelState)(model->state & ~MODEL_STATE_GOURAUD_SHADED);
 }
 
 // Takes a compiled shader, checks if it produced an error
