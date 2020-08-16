@@ -87,21 +87,14 @@ int main()
 			model_gouraud_shade(obj_model);
 		}
 		
-		GLint uniform_location = glGetUniformLocation(basic_program, "view");
-		glUniformMatrix4fv(uniform_location, 1, GL_FALSE, lookat.a1d);
-		uniform_location = glGetUniformLocation(basic_program, "proj");
-		glUniformMatrix4fv(uniform_location, 1, GL_FALSE, proj.a1d);
-		uniform_location = glGetUniformLocation(basic_program, "model");
-		glUniformMatrix4fv(uniform_location, 1, GL_FALSE, model.a1d);
+		opengl_set_uniform(basic_program, "view", lookat);
+		opengl_set_uniform(basic_program, "proj", proj);
+		opengl_set_uniform(basic_program, "model", model);
 		
-		uniform_location = glGetUniformLocation(basic_program, "light.position");
-		glUniform3fv(uniform_location, 1, camera.position.m);
-		uniform_location = glGetUniformLocation(basic_program, "light.direction");
-		glUniform3fv(uniform_location, 1, camera.front.m);
-		uniform_location = glGetUniformLocation(basic_program, "light.cutoff");
-		glUniform1f(uniform_location, cosf(to_radians(12.5f)));
-		uniform_location = glGetUniformLocation(basic_program, "light.outer_cutoff");
-		glUniform1f(uniform_location, cosf(to_radians(15.5f)));
+		opengl_set_uniform(basic_program, "light.position", camera.position);
+		opengl_set_uniform(basic_program, "light.direction", camera.front);
+		opengl_set_uniform(basic_program, "light.cutoff", cosf(to_radians(12.5f)));
+		opengl_set_uniform(basic_program, "light.outer_cutoff", cosf(to_radians(16.5f)));
 		
 		glBindVertexArray(obj_model->vao);
 		glDrawElements(GL_TRIANGLES, obj_model->indices.length, GL_UNSIGNED_INT, NULL);

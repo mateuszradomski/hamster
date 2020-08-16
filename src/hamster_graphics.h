@@ -57,5 +57,9 @@ static GLuint program_create_basic();
 
 static void camera_calculate_vectors(Camera *cam);
 
+static void opengl_set_uniform(GLuint program, const char *name, f32 val);
+static void opengl_set_uniform(GLuint program, const char *name, Vec3 vec);
+static void opengl_Set_uniform(GLuint program, const char *name, Mat4 mat, GLboolean transpose = GL_FALSE);
+
 #define HAMSTER_GRAPHICS_H
 #endif

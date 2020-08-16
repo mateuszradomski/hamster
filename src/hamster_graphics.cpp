@@ -403,3 +403,27 @@ camera_calculate_vectors(Camera *cam)
 	cam->right = noz(cross(cam->front, world_up));
 	cam->up = noz(cross(cam->right, cam->front));
 }
+
+static void 
+opengl_set_uniform(GLuint program, const char *name, f32 val)
+{
+	GLint location = glGetUniformLocation(program, name);
+	glUniform1f(location, val);
+	assert(glGetError() == GL_NO_ERROR);
+}
+
+static void
+opengl_set_uniform(GLuint program, const char *name, Vec3 vec)
+{
+	GLint location = glGetUniformLocation(program, name);
+	glUniform3fv(location, 1, vec.m);
+	assert(glGetError() == GL_NO_ERROR);
+}
+
+static void
+opengl_set_uniform(GLuint program, const char *name, Mat4 mat, GLboolean transpose = GL_FALSE)
+{
+	GLint location = glGetUniformLocation(program, name);
+	glUniformMatrix4fv(location, 1, transpose, mat.a1d);
+	assert(glGetError() == GL_NO_ERROR);
+}
