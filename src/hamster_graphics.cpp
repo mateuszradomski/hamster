@@ -391,6 +391,7 @@ return vec3(diff, diff, diff);
 	in vec3 pixel_pos;
 	in vec3 pixel_normal;
 	out vec4 pixel_color;
+uniform vec3 view_pos;
 	uniform SpotLight spotlight;
 uniform DirectionalLight direct_light;
 	void main() {

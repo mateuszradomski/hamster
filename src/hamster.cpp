@@ -91,6 +91,8 @@ int main()
 		opengl_set_uniform(basic_program, "proj", proj);
 		opengl_set_uniform(basic_program, "model", model);
 		
+		opengl_set_uniform(basic_program, "view_pos", camera.position);
+		
 		opengl_set_uniform(basic_program, "spotlight.position", camera.position);
 		opengl_set_uniform(basic_program, "spotlight.direction", camera.front);
 		opengl_set_uniform(basic_program, "spotlight.cutoff", cosf(to_radians(12.5f)));
