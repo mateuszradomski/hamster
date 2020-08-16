@@ -91,13 +91,16 @@ int main()
 		opengl_set_uniform(basic_program, "proj", proj);
 		opengl_set_uniform(basic_program, "model", model);
 		
-		opengl_set_uniform(basic_program, "light.position", camera.position);
-		opengl_set_uniform(basic_program, "light.direction", camera.front);
-		opengl_set_uniform(basic_program, "light.cutoff", cosf(to_radians(12.5f)));
-		opengl_set_uniform(basic_program, "light.outer_cutoff", cosf(to_radians(16.5f)));
+		opengl_set_uniform(basic_program, "spotlight.position", camera.position);
+		opengl_set_uniform(basic_program, "spotlight.direction", camera.front);
+		opengl_set_uniform(basic_program, "spotlight.cutoff", cosf(to_radians(12.5f)));
+		opengl_set_uniform(basic_program, "spotlight.outer_cutoff", cosf(to_radians(16.5f)));
+		
+		opengl_set_uniform(basic_program, "direct_light.direction", Vec3(0.0f, -1.0f, 0.0f));
 		
 		glBindVertexArray(obj_model->vao);
 		glDrawElements(GL_TRIANGLES, obj_model->indices.length, GL_UNSIGNED_INT, NULL);
+		glBindVertexArray(0);
 		assert(glGetError() == GL_NO_ERROR);
 		
 		glfwSwapBuffers(state.window.ptr);

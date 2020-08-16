@@ -348,7 +348,7 @@ program_create_basic()
 		"void main() {\n"
 		"	pixel_pos = vec3(model * vec4(vertex_pos, 1.0));\n"
 		"	pixel_normal = mat3(transpose(inverse(model))) * normal;\n"
-		"	gl_Position = proj * view * model * vec4(vertex_pos.x, vertex_pos.y, vertex_pos.z, 1.0);\n"
+		"	gl_Position = proj * view * model * vec4(vertex_pos.xyz, 1.0);\n"
 		"}\0";
 	
 	GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
@@ -357,28 +357,49 @@ program_create_basic()
 	bool vertex_compiled = program_shader_check_error(vertex_shader);
 	assert(vertex_compiled);
 	
-	const char *fragment_shader_src = "#version 330 core\n"
-		"struct Light {\n"
-		"	vec3 position;\n"
-		"	vec3 direction;\n"
-		"	float cutoff;\n"
-		"	float outer_cutoff;\n"
-		"};\n"
-		"in vec3 pixel_pos;\n"
-		"in vec3 pixel_normal;\n"
-		"out vec4 pixel_color;\n"
-		"uniform Light light;\n"
-		"void main() {\n"
-		"	vec3 lightdir = normalize(light.position - pixel_pos);\n"
-		"    vec3 noz_norm = normalize(pixel_normal);\n"
-		"	float diff = max(dot(noz_norm, lightdir), 0.0);\n"
-		"	float theta = dot(lightdir, normalize(-light.direction));\n"
-		"	float epsilon = light.cutoff - light.outer_cutoff;\n" // Switched because of how cosine works
-		"	float intensity = clamp((theta - light.outer_cutoff) / epsilon, 0.2, 1.0);\n"
-		"	\n"
-		"	float shade = diff * intensity;\n"
-		"	pixel_color = vec4(shade, shade, shade, 1.0);\n"
-		"}";
+	const char *fragment_shader_src = 
+	R"(#version 330 core
+	struct SpotLight {
+		vec3 position;
+		vec3 direction;
+		float cutoff;
+		float outer_cutoff;
+	};
+
+struct DirectionalLight {
+vec3 direction;
+};
+
+vec3 calculate_spotlight(SpotLight light, vec3 normal, vec3 pix_pos, vec3 view_dir)
+{
+vec3 lightdir = normalize(light.position - pix_pos);
+float diff = max(dot(normal, lightdir), 0.0);
+float theta = dot(lightdir, normalize(-light.direction));
+		float epsilon = light.cutoff - light.outer_cutoff; // Switched because of how cosine works
+		float intensity = clamp((theta - light.outer_cutoff) / epsilon, 0.0, 1.0);
+		float shade = diff * intensity;
+return vec3(shade, shade, shade);
+}
+
+vec3 calculate_direct_light(DirectionalLight light, vec3 normal, vec3 view_dir)
+{
+vec3 lightdir = normalize(-light.direction);
+float diff = max(dot(normal, lightdir), 0.0);
+return vec3(diff, diff, diff);
+}
+
+	in vec3 pixel_pos;
+	in vec3 pixel_normal;
+	out vec4 pixel_color;
+	uniform SpotLight spotlight;
+uniform DirectionalLight direct_light;
+	void main() {
+vec3 placeholder = vec3(1.0);
+		vec3 spot_shade = calculate_spotlight(spotlight, pixel_normal, pixel_pos, placeholder);
+vec3 direct_shade = calculate_direct_light(direct_light, pixel_normal, placeholder);
+vec3 result = spot_shade + direct_shade;
+		pixel_color = vec4(result, 1.0);
+	})";
 	
 	GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
 	glShaderSource(fragment_shader, 1, &fragment_shader_src, NULL);
