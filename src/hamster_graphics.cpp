@@ -364,28 +364,59 @@ program_create_basic()
 		vec3 direction;
 		float cutoff;
 		float outer_cutoff;
+
+vec3 ambient_component;
+ vec3 diffuse_component;
+vec3 specular_component;
+
+float atten_const;
+float atten_linear;
+float atten_quad;
 	};
 
 struct DirectionalLight {
 vec3 direction;
+
+vec3 ambient_component;
+ vec3 diffuse_component;
+vec3 specular_component;
 };
 
 vec3 calculate_spotlight(SpotLight light, vec3 normal, vec3 pix_pos, vec3 view_dir)
 {
 vec3 lightdir = normalize(light.position - pix_pos);
-float diff = max(dot(normal, lightdir), 0.0);
+float diffuse_mul = max(dot(normal, lightdir), 0.0);
+
+vec3 reflection = reflect(-lightdir, normal);
+float specular_mul = pow(max(dot(view_dir, reflection), 0.0f), 64.0f);
+
+float dpix = length(pix_pos - light.position);
+float attenuation = 1.0 / (light.atten_const + light.atten_linear * dpix + light.atten_quad * (dpix * dpix));
+
+vec3 ambient = attenuation * light.ambient_component;
+vec3 diffuse = attenuation * diffuse_mul * light.diffuse_component;
+vec3 specular = attenuation * specular_mul * light.specular_component;
+vec3 result = ambient + diffuse + specular;
+
 float theta = dot(lightdir, normalize(-light.direction));
 		float epsilon = light.cutoff - light.outer_cutoff; // Switched because of how cosine works
 		float intensity = clamp((theta - light.outer_cutoff) / epsilon, 0.0, 1.0);
-		float shade = diff * intensity;
-return vec3(shade, shade, shade);
+result *= intensity;
+
+return result;
 }
 
 vec3 calculate_direct_light(DirectionalLight light, vec3 normal, vec3 view_dir)
 {
 vec3 lightdir = normalize(-light.direction);
-float diff = max(dot(normal, lightdir), 0.0);
-return vec3(diff, diff, diff);
+float diffuse_mul = max(dot(normal, lightdir), 0.0);
+
+vec3 reflection = reflect(-lightdir, normal);
+float specular_mul = pow(max(dot(view_dir, reflection), 0.0f), 64.0f);
+vec3 ambient = light.ambient_component;
+vec3 diffuse = diffuse_mul * light.diffuse_component;
+vec3 specular = specular_mul * light.specular_component;
+return ambient + diffuse + specular; 
 }
 
 	in vec3 pixel_pos;
@@ -395,9 +426,9 @@ uniform vec3 view_pos;
 	uniform SpotLight spotlight;
 uniform DirectionalLight direct_light;
 	void main() {
-vec3 placeholder = vec3(1.0);
-		vec3 spot_shade = calculate_spotlight(spotlight, pixel_normal, pixel_pos, placeholder);
-vec3 direct_shade = calculate_direct_light(direct_light, pixel_normal, placeholder);
+vec3 view_dir = normalize(view_pos - pixel_pos);
+		vec3 spot_shade = calculate_spotlight(spotlight, pixel_normal, pixel_pos, view_dir);
+vec3 direct_shade = calculate_direct_light(direct_light, pixel_normal, view_dir);
 vec3 result = spot_shade + direct_shade;
 		pixel_color = vec4(result, 1.0);
 	})";

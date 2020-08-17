@@ -97,8 +97,17 @@ int main()
 		opengl_set_uniform(basic_program, "spotlight.direction", camera.front);
 		opengl_set_uniform(basic_program, "spotlight.cutoff", cosf(to_radians(12.5f)));
 		opengl_set_uniform(basic_program, "spotlight.outer_cutoff", cosf(to_radians(16.5f)));
+		opengl_set_uniform(basic_program, "spotlight.ambient_component", Vec3(0.1f, 0.1f, 0.1f));
+		opengl_set_uniform(basic_program, "spotlight.diffuse_component", Vec3(0.8f, 0.8f, 0.8f));
+		opengl_set_uniform(basic_program, "spotlight.specular_component", Vec3(1.0f, 1.0f, 1.0f));
+		opengl_set_uniform(basic_program, "spotlight.atten_const", 1.0f);
+		opengl_set_uniform(basic_program, "spotlight.atten_linear", 0.09f);
+		opengl_set_uniform(basic_program, "spotlight.atten_quad", 0.032f);
 		
 		opengl_set_uniform(basic_program, "direct_light.direction", Vec3(0.0f, -1.0f, 0.0f));
+		opengl_set_uniform(basic_program, "direct_light.ambient_component", Vec3(0.05f, 0.05f, 0.05f));
+		opengl_set_uniform(basic_program, "direct_light.diffuse_component", Vec3(0.2f, 0.2f, 0.2f));
+		opengl_set_uniform(basic_program, "direct_light.specular_component", Vec3(0.4f, 0.4f, 0.4f));
 		
 		glBindVertexArray(obj_model->vao);
 		glDrawElements(GL_TRIANGLES, obj_model->indices.length, GL_UNSIGNED_INT, NULL);
