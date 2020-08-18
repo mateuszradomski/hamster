@@ -1,5 +1,7 @@
 #define ALLOC_CHUNK_SIZE 32;
 
+#define ARRAY_LEN(a) ((sizeof((a)))/(sizeof((a[0]))))
+
 template <typename T>
 struct Array
 {

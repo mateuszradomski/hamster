@@ -10,6 +10,7 @@
 #include "hamster_util.cpp"
 #include "hamster_graphics.cpp"
 
+// TODO: As a learning expierience try to implement png reading yourself
 #define STB_IMAGE_IMPLEMENTATION
 #include "includes/stb_image.h"
 
@@ -24,9 +25,19 @@ struct Window
 	{ }
 };
 
+struct Button
+{
+	u8 down : 1;
+	u8 last : 1;
+	u8 pressed : 1;
+};
+
 struct ProgramState
 {
 	Window window;
+	
+	Button kbuttons[GLFW_KEY_LAST];
+	Button mbuttons[GLFW_MOUSE_BUTTON_LAST];
 };
 
 static Window
@@ -45,10 +56,56 @@ create_opengl_window()
 	return window;
 }
 
+// TODO: I don't know if this keyboard button callback is going to stay because
+// it's really unresponsive. There is a delay that you can definitley feel from
+// pressing a button and it registering as being down. Might switch to polling
+// all the necesseray keys for greater smoothness. -radomski
+static void
+keyboard_button_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
+{
+	assert(key != GLFW_KEY_UNKNOWN);
+	ProgramState *state = (ProgramState *)glfwGetWindowUserPointer(window);
+	(void)mods; // NOTE: I guess we would use it somewhere??
+	(void)scancode; // That is unused.
+	
+	if(action == GLFW_PRESS) {
+		state->kbuttons[key].down = true;
+	} else if(action == GLFW_RELEASE) {
+		state->kbuttons[key].down = false;
+	}
+}
+
+static void
+mouse_button_callback(GLFWwindow *window, int key, int action, int mods)
+{
+	assert(key != GLFW_KEY_UNKNOWN);
+	ProgramState *state = (ProgramState *)glfwGetWindowUserPointer(window);
+	(void)mods; // NOTE: I guess we would use it somewhere??
+	
+	if(action == GLFW_PRESS) {
+		state->mbuttons[key].down = true;
+	} else {
+		state->mbuttons[key].down = false;
+	}
+}
+
+static void
+buttons_update(Button *buttons, u32 length)
+{
+	for(u32 i = 0; i < length; i++)
+	{
+		buttons[i].pressed = buttons[i].down && !buttons[i].last;
+		buttons[i].last = buttons[i].down;
+	}
+}
+
 int main()
 {
 	ProgramState state = {};
 	state.window = create_opengl_window();
+	glfwSetWindowUserPointer(state.window.ptr, &state);
+	glfwSetKeyCallback(state.window.ptr, keyboard_button_callback);
+	glfwSetMouseButtonCallback(state.window.ptr, mouse_button_callback);
 	
 	Model *basic_model = model_create_basic();
 	Model *obj_model = model_create_from_obj("data/model.obj");
@@ -57,13 +114,13 @@ int main()
 	
 	Camera camera = {};
 	camera.position = Vec3(0.0f, 0.0f, 3.0f);
-	camera.front = negate(noz(camera.position)); // Where we look
+	camera.yaw = asinf(-1.0f); // Where we look
 	camera_calculate_vectors(&camera);
 	
 	// const Vec3 world_up = Vec3(0.0f, 1.0f, 0.0f); // Don't repeat yourself
 	Mat4 lookat = look_at(camera.front, camera.position, camera.up);
 	f32 aspect_ratio = (f32)state.window.width/(f32)state.window.height;
-	Mat4 proj = create_perspective(aspect_ratio, 90.0f, 0.1f, 10.0f);
+	Mat4 proj = create_perspective(aspect_ratio, 90.0f, 0.1f, 100.0f);
 	Mat4 model = Mat4(1.0f);
 	
 	i32 wimg, himg, channelnr = 0;
@@ -100,27 +157,30 @@ int main()
 		glfwGetCursorPos(state.window.ptr, &xmouse, &ymouse);
 		camera_mouse_moved(&camera, xmouse - xmouseold, ymouse - ymouseold);
 		
+		buttons_update(state.kbuttons, ARRAY_LEN(state.kbuttons));
+		buttons_update(state.mbuttons, ARRAY_LEN(state.mbuttons));
+		
 		lookat = look_at(add(camera.front, camera.position), camera.position, camera.up);
 		model = rot_around_vec(Mat4(1.0), glfwGetTime(), Vec3(0.0f, 1.0f, 0.0f));
 		
-		if(glfwGetKey(state.window.ptr, GLFW_KEY_M) &&
-		   (obj_model->state & MODEL_STATE_GOURAUD_SHADED))
+		if(state.kbuttons[GLFW_KEY_M].pressed && (obj_model->state & MODEL_STATE_GOURAUD_SHADED))
 		{
 			model_mesh_normals_shade(obj_model);
 		}
 		
-		if(glfwGetKey(state.window.ptr, GLFW_KEY_N) && obj_model->state & MODEL_STATE_MESH_NORMALS_SHADED)
+		if(state.kbuttons[GLFW_KEY_N].pressed && obj_model->state & MODEL_STATE_MESH_NORMALS_SHADED)
 		{
 			model_gouraud_shade(obj_model);
 		}
 		
-		if(glfwGetKey(state.window.ptr, GLFW_KEY_W))
-		{
-			camera.position.z -= 0.01f;
-		}
-		if(glfwGetKey(state.window.ptr, GLFW_KEY_S))
-		{
-			camera.position.z += 0.01f;
+		if(state.kbuttons[GLFW_KEY_W].down) {
+			camera.position = add(camera.position, scale(camera.front, 0.1f));
+		} if(state.kbuttons[GLFW_KEY_S].down) {
+			camera.position = sub(camera.position, scale(camera.front, 0.1f));
+		} if(state.kbuttons[GLFW_KEY_D].down) {
+			camera.position = add(camera.position, scale(camera.right, 0.1f));
+		} if(state.kbuttons[GLFW_KEY_A].down) {
+			camera.position = sub(camera.position, scale(camera.right, 0.1f));
 		}
 		
 		opengl_set_uniform(basic_program, "view", lookat);
