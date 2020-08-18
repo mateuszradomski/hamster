@@ -42,7 +42,10 @@ struct Camera
 	Vec3 position;
 	Vec3 front;
 	Vec3 up;
-	Vec3 right; 
+	Vec3 right;
+	
+	f32 yaw;
+	f32 pitch;
 };
 
 static Mesh * obj_load(const char *filename);
@@ -56,6 +59,7 @@ static bool program_check_error(GLuint program);
 static GLuint program_create_basic();
 
 static void camera_calculate_vectors(Camera *cam);
+static void camera_mouse_moved(Camera *cam, f32 dx, f32 dy);
 
 static void opengl_set_uniform(GLuint program, const char *name, f32 val);
 static void opengl_set_uniform(GLuint program, const char *name, Vec3 vec);

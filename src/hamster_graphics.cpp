@@ -119,7 +119,7 @@ model_create_debug_floor()
 		1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
 		-1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
 	};
-
+	
 	u32 indices[] = {
 		0, 1, 2,
 		0, 2, 3
@@ -132,22 +132,22 @@ model_create_debug_floor()
 	model->vertices.reserve(sizeof(vertices));
 	model->vertices.length = sizeof(vertices)/sizeof(vertices[0]);
 	memcpy(model->vertices.data, vertices, sizeof(vertices));
-
+	
 	model->indices.reserve(sizeof(indices));
 	model->indices.length = sizeof(indices)/sizeof(indices[0]);
 	memcpy(model->indices.data, indices, sizeof(indices));
-
+	
 	glGenVertexArrays(1, &model->vao);
 	glBindVertexArray(model->vao);
-
+	
 	glGenBuffers(1, &model->vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, model->vbo);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
+	
 	glGenBuffers(1, &model->ebo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model->ebo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
+	
 	u32 vertex_size = 8 * sizeof(f32);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertex_size, nullptr);
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, vertex_size, (void *)(3 * sizeof(f32)));
@@ -512,6 +512,27 @@ camera_calculate_vectors(Camera *cam)
 	const Vec3 world_up(0.0f, 1.0f, 0.0f);
 	cam->right = noz(cross(cam->front, world_up));
 	cam->up = noz(cross(cam->right, cam->front));
+}
+
+static void
+camera_mouse_moved(Camera *cam, f32 dx, f32 dy)
+{
+	f32 sensitivity = 0.2f; // TODO: move it outside
+	
+	cam->yaw += to_radians(dx * sensitivity);
+	cam->pitch += to_radians(-dy * sensitivity);
+	
+	if(cam->pitch > to_radians(89.0f)) {
+		cam->pitch = to_radians(89.0f);
+	} else if(cam->pitch < to_radians(-89.0f)) {
+		cam->pitch = to_radians(-89.0f);
+	}
+	
+	cam->front.x = cosf(cam->pitch) * cosf(cam->yaw);
+	cam->front.y = sinf(cam->pitch);
+	cam->front.z = cosf(cam->pitch) * sinf(cam->yaw);
+	cam->front = noz(cam->front);
+	camera_calculate_vectors(cam);
 }
 
 static void 

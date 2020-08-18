@@ -85,6 +85,9 @@ int main()
 	
 	glEnable(GL_DEPTH_TEST);
 	
+	f64 xmouse, ymouse;
+	f64 xmouseold, ymouseold;
+	glfwGetCursorPos(state.window.ptr, &xmouse, &ymouse);
 	while(!glfwWindowShouldClose(state.window.ptr))
 	{
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -92,8 +95,13 @@ int main()
 		// glBindVertexArray(basic_model->vao);
 		// glDrawArrays(GL_TRIANGLES, 0, 3);
 		
+		xmouseold = xmouse;
+		ymouseold = ymouse;
+		glfwGetCursorPos(state.window.ptr, &xmouse, &ymouse);
+		camera_mouse_moved(&camera, xmouse - xmouseold, ymouse - ymouseold);
+		
+		lookat = look_at(add(camera.front, camera.position), camera.position, camera.up);
 		model = rot_around_vec(Mat4(1.0), glfwGetTime(), Vec3(0.0f, 1.0f, 0.0f));
-		lookat = look_at(camera.front, camera.position, camera.up);
 		
 		if(glfwGetKey(state.window.ptr, GLFW_KEY_M) &&
 		   (obj_model->state & MODEL_STATE_GOURAUD_SHADED))
@@ -140,11 +148,11 @@ int main()
 		glBindVertexArray(obj_model->vao);
 		glDrawElements(GL_TRIANGLES, obj_model->indices.length, GL_UNSIGNED_INT, NULL);
 		glBindVertexArray(0);
-
+		
 		model = scale(Mat4(1.0f), Vec3(3.0f, 1.0f, 3.0f));
 		model = translate(model, Vec3(0.0f, -2.0f, -3.0f));
 		opengl_set_uniform(basic_program, "model", model);
-
+		
 		glBindTexture(GL_TEXTURE_2D, texture);
 		glBindVertexArray(floor_model->vao);
 		glDrawElements(GL_TRIANGLES, floor_model->indices.length, GL_UNSIGNED_INT, NULL);
