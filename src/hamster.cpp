@@ -10,6 +10,9 @@
 #include "hamster_util.cpp"
 #include "hamster_graphics.cpp"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "includes/stb_image.h"
+
 struct Window
 {
 	GLFWwindow *ptr;
@@ -49,6 +52,7 @@ int main()
 	
 	Model *basic_model = model_create_basic();
 	Model *obj_model = model_create_from_obj("data/model.obj");
+	Model *floor_model = model_create_debug_floor();
 	GLuint basic_program = program_create_basic();
 	
 	Camera camera = {};
@@ -61,6 +65,20 @@ int main()
 	f32 aspect_ratio = (f32)state.window.width/(f32)state.window.height;
 	Mat4 proj = create_perspective(aspect_ratio, 90.0f, 0.1f, 10.0f);
 	Mat4 model = Mat4(1.0f);
+	
+	i32 wimg, himg, channelnr = 0;
+	u8 *img_pixels = stbi_load("data/wood.png", &wimg, &himg, &channelnr, 0);
+	assert(img_pixels);
+	assert(channelnr == 3);
+	
+	GLuint texture;
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, wimg, himg, 0, GL_RGB, GL_UNSIGNED_BYTE, img_pixels);
+	glGenerateMipmap(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	
+	free(img_pixels);
 	
 	glUseProgram(basic_program);
 	glBindVertexArray(basic_model->vao);
@@ -75,6 +93,7 @@ int main()
 		// glDrawArrays(GL_TRIANGLES, 0, 3);
 		
 		model = rot_around_vec(Mat4(1.0), glfwGetTime(), Vec3(0.0f, 1.0f, 0.0f));
+		lookat = look_at(camera.front, camera.position, camera.up);
 		
 		if(glfwGetKey(state.window.ptr, GLFW_KEY_M) &&
 		   (obj_model->state & MODEL_STATE_GOURAUD_SHADED))
@@ -85,6 +104,15 @@ int main()
 		if(glfwGetKey(state.window.ptr, GLFW_KEY_N) && obj_model->state & MODEL_STATE_MESH_NORMALS_SHADED)
 		{
 			model_gouraud_shade(obj_model);
+		}
+		
+		if(glfwGetKey(state.window.ptr, GLFW_KEY_W))
+		{
+			camera.position.z -= 0.01f;
+		}
+		if(glfwGetKey(state.window.ptr, GLFW_KEY_S))
+		{
+			camera.position.z += 0.01f;
 		}
 		
 		opengl_set_uniform(basic_program, "view", lookat);
@@ -111,6 +139,15 @@ int main()
 		
 		glBindVertexArray(obj_model->vao);
 		glDrawElements(GL_TRIANGLES, obj_model->indices.length, GL_UNSIGNED_INT, NULL);
+		glBindVertexArray(0);
+
+		model = scale(Mat4(1.0f), Vec3(3.0f, 1.0f, 3.0f));
+		model = translate(model, Vec3(0.0f, -2.0f, -3.0f));
+		opengl_set_uniform(basic_program, "model", model);
+
+		glBindTexture(GL_TEXTURE_2D, texture);
+		glBindVertexArray(floor_model->vao);
+		glDrawElements(GL_TRIANGLES, floor_model->indices.length, GL_UNSIGNED_INT, NULL);
 		glBindVertexArray(0);
 		assert(glGetError() == GL_NO_ERROR);
 		

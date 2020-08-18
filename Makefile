@@ -1,5 +1,5 @@
 CXX=g++
-CFLAGS=-Wall -Wextra -Werror -Wno-class-memaccess -Wno-unused-function
+CFLAGS=-Wall -Wextra -Werror -Wno-class-memaccess -Wno-unused-function -I./
 LDFLAGS=-lglfw -lGL -lGLEW
 
 debug:

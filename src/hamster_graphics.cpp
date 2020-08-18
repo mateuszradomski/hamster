@@ -110,6 +110,58 @@ model_create_basic()
 	return model;
 }
 
+static Model *
+model_create_debug_floor()
+{
+	f32 vertices[] = {
+		-1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+		1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+		1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+		-1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+	};
+
+	u32 indices[] = {
+		0, 1, 2,
+		0, 2, 3
+	};
+	
+	Model *model = (Model *)malloc(sizeof(Model));
+	model->vertices = Array<f32>();
+	model->indices = Array<u32>();
+	
+	model->vertices.reserve(sizeof(vertices));
+	model->vertices.length = sizeof(vertices)/sizeof(vertices[0]);
+	memcpy(model->vertices.data, vertices, sizeof(vertices));
+
+	model->indices.reserve(sizeof(indices));
+	model->indices.length = sizeof(indices)/sizeof(indices[0]);
+	memcpy(model->indices.data, indices, sizeof(indices));
+
+	glGenVertexArrays(1, &model->vao);
+	glBindVertexArray(model->vao);
+
+	glGenBuffers(1, &model->vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, model->vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+	glGenBuffers(1, &model->ebo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model->ebo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+	u32 vertex_size = 8 * sizeof(f32);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertex_size, nullptr);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, vertex_size, (void *)(3 * sizeof(f32)));
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, vertex_size, (void *)(6 * sizeof(f32)));
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
+	glEnableVertexAttribArray(2);
+	
+	glBindVertexArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	
+	return model;
+}
+
 static Model*
 model_create_from_obj(const char *filename)
 {
@@ -340,14 +392,17 @@ program_create_basic()
 	const char *vertex_shader_src = "#version 330 core\n"
 		"layout (location = 0) in vec3 vertex_pos;\n"
 		"layout (location = 1) in vec3 normal;\n"
+		"layout (location = 2) in vec2 texuv;\n"
 		"uniform mat4 proj;\n"
 		"uniform mat4 view;\n"
 		"uniform mat4 model;\n"
 		"out vec3 pixel_pos;\n"
 		"out vec3 pixel_normal;\n"
+		"out vec2 pixel_texuv;\n"
 		"void main() {\n"
 		"	pixel_pos = vec3(model * vec4(vertex_pos, 1.0));\n"
 		"	pixel_normal = mat3(transpose(inverse(model))) * normal;\n"
+		"	pixel_texuv = texuv;\n"
 		"	gl_Position = proj * view * model * vec4(vertex_pos.xyz, 1.0);\n"
 		"}\0";
 	
@@ -366,7 +421,7 @@ program_create_basic()
 		float outer_cutoff;
 
 vec3 ambient_component;
- vec3 diffuse_component;
+vec3 diffuse_component;
 vec3 specular_component;
 
 float atten_const;
@@ -421,16 +476,18 @@ return ambient + diffuse + specular;
 
 	in vec3 pixel_pos;
 	in vec3 pixel_normal;
+	in vec2 pixel_texuv;
 	out vec4 pixel_color;
 uniform vec3 view_pos;
 	uniform SpotLight spotlight;
 uniform DirectionalLight direct_light;
+	uniform sampler2D tex_sampler;
 	void main() {
 vec3 view_dir = normalize(view_pos - pixel_pos);
 		vec3 spot_shade = calculate_spotlight(spotlight, pixel_normal, pixel_pos, view_dir);
 vec3 direct_shade = calculate_direct_light(direct_light, pixel_normal, view_dir);
 vec3 result = spot_shade + direct_shade;
-		pixel_color = vec4(result, 1.0);
+		pixel_color = texture(tex_sampler, pixel_texuv) * vec4(result, 1.0);
 	})";
 	
 	GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
