@@ -142,7 +142,7 @@ int main()
 	free(img_pixels);
 	
 	glUseProgram(basic_program);
-	glBindVertexArray(basic_model.vao);
+	glBindVertexArray(basic_model.meshes[0].vao);
 	
 	glEnable(GL_DEPTH_TEST);
 	
@@ -209,8 +209,8 @@ int main()
 		opengl_set_uniform(basic_program, "direct_light.diffuse_component", Vec3(0.2f, 0.2f, 0.2f));
 		opengl_set_uniform(basic_program, "direct_light.specular_component", Vec3(0.4f, 0.4f, 0.4f));
 		
-		glBindVertexArray(obj_model.vao);
-		glDrawElements(GL_TRIANGLES, obj_model.indices.length, GL_UNSIGNED_INT, NULL);
+		glBindVertexArray(obj_model.meshes[0].vao);
+		glDrawElements(GL_TRIANGLES, obj_model.meshes[0].indices.length, GL_UNSIGNED_INT, NULL);
 		glBindVertexArray(0);
 		
 		model = scale(Mat4(1.0f), Vec3(3.0f, 1.0f, 3.0f));
@@ -218,8 +218,8 @@ int main()
 		opengl_set_uniform(basic_program, "model", model);
 		
 		glBindTexture(GL_TEXTURE_2D, texture);
-		glBindVertexArray(floor_model.vao);
-		glDrawElements(GL_TRIANGLES, floor_model.indices.length, GL_UNSIGNED_INT, NULL);
+		glBindVertexArray(floor_model.meshes[0].vao);
+		glDrawElements(GL_TRIANGLES, floor_model.meshes[0].indices.length, GL_UNSIGNED_INT, NULL);
 		glBindVertexArray(0);
 		assert(glGetError() == GL_NO_ERROR);
 		

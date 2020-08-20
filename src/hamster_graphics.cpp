@@ -1,6 +1,6 @@
 #include "hamster_graphics.h"
 
-static Mesh *
+static OBJMesh
 obj_load(const char *filename)
 {
 	FILE *f = fopen(filename, "r");
@@ -9,8 +9,7 @@ obj_load(const char *filename)
 	char *line = NULL;
 	size_t line_len = 0;
 	
-	Mesh *mesh = (Mesh *)malloc(sizeof(Mesh));
-	memset(mesh, 0, sizeof(*mesh));
+	OBJMesh mesh = {};
 	while(getline(&line, &line_len, f) != -1)
 	{
 		// TODO: better rules of skipping a line
@@ -30,7 +29,7 @@ obj_load(const char *filename)
 			f32 x = atof(xpart);
 			f32 y = atof(ypart);
 			f32 z = atof(zpart);
-			mesh->vertices.push(Vec3(x, y, z));
+			mesh.vertices.push(Vec3(x, y, z));
 		} else if(strings_match(beginning, "vn")) {
 			char *xpart = strtok(NULL, " ");
 			char *ypart = strtok(NULL, " ");
@@ -40,11 +39,11 @@ obj_load(const char *filename)
 			f32 x = atof(xpart);
 			f32 y = atof(ypart);
 			f32 z = atof(zpart);
-			mesh->normals.push(Vec3(x, y, z));
+			mesh.normals.push(Vec3(x, y, z));
 		} else if(strings_match(beginning, "f")) {
 			char *part = strtok(NULL, " ");
-			mesh->faces.push(MeshFace { });
-			MeshFace *face = &mesh->faces[mesh->faces.length - 1];
+			mesh.faces.push(OBJMeshFace { });
+			OBJMeshFace *face = &mesh.faces[mesh.faces.length - 1];
 			
 			while(part) {
 				char *token = strsep(&part, "/");
@@ -71,7 +70,7 @@ obj_load(const char *filename)
 	
 	fclose(f);
 	
-	printf("vertices: %d\tnormals: %d\tfaces: %d\n", mesh->vertices.length * 3, mesh->normals.length * 3, mesh->faces.length);
+	printf("vertices: %d\tnormals: %d\tfaces: %d\n", mesh.vertices.length * 3, mesh.normals.length * 3, mesh.faces.length);
 	
 	return mesh;
 }
@@ -100,11 +99,22 @@ model_create_basic()
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	
 	Model model = {};
+	model.meshes.push(Mesh {});
+	Mesh *mesh = model.meshes.data;
 	
-	model.vao = vao;
-	model.vbo = vbo;
-	model.vertices.reserve(sizeof(vertices));
-	model.vertices.push_array(vertices, ARRAY_LEN(vertices));
+	mesh->vao = vao;
+	mesh->vbo = vbo;
+	mesh->vertices.reserve(sizeof(vertices));
+	
+	mesh->vertices.push(Vertex {});
+	Vertex *v = &mesh->vertices[mesh->vertices.length - 1];
+	v->position = *((Vec3 *)vertices);
+	mesh->vertices.push(Vertex {});
+	v = &mesh->vertices[mesh->vertices.length - 1];
+	v->position = *((Vec3 *)vertices + 3);
+	mesh->vertices.push(Vertex {});
+	v = &mesh->vertices[mesh->vertices.length - 1];
+	v->position = *((Vec3 *)vertices + 6);
 	
 	return model;
 }
@@ -112,11 +122,11 @@ model_create_basic()
 static Model
 model_create_debug_floor()
 {
-	f32 vertices[] = {
-		-1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
-		1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
-		1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
-		-1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+	Vertex vertices[] = {
+		{ { -1.0f, 0.0f, 1.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },
+		{ { 1.0f, 0.0f, 1.0f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
+		{ { 1.0f, 0.0f, -1.0f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 1.0f } },
+		{ { -1.0f, 0.0f, -1.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f } },
 	};
 	
 	u32 indices[] = {
@@ -125,22 +135,24 @@ model_create_debug_floor()
 	};
 	
 	Model model = {};
+	model.meshes.push(Mesh {});
+	Mesh *mesh = model.meshes.data;
 	
-	model.vertices.reserve(sizeof(vertices));
-	model.vertices.push_array(vertices, ARRAY_LEN(vertices));
+	mesh->vertices.reserve(sizeof(vertices));
+	mesh->vertices.push_array(vertices, ARRAY_LEN(vertices));
 	
-	model.indices.reserve(sizeof(indices));
-	model.indices.push_array(indices, ARRAY_LEN(indices));
+	mesh->indices.reserve(sizeof(indices));
+	mesh->indices.push_array(indices, ARRAY_LEN(indices));
 	
-	glGenVertexArrays(1, &model.vao);
-	glBindVertexArray(model.vao);
+	glGenVertexArrays(1, &mesh->vao);
+	glBindVertexArray(mesh->vao);
 	
-	glGenBuffers(1, &model.vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, model.vbo);
+	glGenBuffers(1, &mesh->vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 	
-	glGenBuffers(1, &model.ebo);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model.ebo);
+	glGenBuffers(1, &mesh->ebo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->ebo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 	
 	u32 vertex_size = 8 * sizeof(f32);
@@ -160,63 +172,70 @@ model_create_debug_floor()
 static Model
 model_create_from_obj(const char *filename)
 {
-	Mesh *obj = obj_load(filename);
+	OBJMesh obj = obj_load(filename);
 	
 	unsigned int vertices_count = 0;
 	unsigned int faces_count = 0;
-	for(unsigned int i = 0; i < obj->faces.length; i++)
+	for(unsigned int i = 0; i < obj.faces.length; i++)
 	{
-		assert(obj->faces[i].vertex_ids.length == obj->faces[i].normal_ids.length);	
-		unsigned int face_size = obj->faces[i].vertex_ids.length;
+		assert(obj.faces[i].vertex_ids.length == obj.faces[i].normal_ids.length);	
+		unsigned int face_size = obj.faces[i].vertex_ids.length;
 		vertices_count += face_size;
 		faces_count += (face_size - 2) * 3;
 	}
 	
 	Model model = {};
-	model.meshes.push(obj);
+	model.meshes.push(Mesh { });
+	Mesh *mesh = &model.meshes[model.meshes.length - 1];
 	
-	unsigned int vertices_size = vertices_count * sizeof(float) * 6;
+	unsigned int vertices_size = vertices_count * sizeof(Vertex);
 	unsigned int indices_size = faces_count * sizeof(unsigned int);
-	model.vertices.reserve(vertices_size);
-	model.indices.reserve(indices_size);
+	mesh->vertices.reserve(vertices_size);
+	mesh->indices.reserve(indices_size);
 	
-	for(unsigned int i = 0; i < obj->faces.length; i++)
+	for(unsigned int i = 0; i < obj.faces.length; i++)
 	{
-		unsigned int face_size = obj->faces[i].vertex_ids.length;
+		unsigned int face_size = obj.faces[i].vertex_ids.length;
 		for(unsigned int j = 0; j < face_size; ++j)
 		{
 			// NOTE: We decrement the array index because obj indexes starting from 1
-			Vec3 vertex = obj->vertices[obj->faces[i].vertex_ids[j] - 1];
-			model.vertices.push_array(vertex.m, ARRAY_LEN(vertex.m));
+			Vec3 vertex = obj.vertices[obj.faces[i].vertex_ids[j] - 1];
+			Vec3 normal = obj.normals[obj.faces[i].normal_ids[j] - 1];
+			Vec2 texuv = {};
 			
-			Vec3 normal = obj->normals[obj->faces[i].normal_ids[j] - 1];
-			model.vertices.push_array(normal.m, ARRAY_LEN(normal.m));
+			Vertex v = {};
+			v.position = vertex;
+			v.normal = normal;
+			v.texuv = texuv;
+			mesh->vertices.push(v);
 		}
 		
 		int t = 0;
 		for(unsigned int k = 0; k < (face_size - 2) * 3; k++)
 		{
-			unsigned int face_id = (model.vertices.length / 6) - face_size;
-			model.indices.push(face_id + ((k - (t / 3)) % face_size));
+			unsigned int face_id = mesh->vertices.length - face_size;
+			mesh->indices.push(face_id + ((k - (t / 3)) % face_size));
 			t++;
 		}
 	}
 	
-	glGenVertexArrays(1, &model.vao);
-	glBindVertexArray(model.vao);
+	glGenVertexArrays(1, &mesh->vao);
+	glBindVertexArray(mesh->vao);
 	
-	glGenBuffers(1, &model.vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, model.vbo);
-	glBufferData(GL_ARRAY_BUFFER, vertices_size, model.vertices.data, GL_STATIC_DRAW);
+	glGenBuffers(1, &mesh->vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
+	glBufferData(GL_ARRAY_BUFFER, vertices_size, mesh->vertices.data, GL_STATIC_DRAW);
 	
-	glGenBuffers(1, &model.ebo);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model.ebo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_size, model.indices.data, GL_STATIC_DRAW);
+	glGenBuffers(1, &mesh->ebo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->ebo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_size, mesh->indices.data, GL_STATIC_DRAW);
 	
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_TRUE, 6 * sizeof(float), nullptr);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_TRUE, 6 * sizeof(float), (void *)(3 * sizeof(float)));
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_TRUE, 8 * sizeof(float), nullptr);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_TRUE, 8 * sizeof(float), (void *)(3 * sizeof(float)));
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_TRUE, 8 * sizeof(float), (void *)(6 * sizeof(float)));
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
+	glEnableVertexAttribArray(2);
 	
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -234,67 +253,44 @@ model_gouraud_shade(Model *model)
 {
 	// NOTE: we only support one mesh right now
 	assert(model->meshes.length == 1);
-	Mesh *mesh = model->meshes[0];
+	Mesh *mesh = &model->meshes[0];
 	
 	// This array acts like a map for the normals like in this psuedocode:
 	//   map<vertex_index, normal_index> normal_map;
 	//   auto normal = mesh->normals[normal_map[mesh->faces[k].vertex_ids[h]]];
-	u32 *normal_map = (u32 *)malloc(sizeof(u32) * mesh->vertices.length);
+	Map <Vec3, Vec3> normal_map;
 	Array<Vec3> normals;
 	
-	u32 faces_count = mesh->faces.length;
-	Array<u32> seen;
-	for(u32 i = 0; i < faces_count; i++)
+	Array<Vec3> seen;
+	for(u32 i = 0; i < mesh->vertices.length; i++)
 	{
-		for(u32 j = 0; j < mesh->faces[i].vertex_ids.length; j++)
+		Vec3 vertex = mesh->vertices[i].position;
+		if(seen.contains(vertex)) { continue; }
+		seen.push(vertex);
+		
+		Vec3 combined_normal = mesh->vertices[i].normal;
+		for(u32 j = i + 1; j < mesh->vertices.length; j++)
 		{
-			u32 vertex_id = mesh->faces[i].vertex_ids[j];
-			if(seen.contains(vertex_id)) { continue; }
-			seen.push(vertex_id);
-			
-			Vec3 combined_normal = mesh->normals[mesh->faces[i].normal_ids[j]];
-			for(u32 k = i + 1; k < faces_count; k++)
+			if(vertex == mesh->vertices[i].position)
 			{
-				for(u32 h = 0; h < mesh->faces[k].vertex_ids.length; h++)
-				{
-					if(vertex_id == mesh->faces[k].vertex_ids[h])
-					{
-						Vec3 normal = mesh->normals[mesh->faces[k].normal_ids[h] - 1];
-						combined_normal = add(combined_normal, normal);
-						break;
-					}
-				}
+				combined_normal = noz(add(mesh->vertices[i].normal, combined_normal));
 			}
 			
-			// Keeping this minus one for consistency below
-			normal_map[vertex_id - 1] = normals.length;
-			normals.push(noz(combined_normal));
 		}
+		normal_map[vertex] = combined_normal;
 	}
 	
-	unsigned int vertices_size = model->vertices.length * sizeof(float);
-	model->vertices.clear();
-	model->vertices.reserve(vertices_size);
-	
-	for(unsigned int i = 0; i < mesh->faces.length; i++)
+	Array<f32> vertices = {};
+	vertices.reserve(mesh->vertices.length * sizeof(Vertex));
+	for(unsigned int i = 0; i < mesh->vertices.length; i++)
 	{
-		for(unsigned int j = 0; j < mesh->faces[i].vertex_ids.length; j++)
-		{
-			// NOTE: We decrement the array index because mesh indexes are starting from 1
-			auto src = &mesh->vertices[mesh->faces[i].vertex_ids[j] - 1];
-			model->vertices.push(src->x);
-			model->vertices.push(src->y);
-			model->vertices.push(src->z);
-			
-			src = &normals[normal_map[mesh->faces[i].vertex_ids[j] - 1]];
-			model->vertices.push(src->x);
-			model->vertices.push(src->y);
-			model->vertices.push(src->z);
-		}
+		// NOTE: We decrement the array index because mesh indexes are starting from 1
+		vertices.push_array(mesh->vertices[i].position.m, ARRAY_LEN(mesh->vertices[i].position.m));
+		vertices.push_array(normal_map[mesh->vertices[i].position].m, ARRAY_LEN(normal_map[mesh->vertices[i].position].m));
+		vertices.push_array(mesh->vertices[i].texuv.m, ARRAY_LEN(mesh->vertices[i].texuv.m));
 	}
-	
-	glBindBuffer(GL_ARRAY_BUFFER, model->vbo);
-	glBufferSubData(GL_ARRAY_BUFFER, 0, vertices_size, model->vertices.data);
+	glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.length * sizeof(vertices[0]), vertices.data);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	
 	model->flags = (ModelFlags)(model->flags | MODEL_FLAGS_GOURAUD_SHADED);
@@ -306,32 +302,10 @@ model_mesh_normals_shade(Model *model)
 {
 	// NOTE: we only support one mesh right now
 	assert(model->meshes.length == 1);
-	Mesh *mesh = model->meshes[0];
+	Mesh *mesh = &model->meshes[0];
 	
-	unsigned int vertices_size = model->vertices.length * sizeof(float);
-	model->vertices.clear();
-	model->vertices.reserve(vertices_size);
-	
-	for(unsigned int i = 0; i < mesh->faces.length; i++)
-	{
-		unsigned int face_size = mesh->faces[i].vertex_ids.length;
-		for(unsigned int j = 0; j < face_size; ++j)
-		{
-			// NOTE: We decrement the array index because obj indexes starting from 1
-			auto src = &mesh->vertices[mesh->faces[i].vertex_ids[j] - 1];
-			model->vertices.push(src->x);
-			model->vertices.push(src->y);
-			model->vertices.push(src->z);
-			
-			src = &mesh->normals[mesh->faces[i].normal_ids[j] - 1];
-			model->vertices.push(src->x);
-			model->vertices.push(src->y);
-			model->vertices.push(src->z);
-		}
-	}
-	
-	glBindBuffer(GL_ARRAY_BUFFER, model->vbo);
-	glBufferSubData(GL_ARRAY_BUFFER, 0, vertices_size, model->vertices.data);
+	glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, mesh->vertices.length * sizeof(mesh->vertices[0]), mesh->vertices.data);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	
 	model->flags = (ModelFlags)(model->flags | MODEL_FLAGS_MESH_NORMALS_SHADED);

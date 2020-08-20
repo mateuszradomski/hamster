@@ -38,6 +38,9 @@ typedef double f64;
 #define MATRIX3_ELEMENTS (3*3)
 #define MATRIX4_ELEMENTS (4*4)
 
+#define HASHTABLE_PRIME1 163
+#define HASHTABLE_PRIME2 151
+
 #define MAX(A, B) (((A) > (B)) ? (A) : (B))
 #define MIN(A, B) (((A) < (B)) ? (A) : (B))
 
@@ -55,7 +58,7 @@ union Vec2
 	};
 	f32 m[2];
 	Vec2(f32 x = 0.0f, f32 y = 0.0f) :
-		x(x), y(y) { }
+	x(x), y(y) { }
 };
 
 union Vec3
@@ -74,7 +77,12 @@ union Vec3
 	};
 	f32 m[3];
 	Vec3(f32 x = 0.0f, f32 y = 0.0f, f32 z = 0.0f) :
-		x(x), y(y), z(z) { }
+	x(x), y(y), z(z) { }
+	
+	bool operator==(const Vec3 &other) const
+	{
+		return (this->x == other.x) && (this->y == other.y) && (this->z == other.z);
+	}
 };
 
 union Vec4
@@ -94,9 +102,9 @@ union Vec4
 		f32 a;
 	};
 	f32 m[4];
-
+	
 	Vec4(f32 x = 0.0f, f32 y = 0.0f, f32 z = 0.0f, f32 w = 0.0f) :
-		x(x), y(y), z(z), w(w) { }
+	x(x), y(y), z(z), w(w) { }
 };
 
 union Mat2 
@@ -104,11 +112,11 @@ union Mat2
 	Vec2 columns[2];
 	f32 a[2][2];
 	f32 a1d[4];
-
+	
 	Mat2(f32 diagonal = 1.0f)
 	{
 		memset(a1d, 0, sizeof(a1d));
-
+		
 		a[0][0] = diagonal;
 		a[1][1] = diagonal;
 	}
@@ -119,11 +127,11 @@ union Mat4
 	Vec4 columns[4];
 	f32 a[4][4];
 	f32 a1d[16];
-
+	
 	Mat4(f32 diagonal = 1.0f)
 	{
 		memset(a1d, 0, sizeof(a1d));
-
+		
 		a[0][0] = diagonal;
 		a[1][1] = diagonal;
 		a[2][2] = diagonal;
@@ -133,6 +141,8 @@ union Mat4
 
 static u32 find_first_set_bit(u32 a);
 static u32 xorshift32(RandomSeries *series);
+static u32 hash(u8 *bytes, u32 size, u32 prime, u32 range);
+static u32 double_hash(u8 *bytes, u32 size, u32 attempt, u32 range);
 
 static f32 fast_inverse_sqrtf(f32 a);
 static f32 fast_sqrtf(f32 a);
