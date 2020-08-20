@@ -18,10 +18,10 @@ struct Mesh
 	Array<MeshFace> faces;
 };
 
-enum ModelState
+enum ModelFlags
 {
-	MODEL_STATE_GOURAUD_SHADED = 0x1,
-	MODEL_STATE_MESH_NORMALS_SHADED = 0x2,
+	MODEL_FLAGS_GOURAUD_SHADED = 0x1,
+	MODEL_FLAGS_MESH_NORMALS_SHADED = 0x2,
 };
 
 struct Model
@@ -34,7 +34,7 @@ struct Model
 	Array<f32> vertices;
 	Array<unsigned int> indices;
 	
-	ModelState state;
+	ModelFlags flags;
 };
 
 struct Camera
@@ -49,8 +49,9 @@ struct Camera
 };
 
 static Mesh * obj_load(const char *filename);
-static Model* model_create_basic();
-static Model* model_create_from_obj(const char *filename);
+static Model model_create_basic();
+static Model model_create_debug_floor();
+static Model model_create_from_obj(const char *filename);
 static void model_gouraud_shade(Model *model);
 static void model_mesh_normals_shade(Model *model);
 

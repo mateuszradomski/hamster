@@ -76,7 +76,7 @@ obj_load(const char *filename)
 	return mesh;
 }
 
-static Model*
+static Model
 model_create_basic()
 {
 	float vertices[] = {
@@ -99,18 +99,17 @@ model_create_basic()
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	
-	Model *model = (Model *)malloc(sizeof(Model));
-	model->vertices = Array<float>();
+	Model model = {};
 	
-	model->vao = vao;
-	model->vbo = vbo;
-	model->vertices.reserve(sizeof(vertices));
-	memcpy(model->vertices.data, vertices, sizeof(vertices));
+	model.vao = vao;
+	model.vbo = vbo;
+	model.vertices.reserve(sizeof(vertices));
+	model.vertices.push_array(vertices, ARRAY_LEN(vertices));
 	
 	return model;
 }
 
-static Model *
+static Model
 model_create_debug_floor()
 {
 	f32 vertices[] = {
@@ -125,27 +124,23 @@ model_create_debug_floor()
 		0, 2, 3
 	};
 	
-	Model *model = (Model *)malloc(sizeof(Model));
-	model->vertices = Array<f32>();
-	model->indices = Array<u32>();
+	Model model = {};
 	
-	model->vertices.reserve(sizeof(vertices));
-	model->vertices.length = sizeof(vertices)/sizeof(vertices[0]);
-	memcpy(model->vertices.data, vertices, sizeof(vertices));
+	model.vertices.reserve(sizeof(vertices));
+	model.vertices.push_array(vertices, ARRAY_LEN(vertices));
 	
-	model->indices.reserve(sizeof(indices));
-	model->indices.length = sizeof(indices)/sizeof(indices[0]);
-	memcpy(model->indices.data, indices, sizeof(indices));
+	model.indices.reserve(sizeof(indices));
+	model.indices.push_array(indices, ARRAY_LEN(indices));
 	
-	glGenVertexArrays(1, &model->vao);
-	glBindVertexArray(model->vao);
+	glGenVertexArrays(1, &model.vao);
+	glBindVertexArray(model.vao);
 	
-	glGenBuffers(1, &model->vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, model->vbo);
+	glGenBuffers(1, &model.vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, model.vbo);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 	
-	glGenBuffers(1, &model->ebo);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model->ebo);
+	glGenBuffers(1, &model.ebo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model.ebo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 	
 	u32 vertex_size = 8 * sizeof(f32);
@@ -162,7 +157,7 @@ model_create_debug_floor()
 	return model;
 }
 
-static Model*
+static Model
 model_create_from_obj(const char *filename)
 {
 	Mesh *obj = obj_load(filename);
@@ -177,17 +172,13 @@ model_create_from_obj(const char *filename)
 		faces_count += (face_size - 2) * 3;
 	}
 	
-	Model *model = (Model *)malloc(sizeof(Model));
-	memset(model, 0, sizeof(Model));
-	model->meshes = Array<Mesh *>();
-	model->meshes.push(obj);
+	Model model = {};
+	model.meshes.push(obj);
 	
-	model->vertices = Array<float>();
-	model->indices = Array<unsigned int>();
 	unsigned int vertices_size = vertices_count * sizeof(float) * 6;
 	unsigned int indices_size = faces_count * sizeof(unsigned int);
-	model->vertices.reserve(vertices_size);
-	model->indices.reserve(indices_size);
+	model.vertices.reserve(vertices_size);
+	model.indices.reserve(indices_size);
 	
 	for(unsigned int i = 0; i < obj->faces.length; i++)
 	{
@@ -195,36 +186,32 @@ model_create_from_obj(const char *filename)
 		for(unsigned int j = 0; j < face_size; ++j)
 		{
 			// NOTE: We decrement the array index because obj indexes starting from 1
-			auto src = &obj->vertices[obj->faces[i].vertex_ids[j] - 1];
-			model->vertices.push(src->x);
-			model->vertices.push(src->y);
-			model->vertices.push(src->z);
+			Vec3 vertex = obj->vertices[obj->faces[i].vertex_ids[j] - 1];
+			model.vertices.push_array(vertex.m, ARRAY_LEN(vertex.m));
 			
-			src = &obj->normals[obj->faces[i].normal_ids[j] - 1];
-			model->vertices.push(src->x);
-			model->vertices.push(src->y);
-			model->vertices.push(src->z);
+			Vec3 normal = obj->normals[obj->faces[i].normal_ids[j] - 1];
+			model.vertices.push_array(normal.m, ARRAY_LEN(normal.m));
 		}
 		
 		int t = 0;
 		for(unsigned int k = 0; k < (face_size - 2) * 3; k++)
 		{
-			unsigned int face_id = (model->vertices.length / 6) - face_size;
-			model->indices.push(face_id + ((k - (t / 3)) % face_size));
+			unsigned int face_id = (model.vertices.length / 6) - face_size;
+			model.indices.push(face_id + ((k - (t / 3)) % face_size));
 			t++;
 		}
 	}
 	
-	glGenVertexArrays(1, &model->vao);
-	glBindVertexArray(model->vao);
+	glGenVertexArrays(1, &model.vao);
+	glBindVertexArray(model.vao);
 	
-	glGenBuffers(1, &model->vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, model->vbo);
-	glBufferData(GL_ARRAY_BUFFER, vertices_size, model->vertices.data, GL_STATIC_DRAW);
+	glGenBuffers(1, &model.vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, model.vbo);
+	glBufferData(GL_ARRAY_BUFFER, vertices_size, model.vertices.data, GL_STATIC_DRAW);
 	
-	glGenBuffers(1, &model->ebo);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model->ebo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_size, model->indices.data, GL_STATIC_DRAW);
+	glGenBuffers(1, &model.ebo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model.ebo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_size, model.indices.data, GL_STATIC_DRAW);
 	
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_TRUE, 6 * sizeof(float), nullptr);
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_TRUE, 6 * sizeof(float), (void *)(3 * sizeof(float)));
@@ -235,8 +222,8 @@ model_create_from_obj(const char *filename)
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	
-	model->state = (ModelState)(model->state | MODEL_STATE_MESH_NORMALS_SHADED);
-	model->state = (ModelState)(model->state & ~MODEL_STATE_GOURAUD_SHADED);
+	model.flags = (ModelFlags)(model.flags | MODEL_FLAGS_MESH_NORMALS_SHADED);
+	model.flags = (ModelFlags)(model.flags & ~MODEL_FLAGS_GOURAUD_SHADED);
 	
 	return model;
 }
@@ -310,8 +297,8 @@ model_gouraud_shade(Model *model)
 	glBufferSubData(GL_ARRAY_BUFFER, 0, vertices_size, model->vertices.data);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	
-	model->state = (ModelState)(model->state | MODEL_STATE_GOURAUD_SHADED);
-	model->state = (ModelState)(model->state & ~MODEL_STATE_MESH_NORMALS_SHADED);
+	model->flags = (ModelFlags)(model->flags | MODEL_FLAGS_GOURAUD_SHADED);
+	model->flags = (ModelFlags)(model->flags & ~MODEL_FLAGS_MESH_NORMALS_SHADED);
 }
 
 static void
@@ -347,8 +334,8 @@ model_mesh_normals_shade(Model *model)
 	glBufferSubData(GL_ARRAY_BUFFER, 0, vertices_size, model->vertices.data);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	
-	model->state = (ModelState)(model->state | MODEL_STATE_MESH_NORMALS_SHADED);
-	model->state = (ModelState)(model->state & ~MODEL_STATE_GOURAUD_SHADED);
+	model->flags = (ModelFlags)(model->flags | MODEL_FLAGS_MESH_NORMALS_SHADED);
+	model->flags = (ModelFlags)(model->flags & ~MODEL_FLAGS_GOURAUD_SHADED);
 }
 
 // Takes a compiled shader, checks if it produced an error

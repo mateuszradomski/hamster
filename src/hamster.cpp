@@ -10,7 +10,9 @@
 #include "hamster_util.cpp"
 #include "hamster_graphics.cpp"
 
-// TODO: As a learning expierience try to implement png reading yourself
+// TODO: As a learning expierience try to implement png reading yourself.
+// PNG reading is quite a chore, just because of the zlib compressed IDAT chunks,
+// maybe just use zlib and decode the rest yourself.
 #define STB_IMAGE_IMPLEMENTATION
 #include "includes/stb_image.h"
 
@@ -52,6 +54,8 @@ create_opengl_window()
 	window.ptr = glfwCreateWindow(window.width, window.height, "hamster", NULL, NULL);
 	glfwMakeContextCurrent(window.ptr);
 	assert(glewInit() == 0); // That means no errors
+	
+	glfwSetInputMode(window.ptr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	
 	return window;
 }
@@ -107,9 +111,9 @@ int main()
 	glfwSetKeyCallback(state.window.ptr, keyboard_button_callback);
 	glfwSetMouseButtonCallback(state.window.ptr, mouse_button_callback);
 	
-	Model *basic_model = model_create_basic();
-	Model *obj_model = model_create_from_obj("data/model.obj");
-	Model *floor_model = model_create_debug_floor();
+	Model basic_model = model_create_basic();
+	Model obj_model = model_create_from_obj("data/model.obj");
+	Model floor_model = model_create_debug_floor();
 	GLuint basic_program = program_create_basic();
 	
 	Camera camera = {};
@@ -138,7 +142,7 @@ int main()
 	free(img_pixels);
 	
 	glUseProgram(basic_program);
-	glBindVertexArray(basic_model->vao);
+	glBindVertexArray(basic_model.vao);
 	
 	glEnable(GL_DEPTH_TEST);
 	
@@ -163,14 +167,14 @@ int main()
 		lookat = look_at(add(camera.front, camera.position), camera.position, camera.up);
 		model = rot_around_vec(Mat4(1.0), glfwGetTime(), Vec3(0.0f, 1.0f, 0.0f));
 		
-		if(state.kbuttons[GLFW_KEY_M].pressed && (obj_model->state & MODEL_STATE_GOURAUD_SHADED))
+		if(state.kbuttons[GLFW_KEY_M].pressed && (obj_model.flags & MODEL_FLAGS_GOURAUD_SHADED))
 		{
-			model_mesh_normals_shade(obj_model);
+			model_mesh_normals_shade(&obj_model);
 		}
 		
-		if(state.kbuttons[GLFW_KEY_N].pressed && obj_model->state & MODEL_STATE_MESH_NORMALS_SHADED)
+		if(state.kbuttons[GLFW_KEY_N].pressed && obj_model.flags & MODEL_FLAGS_MESH_NORMALS_SHADED)
 		{
-			model_gouraud_shade(obj_model);
+			model_gouraud_shade(&obj_model);
 		}
 		
 		if(state.kbuttons[GLFW_KEY_W].down) {
@@ -205,17 +209,17 @@ int main()
 		opengl_set_uniform(basic_program, "direct_light.diffuse_component", Vec3(0.2f, 0.2f, 0.2f));
 		opengl_set_uniform(basic_program, "direct_light.specular_component", Vec3(0.4f, 0.4f, 0.4f));
 		
-		glBindVertexArray(obj_model->vao);
-		glDrawElements(GL_TRIANGLES, obj_model->indices.length, GL_UNSIGNED_INT, NULL);
+		glBindVertexArray(obj_model.vao);
+		glDrawElements(GL_TRIANGLES, obj_model.indices.length, GL_UNSIGNED_INT, NULL);
 		glBindVertexArray(0);
 		
 		model = scale(Mat4(1.0f), Vec3(3.0f, 1.0f, 3.0f));
-		model = translate(model, Vec3(0.0f, -2.0f, -3.0f));
+		model = translate(model, Vec3(0.0f, -2.0f, 0.0f));
 		opengl_set_uniform(basic_program, "model", model);
 		
 		glBindTexture(GL_TEXTURE_2D, texture);
-		glBindVertexArray(floor_model->vao);
-		glDrawElements(GL_TRIANGLES, floor_model->indices.length, GL_UNSIGNED_INT, NULL);
+		glBindVertexArray(floor_model.vao);
+		glDrawElements(GL_TRIANGLES, floor_model.indices.length, GL_UNSIGNED_INT, NULL);
 		glBindVertexArray(0);
 		assert(glGetError() == GL_NO_ERROR);
 		

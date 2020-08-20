@@ -13,6 +13,7 @@ struct Array
 	~Array();
 	
 	void push(T val);
+	void push_array(T *array, u32 size);
 	T pop();
 	void clear();
 	
@@ -44,6 +45,15 @@ void Array<T>::push(T val)
 	}
 	
 	data[length++] = val;
+}
+
+template <typename T>
+void Array<T>::push_array(T *array, u32 size)
+{
+	for(u32 i = 0; i < size; ++i)
+	{
+		this->push(array[i]);
+	}
 }
 
 template <typename T>
