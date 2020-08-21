@@ -346,108 +346,13 @@ program_check_error(GLuint program)
 }
 
 static GLuint
-program_create_basic()
+program_create(const char *vertex_shader_src, const char *fragment_shader_src)
 {
-	const char *vertex_shader_src = "#version 330 core\n"
-		"layout (location = 0) in vec3 vertex_pos;\n"
-		"layout (location = 1) in vec3 normal;\n"
-		"layout (location = 2) in vec2 texuv;\n"
-		"uniform mat4 proj;\n"
-		"uniform mat4 view;\n"
-		"uniform mat4 model;\n"
-		"out vec3 pixel_pos;\n"
-		"out vec3 pixel_normal;\n"
-		"out vec2 pixel_texuv;\n"
-		"void main() {\n"
-		"	pixel_pos = vec3(model * vec4(vertex_pos, 1.0));\n"
-		"	pixel_normal = mat3(transpose(inverse(model))) * normal;\n"
-		"	pixel_texuv = texuv;\n"
-		"	gl_Position = proj * view * model * vec4(vertex_pos.xyz, 1.0);\n"
-		"}\0";
-	
 	GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
 	glShaderSource(vertex_shader, 1, &vertex_shader_src, NULL);
 	glCompileShader(vertex_shader);
 	bool vertex_compiled = program_shader_check_error(vertex_shader);
 	assert(vertex_compiled);
-	
-	const char *fragment_shader_src = 
-	R"(#version 330 core
-	struct SpotLight {
-		vec3 position;
-		vec3 direction;
-		float cutoff;
-		float outer_cutoff;
-
-vec3 ambient_component;
-vec3 diffuse_component;
-vec3 specular_component;
-
-float atten_const;
-float atten_linear;
-float atten_quad;
-	};
-
-struct DirectionalLight {
-vec3 direction;
-
-vec3 ambient_component;
- vec3 diffuse_component;
-vec3 specular_component;
-};
-
-vec3 calculate_spotlight(SpotLight light, vec3 normal, vec3 pix_pos, vec3 view_dir)
-{
-vec3 lightdir = normalize(light.position - pix_pos);
-float diffuse_mul = max(dot(normal, lightdir), 0.0);
-
-vec3 reflection = reflect(-lightdir, normal);
-float specular_mul = pow(max(dot(view_dir, reflection), 0.0f), 64.0f);
-
-float dpix = length(pix_pos - light.position);
-float attenuation = 1.0 / (light.atten_const + light.atten_linear * dpix + light.atten_quad * (dpix * dpix));
-
-vec3 ambient = attenuation * light.ambient_component;
-vec3 diffuse = attenuation * diffuse_mul * light.diffuse_component;
-vec3 specular = attenuation * specular_mul * light.specular_component;
-vec3 result = ambient + diffuse + specular;
-
-float theta = dot(lightdir, normalize(-light.direction));
-		float epsilon = light.cutoff - light.outer_cutoff; // Switched because of how cosine works
-		float intensity = clamp((theta - light.outer_cutoff) / epsilon, 0.0, 1.0);
-result *= intensity;
-
-return result;
-}
-
-vec3 calculate_direct_light(DirectionalLight light, vec3 normal, vec3 view_dir)
-{
-vec3 lightdir = normalize(-light.direction);
-float diffuse_mul = max(dot(normal, lightdir), 0.0);
-
-vec3 reflection = reflect(-lightdir, normal);
-float specular_mul = pow(max(dot(view_dir, reflection), 0.0f), 64.0f);
-vec3 ambient = light.ambient_component;
-vec3 diffuse = diffuse_mul * light.diffuse_component;
-vec3 specular = specular_mul * light.specular_component;
-return ambient + diffuse + specular; 
-}
-
-	in vec3 pixel_pos;
-	in vec3 pixel_normal;
-	in vec2 pixel_texuv;
-	out vec4 pixel_color;
-uniform vec3 view_pos;
-	uniform SpotLight spotlight;
-uniform DirectionalLight direct_light;
-	uniform sampler2D tex_sampler;
-	void main() {
-vec3 view_dir = normalize(view_pos - pixel_pos);
-		vec3 spot_shade = calculate_spotlight(spotlight, pixel_normal, pixel_pos, view_dir);
-vec3 direct_shade = calculate_direct_light(direct_light, pixel_normal, view_dir);
-vec3 result = spot_shade + direct_shade;
-		pixel_color = texture(tex_sampler, pixel_texuv) * vec4(result, 1.0);
-	})";
 	
 	GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
 	glShaderSource(fragment_shader, 1, &fragment_shader_src, NULL);

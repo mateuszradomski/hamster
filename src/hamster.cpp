@@ -114,7 +114,8 @@ int main()
 	Model basic_model = model_create_basic();
 	Model obj_model = model_create_from_obj("data/model.obj");
 	Model floor_model = model_create_debug_floor();
-	GLuint basic_program = program_create_basic();
+	GLuint basic_program = program_create(main_vertex_shader_src, main_fragment_shader_src);
+	GLuint line_program = program_create(main_vertex_shader_src, line_fragment_shader_src);
 	
 	Camera camera = {};
 	camera.position = Vec3(0.0f, 0.0f, 3.0f);
@@ -177,14 +178,15 @@ int main()
 			model_gouraud_shade(&obj_model);
 		}
 		
+		float movement_scalar = 0.01f;
 		if(state.kbuttons[GLFW_KEY_W].down) {
-			camera.position = add(camera.position, scale(camera.front, 0.1f));
+			camera.position = add(camera.position, scale(camera.front, movement_scalar));
 		} if(state.kbuttons[GLFW_KEY_S].down) {
-			camera.position = sub(camera.position, scale(camera.front, 0.1f));
+			camera.position = sub(camera.position, scale(camera.front, movement_scalar));
 		} if(state.kbuttons[GLFW_KEY_D].down) {
-			camera.position = add(camera.position, scale(camera.right, 0.1f));
+			camera.position = add(camera.position, scale(camera.right, movement_scalar));
 		} if(state.kbuttons[GLFW_KEY_A].down) {
-			camera.position = sub(camera.position, scale(camera.right, 0.1f));
+			camera.position = sub(camera.position, scale(camera.right, movement_scalar));
 		}
 		
 		opengl_set_uniform(basic_program, "view", lookat);
