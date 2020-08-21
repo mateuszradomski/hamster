@@ -954,8 +954,10 @@ scale(Mat4 a, Vec3 size)
 {
 	Mat4 result = { 0 };
 	
-	result = create_scale(size);
-	result = mul(result, a);
+	result.columns[0] = scale(a.columns[0], size.x);
+	result.columns[1] = scale(a.columns[1], size.y);
+	result.columns[2] = scale(a.columns[2], size.z);
+	result.columns[3] = a.columns[3];
 	
 	return result;
 }

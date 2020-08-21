@@ -215,8 +215,8 @@ int main()
 		glDrawElements(GL_TRIANGLES, obj_model.meshes[0].indices.length, GL_UNSIGNED_INT, NULL);
 		glBindVertexArray(0);
 		
-		model = scale(Mat4(1.0f), Vec3(3.0f, 1.0f, 3.0f));
-		model = translate(model, Vec3(0.0f, -2.0f, 0.0f));
+		model = translate(Mat4(1.0f), Vec3(0.0f, -2.0f, 0.0f));
+		model = scale(model, Vec3(3.0f, 1.0f, 3.0f));
 		opengl_set_uniform(basic_program, "model", model);
 		
 		glBindTexture(GL_TEXTURE_2D, texture);
