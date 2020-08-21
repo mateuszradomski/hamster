@@ -310,6 +310,48 @@ model_mesh_normals_shade(Model *model)
 	model->flags = (ModelFlags)(model->flags & ~MODEL_FLAGS_GOURAUD_SHADED);
 }
 
+static bool
+ray_intersect_model(Vec3 ray_origin, Vec3 ray_direction, Model *model)
+{
+	for(u32 i = 0; i < model->meshes.length; i++)
+	{
+		Mesh *mesh = &model->meshes[i];
+		
+		for(u32 t = 0; t < mesh->indices.length; t += 3)
+		{
+			Vertex v0 = mesh->vertices[mesh->indices[t + 0]];
+			Vertex v1 = mesh->vertices[mesh->indices[t + 1]];
+			Vertex v2 = mesh->vertices[mesh->indices[t + 2]];
+			assert(v0.normal == v1.normal && v1.normal == v2.normal);
+			Vec3 normal = v0.normal;
+			
+			f32 denom = inner(ray_direction, normal);
+			if(denom == 0.0f) { continue; }
+			
+			f32 dist = inner(normal, v0.position);
+			f32 ray_dist = -(inner(normal, ray_origin) + dist) / denom;
+			if(ray_dist < 0.0f) { continue; }
+			
+			Vec3 edge0 = sub(v1.position, v0.position);
+			Vec3 edge1 = sub(v2.position, v1.position);
+			Vec3 edge2 = sub(v0.position, v2.position);
+			Vec3 plane_hit = add(ray_origin, scale(ray_direction, ray_dist));
+			
+			Vec3 c0 = sub(plane_hit, v0.position); 
+			Vec3 c1 = sub(plane_hit, v1.position);
+			Vec3 c2 = sub(plane_hit, v2.position);
+			if(inner(normal, cross(edge0, c0)) > 0.0f && inner(normal, cross(edge1, c1)) > 0.0f &&
+			   inner(normal, cross(edge2, c2)) > 0.0f)
+			{
+				printf("t: %d\n", t);
+				return true;
+			}
+		}
+	}
+	
+	return false;
+}
+
 // Takes a compiled shader, checks if it produced an error
 // returns false if it did, true otherwise.
 static bool

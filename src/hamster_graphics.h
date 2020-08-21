@@ -171,6 +171,8 @@ static Model model_create_from_obj(const char *filename);
 static void model_gouraud_shade(Model *model);
 static void model_mesh_normals_shade(Model *model);
 
+static bool ray_intersect_model(Vec3 ray_origin, Vec3 ray_direction, Model model);
+
 static bool program_shader_check_error(GLuint shader);
 static bool program_check_error(GLuint program);
 static GLuint program_create(const char *vertex_shader_src, const char *fragment_shader_src);
