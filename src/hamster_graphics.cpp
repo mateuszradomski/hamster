@@ -210,12 +210,10 @@ model_create_from_obj(const char *filename)
 			mesh->vertices.push(v);
 		}
 		
-		int t = 0;
 		for(unsigned int k = 0; k < (face_size - 2) * 3; k++)
 		{
 			unsigned int face_id = mesh->vertices.length - face_size;
-			mesh->indices.push(face_id + ((k - (t / 3)) % face_size));
-			t++;
+			mesh->indices.push(face_id + ((k - (k / 3)) % face_size));
 		}
 	}
 	
@@ -271,13 +269,13 @@ model_gouraud_shade(Model *model)
 		Vec3 combined_normal = mesh->vertices[i].normal;
 		for(u32 j = i + 1; j < mesh->vertices.length; j++)
 		{
-			if(vertex == mesh->vertices[i].position)
+			if(vertex == mesh->vertices[j].position)
 			{
-				combined_normal = noz(add(mesh->vertices[i].normal, combined_normal));
+				combined_normal = add(mesh->vertices[j].normal, combined_normal);
 			}
 			
 		}
-		normal_map[vertex] = combined_normal;
+		normal_map[vertex] = noz(combined_normal);
 	}
 	
 	Array<f32> vertices = {};
