@@ -42,6 +42,21 @@ struct ProgramState
 	Button mbuttons[GLFW_MOUSE_BUTTON_LAST];
 };
 
+void
+opengl_error_callback(GLenum source, GLenum type, GLuint id, GLenum severity,
+					  GLsizei length, const GLchar *message, const void *userParam)
+{
+	(void)source;
+	(void)type;
+	(void)id;
+	(void)severity;
+	(void)length;
+	(void)userParam;
+	
+	printf("OpenGL Error: %s\n", message);
+	assert(false);
+}
+
 static Window
 create_opengl_window()
 {
@@ -110,6 +125,10 @@ int main()
 	glfwSetWindowUserPointer(state.window.ptr, &state);
 	glfwSetKeyCallback(state.window.ptr, keyboard_button_callback);
 	glfwSetMouseButtonCallback(state.window.ptr, mouse_button_callback);
+	
+	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+	glDebugMessageCallback(opengl_error_callback, 0);
+	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
 	
 	Model basic_model = model_create_basic();
 	Model obj_model = model_create_from_obj("data/model.obj");
@@ -193,9 +212,11 @@ int main()
 		}
 		
 		glBindVertexArray(line_vao);
+		glBindBuffer(GL_ARRAY_BUFFER, line_vbo);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(ray_line), &ray_line, GL_STATIC_DRAW);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_TRUE, 3 * sizeof(float), nullptr);
 		glEnableVertexAttribArray(0);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		
 		glUseProgram(line_program);
 		opengl_set_uniform(basic_program, "view", lookat);
@@ -264,7 +285,8 @@ int main()
 		//opengl_set_uniform(basic_program, "view", Mat4(1.0f));
 		//glBindVertexArray(basic_model.meshes[0].vao);
 		//glDrawArrays(GL_TRIANGLES, 0, 3);
-		//glBindVertexArray(0);
+		glUseProgram(0);
+		glBindVertexArray(0);
 		
 		glfwSwapBuffers(state.window.ptr);
 		glfwPollEvents();
