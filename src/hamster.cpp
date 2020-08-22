@@ -146,6 +146,15 @@ int main()
 	glBindVertexArray(basic_model.meshes[0].vao);
 	
 	glEnable(GL_DEPTH_TEST);
+	float vertices[6] = {};
+	
+	GLuint vao, vbo;
+	glGenVertexArrays(1, &vao);
+	glBindVertexArray(vao);
+	glGenBuffers(1, &vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	
+	glfwSwapInterval(1);
 	
 	f64 xmouse, ymouse;
 	f64 xmouseold, ymouseold;
@@ -153,9 +162,6 @@ int main()
 	while(!glfwWindowShouldClose(state.window.ptr))
 	{
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		
-		// glBindVertexArray(basic_model->vao);
-		// glDrawArrays(GL_TRIANGLES, 0, 3);
 		
 		xmouseold = xmouse;
 		ymouseold = ymouse;
@@ -166,7 +172,8 @@ int main()
 		buttons_update(state.mbuttons, ARRAY_LEN(state.mbuttons));
 		
 		lookat = look_at(add(camera.front, camera.position), camera.position, camera.up);
-		model = rot_around_vec(Mat4(1.0), glfwGetTime(), Vec3(0.0f, 1.0f, 0.0f));
+		//model = rot_around_vec(Mat4(1.0), glfwGetTime(), Vec3(0.0f, 1.0f, 0.0f));
+		model = Mat4(1.0f);
 		
 		if(state.kbuttons[GLFW_KEY_M].pressed && (obj_model.flags & MODEL_FLAGS_GOURAUD_SHADED))
 		{
@@ -189,6 +196,33 @@ int main()
 			camera.position = sub(camera.position, scale(camera.right, movement_scalar));
 		}
 		
+		glBindVertexArray(vao);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_TRUE, 3 * sizeof(float), nullptr);
+		glEnableVertexAttribArray(0);
+		
+		glUseProgram(line_program);
+		glDrawArrays(GL_LINES, 0, 2);
+		opengl_set_uniform(basic_program, "view", lookat);
+		opengl_set_uniform(basic_program, "proj", proj);
+		opengl_set_uniform(basic_program, "model", model);
+		glUseProgram(0);
+		
+		if(state.kbuttons[GLFW_KEY_SPACE].pressed)
+		{
+			Vec3 dir = camera.front;
+			bool hit = ray_intersect_model(camera.position, dir, &obj_model);
+			vertices[0] = camera.position.x;
+			vertices[1] = camera.position.y;
+			vertices[2] = camera.position.z;
+			vertices[3] = camera.position.x + dir.x * 5;
+			vertices[4] = camera.position.y + dir.y * 5;
+			vertices[5] = camera.position.z + dir.z * 5;
+			glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+			
+			printf("Hit: %s\n", (hit ? "True" : "False"));
+		}
+		
+		glUseProgram(basic_program);
 		opengl_set_uniform(basic_program, "view", lookat);
 		opengl_set_uniform(basic_program, "proj", proj);
 		opengl_set_uniform(basic_program, "model", model);
@@ -224,6 +258,13 @@ int main()
 		glDrawElements(GL_TRIANGLES, floor_model.meshes[0].indices.length, GL_UNSIGNED_INT, NULL);
 		glBindVertexArray(0);
 		assert(glGetError() == GL_NO_ERROR);
+		
+		model = translate(Mat4(1.0f), add(camera.position, camera.front));
+		model = scale(model, Vec3(0.1f, 0.1f, 0.1f));
+		opengl_set_uniform(basic_program, "model", model);
+		glBindVertexArray(basic_model.meshes[0].vao);
+		glDrawArrays(GL_TRIANGLES, 0, 3);
+		glBindVertexArray(0);
 		
 		glfwSwapBuffers(state.window.ptr);
 		glfwPollEvents();
