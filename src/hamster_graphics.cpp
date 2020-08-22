@@ -314,11 +314,42 @@ static Line
 line_from_direction(Vec3 origin, Vec3 direction, f32 line_length)
 {
     Line result = {};
-
+	
     result.point0 = origin;
     result.point1 = add(origin, scale(direction, line_length));
-
+	
     return result;
+}
+
+static UIElement
+ui_element_create(Vec2 position, Vec2 size, const char *texture_filename)
+{
+	UIElement element = {};
+	element.position = position;
+	element.size = size;
+	
+	// TODO: Each element stores the same infomation in it's own vao and vbo,
+	// it would be faster and cheaper if each of them used the same one.
+	f32 vertices[] = {
+		-1.0f, 1.0f,
+		-1.0f, -1.0f,
+		1.0f, 1.0f,
+		1.0f, -1.0f,
+	};
+	
+	glGenVertexArrays(1, &element.vao);
+	glBindVertexArray(element.vao);
+	glGenBuffers(1, &element.vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, element.vbo);
+	
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(f32), nullptr);
+	glEnableVertexAttribArray(0);
+	
+	element.program = program_create(ui_vertex_src, ui_fragment_src);
+	element.texture = texture_create_from_file(texture_filename);
+	
+	return element;
 }
 
 // Based on:
@@ -376,6 +407,48 @@ ray_intersect_model(Vec3 ray_origin, Vec3 ray_direction, Model *model)
 	return false;
 }
 
+static GLuint
+texture_create_from_file(const char *filename)
+{
+	i32 wimg, himg, channelnr = 0;
+	u8 *img_pixels = stbi_load(filename, &wimg, &himg, &channelnr, 0);
+	assert(img_pixels);
+	
+	GLint internal_format = 0;
+	GLenum display_format = 0;
+	switch(channelnr)
+	{
+		case 3:
+		{
+			internal_format = GL_RGB;
+			display_format = GL_RGB;
+			break;
+		}
+		case 4:
+		{
+			internal_format = GL_RGBA;
+			display_format = GL_RGBA;
+			break;
+		}
+		default:
+		{
+			assert(false);
+		}
+	}
+	
+	GLuint texture;
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glTexImage2D(GL_TEXTURE_2D, 0, internal_format, wimg, himg, 0,
+				 display_format, GL_UNSIGNED_BYTE, img_pixels);
+	glGenerateMipmap(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	
+	free(img_pixels);
+	
+	return texture;
+}
+
 // Takes a compiled shader, checks if it produced an error
 // returns false if it did, true otherwise.
 static bool
@@ -386,9 +459,9 @@ program_shader_check_error(GLuint shader)
 	glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
 	if(!success)
 	{
-	    glGetShaderInfoLog(shader, 512, NULL, infoLog);
-	    printf("%s\n", infoLog);
-	    return false;
+		glGetShaderInfoLog(shader, 512, NULL, infoLog);
+		printf("%s\n", infoLog);
+		return false;
 	}
 	
 	return true;
@@ -403,9 +476,9 @@ program_check_error(GLuint program)
 	char infoLog[512];
 	glGetProgramiv(program, GL_LINK_STATUS, &success);
 	if(!success) {
-	    glGetProgramInfoLog(program, 512, NULL, infoLog);
-	    printf("%s\n", infoLog);
-	    return false;
+		glGetProgramInfoLog(program, 512, NULL, infoLog);
+		printf("%s\n", infoLog);
+		return false;
 	}
 	
 	return true;

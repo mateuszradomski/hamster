@@ -53,6 +53,17 @@ struct Line
     Vec3 point1;
 };
 
+struct UIElement
+{
+	Vec2 position;
+	Vec2 size;
+	
+	GLuint vao;
+	GLuint vbo;
+	GLuint program;
+	GLuint texture;
+};
+
 struct Camera
 {
 	Vec3 position;
@@ -170,6 +181,43 @@ pixel_color = vec4(1.0, 0.0, 0.0, 1.0);
 }
 )";
 
+const char *ui_vertex_src =
+R"(
+#version 330 core
+layout (location = 0) in vec2 vertex_pos;
+
+uniform mat4 transform;
+
+out vec2 pixel_texuv;
+
+void main()
+{
+gl_Position = transform * vec4(vertex_pos, 0.0f, 1.0f);
+pixel_texuv = vec2((vertex_pos.x + 1.0) / 2.0, 1 - (vertex_pos.y + 1.0) / 2.0);
+}
+)";
+
+const char *ui_fragment_src =
+R"(
+#version 330 core
+
+in vec2 pixel_texuv;
+uniform sampler2D tex_sampler;
+
+out vec4 pixel_color;
+
+void main()
+{
+vec4 tex_color = texture(tex_sampler, pixel_texuv);
+if(tex_color.a < 0.01)
+{
+discard;
+}
+
+pixel_color = tex_color;
+}
+)";
+
 static OBJMesh obj_load(const char *filename);
 static Model model_create_basic();
 static Model model_create_debug_floor();
@@ -179,7 +227,12 @@ static void model_mesh_normals_shade(Model *model);
 
 static Line line_from_direction(Vec3 origin, Vec3 direction, f32 line_length);
 
+static UIElement ui_element_create(Vec2 position, Vec2 size, const char *texture_filename);
+
+static bool ray_intersect_triangle(Vec3 ray_origin, Vec3 ray_direction, Vec3 v0, Vec3 v1, Vec3 v2, Vec3 normal);
 static bool ray_intersect_model(Vec3 ray_origin, Vec3 ray_direction, Model model);
+
+static GLuint texture_create_from_file(const char *filename);
 
 static bool program_shader_check_error(GLuint shader);
 static bool program_check_error(GLuint program);

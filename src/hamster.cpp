@@ -6,15 +6,15 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
-#include "hamster_math.cpp"
-#include "hamster_util.cpp"
-#include "hamster_graphics.cpp"
-
 // TODO: As a learning expierience try to implement png reading yourself.
 // PNG reading is quite a chore, just because of the zlib compressed IDAT chunks,
 // maybe just use zlib and decode the rest yourself.
 #define STB_IMAGE_IMPLEMENTATION
 #include "includes/stb_image.h"
+
+#include "hamster_math.cpp"
+#include "hamster_util.cpp"
+#include "hamster_graphics.cpp"
 
 struct Window
 {
@@ -116,7 +116,7 @@ int main()
 	Model floor_model = model_create_debug_floor();
 	GLuint basic_program = program_create(main_vertex_shader_src, main_fragment_shader_src);
 	GLuint line_program = program_create(main_vertex_shader_src, line_fragment_shader_src);
-	
+	UIElement crosshair = ui_element_create(Vec2(0.0f, 0.0f), Vec2(0.1f, 0.1f), "data/crosshair.png");
 	Camera camera = {};
 	camera.position = Vec3(0.0f, 0.0f, 3.0f);
 	camera.yaw = asinf(-1.0f); // Where we look
@@ -128,19 +128,7 @@ int main()
 	Mat4 proj = create_perspective(aspect_ratio, 90.0f, 0.1f, 100.0f);
 	Mat4 model = Mat4(1.0f);
 	
-	i32 wimg, himg, channelnr = 0;
-	u8 *img_pixels = stbi_load("data/wood.png", &wimg, &himg, &channelnr, 0);
-	assert(img_pixels);
-	assert(channelnr == 3);
-	
-	GLuint texture;
-	glGenTextures(1, &texture);
-	glBindTexture(GL_TEXTURE_2D, texture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, wimg, himg, 0, GL_RGB, GL_UNSIGNED_BYTE, img_pixels);
-	glGenerateMipmap(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, 0);
-	
-	free(img_pixels);
+	GLuint texture = texture_create_from_file("data/wood.png");
 	
 	glUseProgram(basic_program);
 	glBindVertexArray(basic_model.meshes[0].vao);
@@ -253,12 +241,30 @@ int main()
 		glBindVertexArray(0);
 		assert(glGetError() == GL_NO_ERROR);
 		
-		model = translate(Mat4(1.0f), add(camera.position, camera.front));
-		model = scale(model, Vec3(0.1f, 0.1f, 0.1f));
-		opengl_set_uniform(basic_program, "model", model);
-		glBindVertexArray(basic_model.meshes[0].vao);
-		glDrawArrays(GL_TRIANGLES, 0, 3);
-		glBindVertexArray(0);
+		glUseProgram(crosshair.program);
+		glBindVertexArray(crosshair.vao);
+		
+		Mat4 transform = {};
+		transform = translate(transform, Vec3(crosshair.position.x, crosshair.position.y, 0.0f));
+		transform = scale(transform, Vec3(crosshair.size.x, crosshair.size.y));
+		opengl_set_uniform(crosshair.program, "transform", transform);
+		
+		glEnable(GL_BLEND);
+		glDisable(GL_DEPTH_TEST);
+		glBindTexture(GL_TEXTURE_2D, crosshair.texture);
+		glEnable(GL_DEPTH_TEST);
+		glDisable(GL_BLEND);
+		
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		
+		//model = scale(Mat4(1.0f), Vec3(1.0f, 1.0f, 1.0f));
+		//model = translate(model, add(camera.position, camera.front));
+		//opengl_set_uniform(basic_program, "model", Mat4(1.0f));
+		//opengl_set_uniform(basic_program, "proj", Mat4(1.0f));
+		//opengl_set_uniform(basic_program, "view", Mat4(1.0f));
+		//glBindVertexArray(basic_model.meshes[0].vao);
+		//glDrawArrays(GL_TRIANGLES, 0, 3);
+		//glBindVertexArray(0);
 		
 		glfwSwapBuffers(state.window.ptr);
 		glfwPollEvents();
