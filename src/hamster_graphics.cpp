@@ -310,6 +310,17 @@ model_mesh_normals_shade(Model *model)
 	model->flags = (ModelFlags)(model->flags & ~MODEL_FLAGS_GOURAUD_SHADED);
 }
 
+static Line
+line_from_direction(Vec3 origin, Vec3 direction, f32 line_length)
+{
+    Line result = {};
+
+    result.point0 = origin;
+    result.point1 = add(origin, scale(direction, line_length));
+
+    return result;
+}
+
 // Based on:
 // https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/ray-triangle-intersection-geometric-solution
 static bool

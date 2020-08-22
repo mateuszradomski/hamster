@@ -146,15 +146,14 @@ int main()
 	glBindVertexArray(basic_model.meshes[0].vao);
 	
 	glEnable(GL_DEPTH_TEST);
-	float vertices[6] = {};
+	Line ray_line = {};
+	GLuint line_vao, line_vbo;
+	glGenVertexArrays(1, &line_vao);
+	glBindVertexArray(line_vao);
+	glGenBuffers(1, &line_vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, line_vbo);
 	
-	GLuint vao, vbo;
-	glGenVertexArrays(1, &vao);
-	glBindVertexArray(vao);
-	glGenBuffers(1, &vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	
-	glfwSwapInterval(1);
+	glfwSwapInterval(0);
 	
 	f64 xmouse, ymouse;
 	f64 xmouseold, ymouseold;
@@ -196,31 +195,26 @@ int main()
 			camera.position = sub(camera.position, scale(camera.right, movement_scalar));
 		}
 		
-		glBindVertexArray(vao);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_TRUE, 3 * sizeof(float), nullptr);
-		glEnableVertexAttribArray(0);
-		
-		glUseProgram(line_program);
-		glDrawArrays(GL_LINES, 0, 2);
-		opengl_set_uniform(basic_program, "view", lookat);
-		opengl_set_uniform(basic_program, "proj", proj);
-		opengl_set_uniform(basic_program, "model", model);
-		glUseProgram(0);
-		
 		if(state.kbuttons[GLFW_KEY_SPACE].pressed)
 		{
 			Vec3 dir = camera.front;
 			bool hit = ray_intersect_model(camera.position, dir, &obj_model);
-			vertices[0] = camera.position.x;
-			vertices[1] = camera.position.y;
-			vertices[2] = camera.position.z;
-			vertices[3] = camera.position.x + dir.x * 5;
-			vertices[4] = camera.position.y + dir.y * 5;
-			vertices[5] = camera.position.z + dir.z * 5;
-			glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+			ray_line = line_from_direction(camera.position, camera.front, 10.0f);
 			
 			printf("Hit: %s\n", (hit ? "True" : "False"));
 		}
+		
+		glBindVertexArray(line_vao);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(ray_line), &ray_line, GL_STATIC_DRAW);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_TRUE, 3 * sizeof(float), nullptr);
+		glEnableVertexAttribArray(0);
+		
+		glUseProgram(line_program);
+		opengl_set_uniform(basic_program, "view", lookat);
+		opengl_set_uniform(basic_program, "proj", proj);
+		opengl_set_uniform(basic_program, "model", model);
+		glDrawArrays(GL_LINES, 0, 2);
+		glUseProgram(0);
 		
 		glUseProgram(basic_program);
 		opengl_set_uniform(basic_program, "view", lookat);

@@ -47,6 +47,12 @@ struct Model
 	ModelFlags flags;
 };
 
+struct Line
+{
+    Vec3 point0;
+    Vec3 point1;
+};
+
 struct Camera
 {
 	Vec3 position;
@@ -170,6 +176,8 @@ static Model model_create_debug_floor();
 static Model model_create_from_obj(const char *filename);
 static void model_gouraud_shade(Model *model);
 static void model_mesh_normals_shade(Model *model);
+
+static Line line_from_direction(Vec3 origin, Vec3 direction, f32 line_length);
 
 static bool ray_intersect_model(Vec3 ray_origin, Vec3 ray_direction, Model model);
 
