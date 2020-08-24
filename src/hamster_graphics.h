@@ -45,12 +45,22 @@ struct Model
 {
 	Array<Mesh> meshes;
 	ModelFlags flags;
+	
+	GLuint texture;
 };
 
 struct Line
 {
     Vec3 point0;
     Vec3 point1;
+};
+
+struct Entity
+{
+	Vec3 position;
+	Vec3 size;
+	
+	Model *model;
 };
 
 struct UIElement
@@ -74,6 +84,36 @@ struct Camera
 	f32 yaw;
 	f32 pitch;
 };
+
+static OBJMesh obj_load(const char *filename);
+static Model model_create_basic();
+static Model model_create_debug_floor();
+static Model model_create_from_obj(const char *filename);
+static void model_gouraud_shade(Model *model);
+static void model_mesh_normals_shade(Model *model);
+
+static Line line_from_direction(Vec3 origin, Vec3 direction, f32 line_length);
+
+static void entity_draw(Entity entity);
+
+static UIElement ui_element_create(Vec2 position, Vec2 size, const char *texture_filename);
+static void ui_element_draw(UIElement element);
+
+static bool ray_intersect_triangle(Vec3 ray_origin, Vec3 ray_direction, Vec3 v0, Vec3 v1, Vec3 v2, Vec3 normal);
+static bool ray_intersect_model(Vec3 ray_origin, Vec3 ray_direction, Model model);
+
+static GLuint texture_create_from_file(const char *filename);
+
+static bool program_shader_check_error(GLuint shader);
+static bool program_check_error(GLuint program);
+static GLuint program_create(const char *vertex_shader_src, const char *fragment_shader_src);
+
+static void camera_calculate_vectors(Camera *cam);
+static void camera_mouse_moved(Camera *cam, f32 dx, f32 dy);
+
+static void opengl_set_uniform(GLuint program, const char *name, f32 val);
+static void opengl_set_uniform(GLuint program, const char *name, Vec3 vec);
+static void opengl_set_uniform(GLuint program, const char *name, Mat4 mat, GLboolean transpose = GL_FALSE);
 
 const char *main_vertex_shader_src =
 R"(#version 330 core
@@ -217,33 +257,6 @@ discard;
 pixel_color = tex_color;
 }
 )";
-
-static OBJMesh obj_load(const char *filename);
-static Model model_create_basic();
-static Model model_create_debug_floor();
-static Model model_create_from_obj(const char *filename);
-static void model_gouraud_shade(Model *model);
-static void model_mesh_normals_shade(Model *model);
-
-static Line line_from_direction(Vec3 origin, Vec3 direction, f32 line_length);
-
-static UIElement ui_element_create(Vec2 position, Vec2 size, const char *texture_filename);
-
-static bool ray_intersect_triangle(Vec3 ray_origin, Vec3 ray_direction, Vec3 v0, Vec3 v1, Vec3 v2, Vec3 normal);
-static bool ray_intersect_model(Vec3 ray_origin, Vec3 ray_direction, Model model);
-
-static GLuint texture_create_from_file(const char *filename);
-
-static bool program_shader_check_error(GLuint shader);
-static bool program_check_error(GLuint program);
-static GLuint program_create(const char *vertex_shader_src, const char *fragment_shader_src);
-
-static void camera_calculate_vectors(Camera *cam);
-static void camera_mouse_moved(Camera *cam, f32 dx, f32 dy);
-
-static void opengl_set_uniform(GLuint program, const char *name, f32 val);
-static void opengl_set_uniform(GLuint program, const char *name, Vec3 vec);
-static void opengl_Set_uniform(GLuint program, const char *name, Mat4 mat, GLboolean transpose = GL_FALSE);
 
 #define HAMSTER_GRAPHICS_H
 #endif

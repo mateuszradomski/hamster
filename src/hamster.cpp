@@ -130,12 +130,22 @@ int main()
 	glDebugMessageCallback(opengl_error_callback, 0);
 	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
 	
-	Model basic_model = model_create_basic();
 	Model obj_model = model_create_from_obj("data/model.obj");
 	Model floor_model = model_create_debug_floor();
 	GLuint basic_program = program_create(main_vertex_shader_src, main_fragment_shader_src);
 	GLuint line_program = program_create(main_vertex_shader_src, line_fragment_shader_src);
-	UIElement crosshair = ui_element_create(Vec2(0.0f, 0.0f), Vec2(0.1f, 0.1f), "data/crosshair.png");
+	UIElement crosshair = ui_element_create(Vec2(0.0f, 0.0f), Vec2(0.1f, 0.1f),
+											"data/crosshair.png");
+	Entity monkey = {};
+	monkey.position = Vec3(0.0f, 0.0f, 0.0f);
+	monkey.size = Vec3(1.0f, 1.0f, 1.0f);
+	monkey.model = &obj_model;
+	
+	Entity floor = {};
+	floor.position = Vec3(0.0f, -2.0f, 0.0f);
+	floor.size = Vec3(3.0f, 1.0f, 3.0f);
+	floor.model = &floor_model;
+	
 	Camera camera = {};
 	camera.position = Vec3(0.0f, 0.0f, 3.0f);
 	camera.yaw = asinf(-1.0f); // Where we look
@@ -146,11 +156,6 @@ int main()
 	f32 aspect_ratio = (f32)state.window.width/(f32)state.window.height;
 	Mat4 proj = create_perspective(aspect_ratio, 90.0f, 0.1f, 100.0f);
 	Mat4 model = Mat4(1.0f);
-	
-	GLuint texture = texture_create_from_file("data/wood.png");
-	
-	glUseProgram(basic_program);
-	glBindVertexArray(basic_model.meshes[0].vao);
 	
 	glEnable(GL_DEPTH_TEST);
 	Line ray_line = {};
@@ -204,6 +209,7 @@ int main()
 		
 		if(state.kbuttons[GLFW_KEY_SPACE].pressed)
 		{
+			// TODO: Models should get a bounding box
 			Vec3 dir = camera.front;
 			bool hit = ray_intersect_model(camera.position, dir, &obj_model);
 			ray_line = line_from_direction(camera.position, camera.front, 10.0f);
@@ -228,7 +234,6 @@ int main()
 		glUseProgram(basic_program);
 		opengl_set_uniform(basic_program, "view", lookat);
 		opengl_set_uniform(basic_program, "proj", proj);
-		opengl_set_uniform(basic_program, "model", model);
 		
 		opengl_set_uniform(basic_program, "view_pos", camera.position);
 		
@@ -248,45 +253,10 @@ int main()
 		opengl_set_uniform(basic_program, "direct_light.diffuse_component", Vec3(0.2f, 0.2f, 0.2f));
 		opengl_set_uniform(basic_program, "direct_light.specular_component", Vec3(0.4f, 0.4f, 0.4f));
 		
-		glBindVertexArray(obj_model.meshes[0].vao);
-		glDrawElements(GL_TRIANGLES, obj_model.meshes[0].indices.length, GL_UNSIGNED_INT, NULL);
-		glBindVertexArray(0);
+		entity_draw(monkey, basic_program);
+		entity_draw(floor, basic_program);
 		
-		model = scale(Mat4(1.0f), Vec3(3.0f, 1.0f, 3.0f));
-		model = translate(model, Vec3(0.0f, -2.0f, 0.0f));
-		opengl_set_uniform(basic_program, "model", model);
-		
-		glBindTexture(GL_TEXTURE_2D, texture);
-		glBindVertexArray(floor_model.meshes[0].vao);
-		glDrawElements(GL_TRIANGLES, floor_model.meshes[0].indices.length, GL_UNSIGNED_INT, NULL);
-		glBindVertexArray(0);
-		assert(glGetError() == GL_NO_ERROR);
-		
-		glUseProgram(crosshair.program);
-		glBindVertexArray(crosshair.vao);
-		
-		Mat4 transform = {};
-		transform = translate(transform, Vec3(crosshair.position.x, crosshair.position.y, 0.0f));
-		transform = scale(transform, Vec3(crosshair.size.x, crosshair.size.y));
-		opengl_set_uniform(crosshair.program, "transform", transform);
-		
-		glEnable(GL_BLEND);
-		glDisable(GL_DEPTH_TEST);
-		glBindTexture(GL_TEXTURE_2D, crosshair.texture);
-		glEnable(GL_DEPTH_TEST);
-		glDisable(GL_BLEND);
-		
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-		
-		//model = scale(Mat4(1.0f), Vec3(1.0f, 1.0f, 1.0f));
-		//model = translate(model, add(camera.position, camera.front));
-		//opengl_set_uniform(basic_program, "model", Mat4(1.0f));
-		//opengl_set_uniform(basic_program, "proj", Mat4(1.0f));
-		//opengl_set_uniform(basic_program, "view", Mat4(1.0f));
-		//glBindVertexArray(basic_model.meshes[0].vao);
-		//glDrawArrays(GL_TRIANGLES, 0, 3);
-		glUseProgram(0);
-		glBindVertexArray(0);
+		ui_element_draw(crosshair);
 		
 		glfwSwapBuffers(state.window.ptr);
 		glfwPollEvents();

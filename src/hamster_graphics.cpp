@@ -135,6 +135,8 @@ model_create_debug_floor()
 	};
 	
 	Model model = {};
+	model.texture = texture_create_from_file("data/wood.png");
+	
 	model.meshes.push(Mesh {});
 	Mesh *mesh = model.meshes.data;
 	
@@ -321,6 +323,24 @@ line_from_direction(Vec3 origin, Vec3 direction, f32 line_length)
     return result;
 }
 
+static void
+entity_draw(Entity entity, GLuint program)
+{
+	Mat4 transform = translate(Mat4(1.0f), entity.position);
+	transform = scale(transform, entity.size);
+	opengl_set_uniform(program, "model", transform);
+	
+	Model *model = entity.model;
+	
+	glBindVertexArray(model->meshes[0].vao);
+	glBindTexture(GL_TEXTURE_2D, model->texture);
+	
+	glDrawElements(GL_TRIANGLES, model->meshes[0].indices.length, GL_UNSIGNED_INT, NULL);
+	
+	glBindVertexArray(0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+}
+
 static UIElement
 ui_element_create(Vec2 position, Vec2 size, const char *texture_filename)
 {
@@ -350,6 +370,30 @@ ui_element_create(Vec2 position, Vec2 size, const char *texture_filename)
 	element.texture = texture_create_from_file(texture_filename);
 	
 	return element;
+}
+
+static void
+ui_element_draw(UIElement element)
+{
+	// NOTE: We could bunch up all of the UI elements together and bind the shader program
+	// once. That would be more efficient
+	glUseProgram(element.program);
+	Mat4 transform = translate(Mat4(1.0f), Vec3(element.position.x, element.position.y, 0.0f));
+	transform = scale(transform, Vec3(element.size.x, element.size.y));
+	opengl_set_uniform(element.program, "transform", transform);
+	
+	glEnable(GL_BLEND);
+	glDisable(GL_DEPTH_TEST);
+	
+	glBindVertexArray(element.vao);
+	glBindTexture(GL_TEXTURE_2D, element.texture);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	
+	glEnable(GL_DEPTH_TEST);
+	glDisable(GL_BLEND);
+	
+	glUseProgram(0);
+	glBindVertexArray(0);
 }
 
 // Based on:
@@ -555,7 +599,7 @@ opengl_set_uniform(GLuint program, const char *name, Vec3 vec)
 }
 
 static void
-opengl_set_uniform(GLuint program, const char *name, Mat4 mat, GLboolean transpose = GL_FALSE)
+opengl_set_uniform(GLuint program, const char *name, Mat4 mat, GLboolean transpose)
 {
 	GLint location = glGetUniformLocation(program, name);
 	glUniformMatrix4fv(location, 1, transpose, mat.a1d);
