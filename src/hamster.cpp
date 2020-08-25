@@ -131,6 +131,7 @@ int main()
 	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
 	
 	Model obj_model = model_create_from_obj("data/model.obj");
+	obj_model.texture = texture_create_solid(1.0f, 1.0f, 1.0f, 1.0f);
 	Model floor_model = model_create_debug_floor();
 	GLuint basic_program = program_create(main_vertex_shader_src, main_fragment_shader_src);
 	GLuint line_program = program_create(main_vertex_shader_src, line_fragment_shader_src);

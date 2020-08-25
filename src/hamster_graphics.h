@@ -103,6 +103,8 @@ static bool ray_intersect_triangle(Vec3 ray_origin, Vec3 ray_direction, Vec3 v0,
 static bool ray_intersect_model(Vec3 ray_origin, Vec3 ray_direction, Model model);
 
 static GLuint texture_create_from_file(const char *filename);
+static GLuint texture_create_solid(f32 r, f32 g, f32 b, f32 a);
+
 
 static bool program_shader_check_error(GLuint shader);
 static bool program_check_error(GLuint program);

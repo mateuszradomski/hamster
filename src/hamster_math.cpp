@@ -134,6 +134,28 @@ to_radians(f32 a)
 	return result;
 }
 
+inline static u32
+clamp(u32 a, u32 min, u32 max)
+{
+	u32 result = a;
+	
+	result = MAX(min, result);
+	result = MIN(max, result);
+	
+	return result;
+}
+
+inline static f32
+clamp(f32 a, f32 min, f32 max)
+{
+	f32 result = a;
+	
+	result = MAX(min, result);
+	result = MIN(max, result);
+	
+	return result;
+}
+
 inline static f32 
 clamp01(f32 a)
 {

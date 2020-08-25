@@ -493,6 +493,26 @@ texture_create_from_file(const char *filename)
 	return texture;
 }
 
+static GLuint
+texture_create_solid(f32 r, f32 g, f32 b, f32 a)
+{
+	u8 pixel[4] = {
+		(u8)clamp((u32)(r * 255.0f + 0.5f), 0, 255),
+		(u8)clamp((u32)(g * 255.0f + 0.5f), 0, 255),
+		(u8)clamp((u32)(b * 255.0f + 0.5f), 0, 255),
+		(u8)clamp((u32)(a * 255.0f + 0.5f), 0, 255),
+	};
+	
+	GLuint texture;
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
+	glGenerateMipmap(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	
+	return texture;
+}
+
 // Takes a compiled shader, checks if it produced an error
 // returns false if it did, true otherwise.
 static bool

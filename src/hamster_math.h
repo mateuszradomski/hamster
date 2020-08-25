@@ -151,6 +151,8 @@ static f32 random_unilateral(RandomSeries *series);
 static f32 random_bilateral(RandomSeries *series);
 static f32 lerp(f32 a, f32 t, f32 b);
 static f32 to_radians(f32 a);
+static u32 clamp(u32 a, u32 min, u32 max);
+static f32 clamp(f32 a, f32 min, f32 max);
 static f32 clamp01(f32 a);
 
 static f32 len(Vec2 a);
