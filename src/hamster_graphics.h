@@ -142,6 +142,8 @@ static void ui_element_draw(UIElement element);
 
 static bool ray_intersect_triangle(Vec3 ray_origin, Vec3 ray_direction, Vec3 v0, Vec3 v1, Vec3 v2, Vec3 normal);
 static bool ray_intersect_model(Vec3 ray_origin, Vec3 ray_direction, Model model);
+static bool ray_intersect_hitbox(Vec3 ray_origin, Vec3 ray_direction, Hitbox *hbox);
+static bool ray_intersect_entity(Vec3 ray_origin, Vec3 ray_direction, Entity *entity);
 
 static GLuint texture_create_from_file(const char *filename);
 static GLuint texture_create_solid(f32 r, f32 g, f32 b, f32 a);
@@ -157,6 +159,8 @@ static void camera_mouse_moved(Camera *cam, f32 dx, f32 dy);
 static void opengl_set_uniform(GLuint program, const char *name, f32 val);
 static void opengl_set_uniform(GLuint program, const char *name, Vec3 vec);
 static void opengl_set_uniform(GLuint program, const char *name, Mat4 mat, GLboolean transpose = GL_FALSE);
+
+static Vec3 triangle_normal(Vec3 v0, Vec3 v1, Vec3 v2);
 
 const char *main_vertex_shader_src =
 R"(#version 330 core

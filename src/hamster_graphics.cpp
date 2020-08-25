@@ -541,6 +541,105 @@ ray_intersect_model(Vec3 ray_origin, Vec3 ray_direction, Model *model)
 	return false;
 }
 
+static bool
+ray_intersect_hitbox(Vec3 ray_origin, Vec3 ray_direction, Hitbox *hbox)
+{
+	// NOTE(mateusz): We are using intersect triangle here because it's already
+	// implemented but if it's too slow look into square intersection. But I don't
+	// really know if it will work 100% of the time with all of the rotations and stuff.
+	
+	Vec3 vertices[VERTICES_PER_CUBE] = {
+		hbox->refpoint,
+		add(hbox->refpoint, Vec3(hbox->size.x, 0.0f, 0.0f)), // x
+		add(hbox->refpoint, Vec3(0.0f, hbox->size.y, 0.0f)), // y
+		add(hbox->refpoint, Vec3(0.0f, 0.0f, hbox->size.z)), // z
+		add(hbox->refpoint, Vec3(hbox->size.x, hbox->size.y, 0.0f)), // xy
+		add(hbox->refpoint, Vec3(0.0f, hbox->size.y, hbox->size.z)), // yz
+		add(hbox->refpoint, Vec3(hbox->size.x, 0.0f, hbox->size.z)), // xz
+		add(hbox->refpoint, hbox->size),
+	};
+	
+	Vec3 v0 = {};
+	Vec3 v1 = {};
+	Vec3 v2 = {};
+	Vec3 normal = {};
+	
+	// Front face
+	v0 = vertices[3];
+	v1 = vertices[5];
+	v2 = vertices[6];
+	// NOTE(mateusz): If slow, on the pararell faces we can just negate the normal
+	normal = triangle_normal(v0, v1, v2);
+	if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal)) { return true; }
+	
+	v0 = vertices[6];
+	v1 = vertices[5];
+	v2 = vertices[7];
+	if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal)) { return true; }
+	
+	// Back face
+	v0 = vertices[0];
+	v1 = vertices[1];
+	v2 = vertices[2];
+	normal = triangle_normal(v0, v1, v2);
+	if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal)) { return true; }
+	
+	v0 = vertices[1];
+	v1 = vertices[4];
+	v2 = vertices[2];
+	if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal)) { return true; }
+	
+	// Left face
+	v0 = vertices[0];
+	v1 = vertices[2];
+	v2 = vertices[3];
+	normal = triangle_normal(v0, v1, v2);
+	if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal)) { return true; }
+	
+	v2 = vertices[3];
+	v1 = vertices[2];
+	v0 = vertices[5];
+	if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal)) { return true; }
+	
+	// Right face
+	v0 = vertices[1];
+	v1 = vertices[4];
+	v2 = vertices[6];
+	normal = triangle_normal(v0, v1, v2);
+	if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal)) { return true; }
+	
+	v0 = vertices[6];
+	v1 = vertices[4];
+	v2 = vertices[7];
+	if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal)) { return true; }
+	
+	// Top face
+	v0 = vertices[2];
+	v1 = vertices[5];
+	v2 = vertices[4];
+	normal = triangle_normal(v0, v1, v2);
+	if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal)) { return true; }
+	
+	v0 = vertices[4];
+	v1 = vertices[5];
+	v2 = vertices[7];
+	if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal)) { return true; }
+	
+	// Bottom face
+	v0 = vertices[0];
+	v1 = vertices[1];
+	v2 = vertices[3];
+	normal = triangle_normal(v0, v1, v2);
+	if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal)) { return true; }
+	
+	v0 = vertices[1];
+	v1 = vertices[3];
+	v2 = vertices[6];
+	if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal)) { return true; }
+	
+	return false;
+}
+
 static GLuint
 texture_create_from_file(const char *filename)
 {
@@ -742,4 +841,16 @@ opengl_set_uniform(GLuint program, const char *name, Mat4 mat, GLboolean transpo
 	GLint location = glGetUniformLocation(program, name);
 	glUniformMatrix4fv(location, 1, transpose, mat.a1d);
 	assert(glGetError() == GL_NO_ERROR);
+}
+
+// NOTE(mateusz): This funictons returns normalized normal and takes a counter-clockwise
+// specified verticies of a triangle, otherwise it can give a opposite answer.
+static Vec3 
+triangle_normal(Vec3 v0, Vec3 v1, Vec3 v2)
+{
+	Vec3 result = {};
+	
+	result = noz(cross(sub(v1, v0), sub(v2, v0)));
+	
+	return result;
 }

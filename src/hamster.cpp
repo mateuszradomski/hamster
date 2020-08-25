@@ -144,7 +144,7 @@ int main()
 	u64 end = rdtsc();
 	printf("%lu\n", end - start);
 	Entity monkey = {};
-	monkey.position = Vec3(1.0f, 1.0f, 0.0f);
+	monkey.position = Vec3(0.0f, 0.0f, 0.0f);
 	monkey.size = Vec3(1.0f, 1.0f, 1.0f);
 	monkey.model = &obj_model;
 	
@@ -217,11 +217,23 @@ int main()
 		if(state.kbuttons[GLFW_KEY_SPACE].pressed)
 		{
 			// TODO: Models should get a bounding box
-			Vec3 dir = camera.front;
-			bool hit = ray_intersect_model(camera.position, dir, &obj_model);
 			ray_line = line_from_direction(camera.position, camera.front, 10.0f);
 			
-			printf("Hit: %s\n", (hit ? "True" : "False"));
+			Vec3 dir = camera.front;
+			u64 start = rdtsc();
+			bool model_hit = ray_intersect_model(camera.position, dir, &obj_model);
+			u64 end = rdtsc();
+			u64 model_clocks = end - start;
+			
+			start = rdtsc();
+			bool hitbox_hit = ray_intersect_hitbox(camera.position, dir,
+												   obj_model.hitboxes.data);
+			end = rdtsc();
+			u64 hitbox_clocks = end - start;
+			
+			printf("| Model | Hitbox |\n");
+			printf("|   %d   |   %d    |\n", model_hit, hitbox_hit);
+			printf("%lucy | %lucy\n", model_clocks, hitbox_clocks);
 		}
 		
 		glBindVertexArray(line_vao);
