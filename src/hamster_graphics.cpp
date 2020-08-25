@@ -663,6 +663,34 @@ program_create(const char *vertex_shader_src, const char *fragment_shader_src)
 	return program;
 }
 
+static BasicShaderProgram
+basic_program_build()
+{
+	BasicShaderProgram result = {};
+	
+	result.id = program_create(main_vertex_shader_src, main_fragment_shader_src);
+	result.model = glGetUniformLocation(result.id, "model");
+	result.view = glGetUniformLocation(result.id, "view");
+	result.proj = glGetUniformLocation(result.id, "proj");
+	result.view_pos = glGetUniformLocation(result.id, "view_pos");
+	result.spotlight_position = glGetUniformLocation(result.id, "spotlight.position");
+	result.spotlight_direction = glGetUniformLocation(result.id, "spotlight.direction");
+	result.spotlight_cutoff = glGetUniformLocation(result.id, "spotlight.cutoff");
+	result.spotlight_outer_cutoff = glGetUniformLocation(result.id, "spotlight.outer_cutoff");
+	result.spotlight_ambient_component = glGetUniformLocation(result.id, "spotlight.ambient_component");
+	result.spotlight_diffuse_component = glGetUniformLocation(result.id, "spotlight.diffuse_component");
+	result.spotlight_specular_component = glGetUniformLocation(result.id, "spotlight.specular_component");
+	result.spotlight_atten_const = glGetUniformLocation(result.id, "spotlight.atten_const");
+	result.spotlight_atten_linear = glGetUniformLocation(result.id, "spotlight.atten_linear");
+	result.spotlight_atten_quad = glGetUniformLocation(result.id, "spotlight.atten_quad");
+	result.direct_light_direction = glGetUniformLocation(result.id, "direct_light.direction");
+	result.direct_light_ambient_component = glGetUniformLocation(result.id, "direct_light.ambient_component");
+	result.direct_light_diffuse_component = glGetUniformLocation(result.id, "direct_light.diffuse_component");
+	result.direct_light_specular_component = glGetUniformLocation(result.id, "direct_light.specular_component");
+	
+	return result;
+}
+
 static void
 camera_calculate_vectors(Camera *cam)
 {

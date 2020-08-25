@@ -3,6 +3,7 @@
 #define VERTICES_PER_CUBE 8
 #define INDICES_PER_CUBE 24
 
+
 struct OBJMeshFace
 {
 	Array<unsigned int> vertex_ids;
@@ -19,6 +20,29 @@ struct OBJMesh
 	Array<Vec3> vertices;
 	Array<Vec3> normals;
 	Array<OBJMeshFace> faces;
+};
+
+struct BasicShaderProgram
+{
+	GLuint id;
+	GLuint model;
+	GLuint view;
+	GLuint proj;
+	GLuint view_pos;
+	GLuint spotlight_position;
+	GLuint spotlight_direction;
+	GLuint spotlight_cutoff;
+	GLuint spotlight_outer_cutoff;
+	GLuint spotlight_ambient_component;
+	GLuint spotlight_diffuse_component;
+	GLuint spotlight_specular_component;
+	GLuint spotlight_atten_const;
+	GLuint spotlight_atten_linear;
+	GLuint spotlight_atten_quad;
+	GLuint direct_light_direction;
+	GLuint direct_light_ambient_component;
+	GLuint direct_light_diffuse_component;
+	GLuint direct_light_specular_component;
 };
 
 struct Vertex
@@ -122,10 +146,10 @@ static bool ray_intersect_model(Vec3 ray_origin, Vec3 ray_direction, Model model
 static GLuint texture_create_from_file(const char *filename);
 static GLuint texture_create_solid(f32 r, f32 g, f32 b, f32 a);
 
-
 static bool program_shader_check_error(GLuint shader);
 static bool program_check_error(GLuint program);
 static GLuint program_create(const char *vertex_shader_src, const char *fragment_shader_src);
+static BasicShaderProgram basic_program_build();
 
 static void camera_calculate_vectors(Camera *cam);
 static void camera_mouse_moved(Camera *cam, f32 dx, f32 dy);

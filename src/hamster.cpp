@@ -136,7 +136,7 @@ int main()
 	Model obj_model = model_create_from_obj("data/model.obj");
 	obj_model.texture = texture_create_solid(1.0f, 1.0f, 1.0f, 1.0f);
 	Model floor_model = model_create_debug_floor();
-	GLuint basic_program = program_create(main_vertex_shader_src, main_fragment_shader_src);
+	BasicShaderProgram basic_program = basic_program_build();
 	GLuint line_program = program_create(main_vertex_shader_src, line_fragment_shader_src);
 	UIElement crosshair = ui_element_create(Vec2(0.0f, 0.0f), Vec2(0.1f, 0.1f),
 											"data/crosshair.png");
@@ -232,36 +232,37 @@ int main()
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		
 		glUseProgram(line_program);
-		opengl_set_uniform(basic_program, "view", lookat);
-		opengl_set_uniform(basic_program, "proj", proj);
-		opengl_set_uniform(basic_program, "model", model);
+		opengl_set_uniform(line_program, "view", lookat);
+		opengl_set_uniform(line_program, "proj", proj);
+		opengl_set_uniform(line_program, "model", model);
 		glDrawArrays(GL_LINES, 0, 2);
 		glUseProgram(0);
 		
-		glUseProgram(basic_program);
-		opengl_set_uniform(basic_program, "view", lookat);
-		opengl_set_uniform(basic_program, "proj", proj);
+		glUseProgram(basic_program.id);
+		glUniformMatrix4fv(basic_program.view, 1, GL_FALSE, lookat.a1d);
+		glUniformMatrix4fv(basic_program.proj, 1, GL_FALSE, proj.a1d);
+		glUniformMatrix4fv(basic_program.model, 1, GL_FALSE, model.a1d);
 		
-		opengl_set_uniform(basic_program, "view_pos", camera.position);
+		glUniform3fv(basic_program.view_pos, 1, camera.position.m);
 		
-		opengl_set_uniform(basic_program, "spotlight.position", camera.position);
-		opengl_set_uniform(basic_program, "spotlight.direction", camera.front);
-		opengl_set_uniform(basic_program, "spotlight.cutoff", cosf(to_radians(12.5f)));
-		opengl_set_uniform(basic_program, "spotlight.outer_cutoff", cosf(to_radians(16.5f)));
-		opengl_set_uniform(basic_program, "spotlight.ambient_component", Vec3(0.1f, 0.1f, 0.1f));
-		opengl_set_uniform(basic_program, "spotlight.diffuse_component", Vec3(0.8f, 0.8f, 0.8f));
-		opengl_set_uniform(basic_program, "spotlight.specular_component", Vec3(1.0f, 1.0f, 1.0f));
-		opengl_set_uniform(basic_program, "spotlight.atten_const", 1.0f);
-		opengl_set_uniform(basic_program, "spotlight.atten_linear", 0.09f);
-		opengl_set_uniform(basic_program, "spotlight.atten_quad", 0.032f);
+		glUniform3fv(basic_program.spotlight_position, 1, camera.position.m);
+		glUniform3fv(basic_program.spotlight_direction, 1, camera.front.m);
+		glUniform1f(basic_program.spotlight_cutoff, cosf(to_radians(12.5f)));
+		glUniform1f(basic_program.spotlight_outer_cutoff, cosf(to_radians(16.5f)));
+		glUniform3fv(basic_program.spotlight_ambient_component, 1, Vec3(0.1f, 0.1f, 0.1f).m);
+		glUniform3fv(basic_program.spotlight_diffuse_component, 1, Vec3(0.8f, 0.8f, 0.8f).m);
+		glUniform3fv(basic_program.spotlight_specular_component, 1, Vec3(1.0f, 1.0f, 1.0f).m);
+		glUniform1f(basic_program.spotlight_atten_const, 1.0f);
+		glUniform1f(basic_program.spotlight_atten_linear, 0.09f);
+		glUniform1f(basic_program.spotlight_atten_quad, 0.032f);
 		
-		opengl_set_uniform(basic_program, "direct_light.direction", Vec3(0.0f, -1.0f, 0.0f));
-		opengl_set_uniform(basic_program, "direct_light.ambient_component", Vec3(0.05f, 0.05f, 0.05f));
-		opengl_set_uniform(basic_program, "direct_light.diffuse_component", Vec3(0.2f, 0.2f, 0.2f));
-		opengl_set_uniform(basic_program, "direct_light.specular_component", Vec3(0.4f, 0.4f, 0.4f));
+		glUniform3fv(basic_program.direct_light_direction, 1, Vec3(0.0f, -1.0f, 0.0f).m);
+		glUniform3fv(basic_program.direct_light_ambient_component, 1, Vec3(0.05f, 0.05f, 0.05f).m);
+		glUniform3fv(basic_program.direct_light_diffuse_component, 1, Vec3(0.2f, 0.2f, 0.2f).m);
+		glUniform3fv(basic_program.direct_light_specular_component, 1, Vec3(0.4f, 0.4f, 0.4f).m);
 		
-		entity_draw(monkey, basic_program);
-		entity_draw(floor, basic_program);
+		entity_draw(monkey, basic_program.id);
+		entity_draw(floor, basic_program.id);
 		
 		glUseProgram(line_program);
 		entity_draw_hitbox(monkey, line_program);
