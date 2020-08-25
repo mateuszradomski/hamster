@@ -1,5 +1,8 @@
 #ifndef HAMSTER_GRAPHICS_H
 
+#define VERTICES_PER_CUBE 8
+#define INDICES_PER_CUBE 24
+
 struct OBJMeshFace
 {
 	Array<unsigned int> vertex_ids;
@@ -35,15 +38,26 @@ struct Mesh
 	GLuint ebo;
 };
 
+// NOTE: refpoint represents the bottom-back-left point in a box, this
+// allows us to always add size to the point, instead of subtracting some
+// times and adding other.
+struct Hitbox
+{
+	Vec3 refpoint;
+	Vec3 size;
+};
+
 enum ModelFlags
 {
 	MODEL_FLAGS_GOURAUD_SHADED = 0x1,
 	MODEL_FLAGS_MESH_NORMALS_SHADED = 0x2,
+	MODEL_FLAGS_DRAW_HITBOXES = 0x4,
 };
 
 struct Model
 {
 	Array<Mesh> meshes;
+	Array<Hitbox> hitboxes;
 	ModelFlags flags;
 	
 	GLuint texture;
@@ -92,9 +106,12 @@ static Model model_create_from_obj(const char *filename);
 static void model_gouraud_shade(Model *model);
 static void model_mesh_normals_shade(Model *model);
 
+static Hitbox hitbox_create_from_mesh(Mesh *mesh);
+
 static Line line_from_direction(Vec3 origin, Vec3 direction, f32 line_length);
 
-static void entity_draw(Entity entity);
+static void entity_draw(Entity entity, GLuint program);
+static void entity_draw_hitbox(Entity entity, GLuint program);
 
 static UIElement ui_element_create(Vec2 position, Vec2 size, const char *texture_filename);
 static void ui_element_draw(UIElement element);

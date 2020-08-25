@@ -219,6 +219,9 @@ model_create_from_obj(const char *filename)
 		}
 	}
 	
+	Hitbox hbox = hitbox_create_from_mesh(mesh);
+	model.hitboxes.push(hbox);
+	
 	glGenVertexArrays(1, &mesh->vao);
 	glBindVertexArray(mesh->vao);
 	
@@ -312,6 +315,30 @@ model_mesh_normals_shade(Model *model)
 	model->flags = (ModelFlags)(model->flags & ~MODEL_FLAGS_GOURAUD_SHADED);
 }
 
+static Hitbox
+hitbox_create_from_mesh(Mesh *mesh)
+{
+	Vec3 maxpoint = {};
+	Vec3 minpoint = {};
+	
+	for(u32 i = 0; i < mesh->vertices.length; i++)
+    {
+		maxpoint.x = MAX(mesh->vertices[i].position.x, maxpoint.x);
+		maxpoint.y = MAX(mesh->vertices[i].position.y, maxpoint.y);
+		maxpoint.z = MAX(mesh->vertices[i].position.z, maxpoint.z);
+		
+		minpoint.x = MIN(mesh->vertices[i].position.x, minpoint.x);
+		minpoint.y = MIN(mesh->vertices[i].position.y, minpoint.y);
+		minpoint.z = MIN(mesh->vertices[i].position.z, minpoint.z);	
+    }
+	
+    Hitbox result = {};
+    result.refpoint = minpoint;
+    result.size = abs(sub(maxpoint, minpoint));
+	
+    return result;
+}
+
 static Line
 line_from_direction(Vec3 origin, Vec3 direction, f32 line_length)
 {
@@ -331,6 +358,7 @@ entity_draw(Entity entity, GLuint program)
 	opengl_set_uniform(program, "model", transform);
 	
 	Model *model = entity.model;
+	assert(model->meshes.length == 1);
 	
 	glBindVertexArray(model->meshes[0].vao);
 	glBindTexture(GL_TEXTURE_2D, model->texture);
@@ -339,6 +367,68 @@ entity_draw(Entity entity, GLuint program)
 	
 	glBindVertexArray(0);
 	glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+static void 
+entity_draw_hitbox(Entity entity, GLuint program)
+{
+	Model *model = entity.model;
+	assert(model->meshes.length == 1);
+	assert(model->hitboxes.length == model->meshes.length);
+	
+	Hitbox *hbox = model->hitboxes.data;
+	Vec3 vertices[VERTICES_PER_CUBE] = {
+		hbox->refpoint,
+		add(hbox->refpoint, Vec3(hbox->size.x, 0.0f, 0.0f)), // x
+		add(hbox->refpoint, Vec3(0.0f, hbox->size.y, 0.0f)), // y
+		add(hbox->refpoint, Vec3(0.0f, 0.0f, hbox->size.z)), // z
+		add(hbox->refpoint, Vec3(hbox->size.x, hbox->size.y, 0.0f)), // xy
+		add(hbox->refpoint, Vec3(0.0f, hbox->size.y, hbox->size.z)), // yz
+		add(hbox->refpoint, Vec3(hbox->size.x, 0.0f, hbox->size.z)), // xz
+		add(hbox->refpoint, hbox->size),
+	};
+	
+	u32 indicies[INDICES_PER_CUBE] = {
+		0, 1, // start to x
+		1, 4, // x to xy
+		4, 2, // xy to y
+		2, 0, // y to start
+		
+		0, 3, // start to z
+		1, 6, // x to xz
+		4, 7, // xy to xyz
+		2, 5, // y to yz
+		
+		3, 6, // z to xz
+		6, 7, // xz to xyz
+		7, 5, // xyz to yz
+		5, 3, // yz to 
+	};
+	
+	GLuint hbox_vao, hbox_vbo, hbox_ebo = 0;
+	
+	glGenVertexArrays(1, &hbox_vao);
+	glGenBuffers(1, &hbox_vbo);
+	glGenBuffers(1, &hbox_ebo);
+	
+	glBindVertexArray(hbox_vao);
+	glBindBuffer(GL_ARRAY_BUFFER, hbox_vbo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, hbox_ebo);
+	
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indicies), indicies, GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_TRUE, 3 * sizeof(f32), nullptr);
+	glEnableVertexAttribArray(0);
+	
+	Mat4 transform = translate(Mat4(1.0f), entity.position);
+	transform = scale(transform, entity.size);
+	opengl_set_uniform(program, "model", transform);
+	
+	glDrawElements(GL_LINES, ARRAY_LEN(indicies), GL_UNSIGNED_INT, NULL);
+	
+	glEnableVertexAttribArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
 static UIElement

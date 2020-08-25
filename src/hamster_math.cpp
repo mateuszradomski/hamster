@@ -216,6 +216,17 @@ negate(Vec2 a)
 }
 
 inline static Vec2
+abs(Vec2 a)
+{
+	Vec2 result = {};
+	
+	result.x = fabsf(a.x);
+	result.y = fabsf(a.y);
+	
+	return result;
+}
+
+inline static Vec2
 add(Vec2 a, Vec2 b)
 {
 	Vec2 result;
@@ -377,6 +388,18 @@ negate(Vec3 a)
 	result.x = -a.x;
 	result.y = -a.y;
 	result.z = -a.z;
+	
+	return result;
+}
+
+inline static Vec3
+abs(Vec3 a)
+{
+	Vec3 result = {};
+	
+	result.x = fabsf(a.x);
+	result.y = fabsf(a.y);
+	result.z = fabsf(a.z);
 	
 	return result;
 }
@@ -557,6 +580,19 @@ negate(Vec4 a)
 	result.y = -a.y;
 	result.z = -a.z;
 	result.w = -a.w;
+	
+	return result;
+}
+
+inline static Vec4
+abs(Vec4 a)
+{
+	Vec4 result = {};
+	
+	result.x = fabsf(a.x);
+	result.y = fabsf(a.y);
+	result.z = fabsf(a.z);
+	result.w = fabsf(a.w);
 	
 	return result;
 }

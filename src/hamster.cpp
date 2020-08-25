@@ -138,7 +138,7 @@ int main()
 	UIElement crosshair = ui_element_create(Vec2(0.0f, 0.0f), Vec2(0.1f, 0.1f),
 											"data/crosshair.png");
 	Entity monkey = {};
-	monkey.position = Vec3(0.0f, 0.0f, 0.0f);
+	monkey.position = Vec3(1.0f, 1.0f, 0.0f);
 	monkey.size = Vec3(1.0f, 1.0f, 1.0f);
 	monkey.model = &obj_model;
 	
@@ -256,6 +256,9 @@ int main()
 		
 		entity_draw(monkey, basic_program);
 		entity_draw(floor, basic_program);
+		
+		glUseProgram(line_program);
+		entity_draw_hitbox(monkey, line_program);
 		
 		ui_element_draw(crosshair);
 		
