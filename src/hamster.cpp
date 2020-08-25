@@ -3,6 +3,8 @@
 #include <cstring>
 #include <cassert>
 
+#include <x86intrin.h>
+
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
@@ -130,6 +132,7 @@ int main()
 	glDebugMessageCallback(opengl_error_callback, 0);
 	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
 	
+	u64 start = rdtsc();
 	Model obj_model = model_create_from_obj("data/model.obj");
 	obj_model.texture = texture_create_solid(1.0f, 1.0f, 1.0f, 1.0f);
 	Model floor_model = model_create_debug_floor();
@@ -137,6 +140,9 @@ int main()
 	GLuint line_program = program_create(main_vertex_shader_src, line_fragment_shader_src);
 	UIElement crosshair = ui_element_create(Vec2(0.0f, 0.0f), Vec2(0.1f, 0.1f),
 											"data/crosshair.png");
+	
+	u64 end = rdtsc();
+	printf("%lu\n", end - start);
 	Entity monkey = {};
 	monkey.position = Vec3(1.0f, 1.0f, 0.0f);
 	monkey.size = Vec3(1.0f, 1.0f, 1.0f);

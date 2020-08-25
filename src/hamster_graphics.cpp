@@ -426,9 +426,9 @@ entity_draw_hitbox(Entity entity, GLuint program)
 	
 	glDrawElements(GL_LINES, ARRAY_LEN(indicies), GL_UNSIGNED_INT, NULL);
 	
-	glEnableVertexAttribArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	glDeleteVertexArrays(1, &hbox_vao);
+	glDeleteBuffers(1, &hbox_vbo);
+	glDeleteBuffers(1, &hbox_ebo);
 }
 
 static UIElement

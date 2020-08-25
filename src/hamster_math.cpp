@@ -22,6 +22,18 @@ find_first_set_bit(u32 a) // least significant bit / lsb
 	return result;
 }
 
+static u64
+rdtsc()
+{
+	u64 result = 0;
+	
+#if GCC_COMPILE
+	result = __rdtsc();
+#endif
+	
+	return result;
+}
+
 static u32
 hash(u8 *bytes, u32 size, u32 prime, u32 range)
 {

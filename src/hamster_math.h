@@ -139,6 +139,7 @@ union Mat4
 	}
 };
 
+static u64 rdtsc();
 static u32 find_first_set_bit(u32 a);
 static u32 xorshift32(RandomSeries *series);
 static u32 hash(u8 *bytes, u32 size, u32 prime, u32 range);
