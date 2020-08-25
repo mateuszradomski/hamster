@@ -541,6 +541,34 @@ ray_intersect_model(Vec3 ray_origin, Vec3 ray_direction, Model *model)
 	return false;
 }
 
+static bool 
+ray_intersect_model_transformed(Vec3 ray_origin, Vec3 ray_direction, Model *model, Mat4 transform)
+{
+	for(u32 i = 0; i < model->meshes.length; i++)
+	{
+		Mesh *mesh = &model->meshes[i];
+		
+		for(u32 t = 0; t < mesh->indices.length; t += 3)
+		{
+			Vertex vert0 = mesh->vertices[mesh->indices[t + 0]];
+			Vertex vert1 = mesh->vertices[mesh->indices[t + 1]];
+			Vertex vert2 = mesh->vertices[mesh->indices[t + 2]];
+			assert(vert0.normal == vert1.normal && vert1.normal == vert2.normal);
+			
+			Vec3 normal = vert0.normal;
+			Vec3 v0 = mul(transform, vert0.position);
+			Vec3 v1 = mul(transform, vert1.position);
+			Vec3 v2 = mul(transform, vert2.position);
+			if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal))
+			{
+				return true;
+			}
+		}
+	}
+	
+	return false;
+}
+
 static bool
 ray_intersect_hitbox(Vec3 ray_origin, Vec3 ray_direction, Hitbox *hbox)
 {
@@ -636,6 +664,30 @@ ray_intersect_hitbox(Vec3 ray_origin, Vec3 ray_direction, Hitbox *hbox)
 	v1 = vertices[3];
 	v2 = vertices[6];
 	if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal)) { return true; }
+	
+	return false;
+}
+
+// NOTE(mateusz): This is in no way a final function, it should really be called
+// debug somehow. Real intersections will be working a bit different.
+static bool 
+ray_intersect_entity(Vec3 ray_origin, Vec3 ray_direction, Entity *entity)
+{
+	assert(entity->model->hitboxes.length == 1);
+	Mat4 transform = create_translate(Mat4(1.0f), entity->position);
+	transform = scale(transform, entity->size);
+	
+	Hitbox transformed_hbox = {};
+	transformed_hbox.refpoint = mul(transform, entity->model->hitboxes[0].refpoint);
+	transformed_hbox.size = entity->model->hitboxes[0].size;
+	bool hitbox_intersect = ray_intersect_hitbox(ray_origin, ray_direction, &transformed_hbox);
+	if(hitbox_intersect)
+	{
+		bool model_intersect = ray_intersect_model_transformed(ray_origin, ray_direction,
+															   &entity->model[0], transform);
+		
+		return model_intersect;
+	}
 	
 	return false;
 }

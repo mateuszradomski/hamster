@@ -939,6 +939,31 @@ mul(Mat4 a, Mat4 b)
 	return result;
 }
 
+inline static Vec3
+mul(Mat4 a, Vec3 v)
+{
+	Vec3 result = {};
+	
+	result.x = v.x * a.a[0][0] + v.y * a.a[1][0] + v.z * a.a[2][0] + a.a[3][0];
+	result.y = v.x * a.a[0][1] + v.y * a.a[1][1] + v.z * a.a[2][1] + a.a[3][1];
+	result.z = v.x * a.a[0][2] + v.y * a.a[1][2] + v.z * a.a[2][2] + a.a[3][2];
+	
+	return result;
+}
+
+inline static Vec4
+mul(Mat4 a, Vec4 v)
+{
+	Vec4 result = {};
+	
+	result.x = v.x * a.a[0][0] + v.y * a.a[1][0] + v.z * a.a[2][0] + v.w * a.a[3][0];
+	result.y = v.x * a.a[0][1] + v.y * a.a[1][1] + v.z * a.a[2][1] + v.w * a.a[3][1];
+	result.z = v.x * a.a[0][2] + v.y * a.a[1][2] + v.z * a.a[2][2] + v.w * a.a[3][2];
+	result.w = v.x * a.a[0][3] + v.y * a.a[1][3] + v.z * a.a[2][3] + v.w * a.a[3][3];
+	
+	return result;
+}
+
 static Mat4
 create_perspective(f32 aspect_ratio, f32 fov, f32 near_z, f32 far_z)
 {
@@ -998,7 +1023,7 @@ translate(Mat4 a, Vec3 trans)
 	return result;
 }
 
-static Mat4 
+inline static Mat4 
 create_translate(Mat4 a, Vec3 trans)
 {
 	Mat4 result = { 0 };

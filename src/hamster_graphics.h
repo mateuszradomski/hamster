@@ -141,7 +141,8 @@ static UIElement ui_element_create(Vec2 position, Vec2 size, const char *texture
 static void ui_element_draw(UIElement element);
 
 static bool ray_intersect_triangle(Vec3 ray_origin, Vec3 ray_direction, Vec3 v0, Vec3 v1, Vec3 v2, Vec3 normal);
-static bool ray_intersect_model(Vec3 ray_origin, Vec3 ray_direction, Model model);
+static bool ray_intersect_model(Vec3 ray_origin, Vec3 ray_direction, Model *model);
+static bool ray_intersect_model_transformed(Vec3 ray_origin, Vec3 ray_direction, Model *model, Mat4 transform);
 static bool ray_intersect_hitbox(Vec3 ray_origin, Vec3 ray_direction, Hitbox *hbox);
 static bool ray_intersect_entity(Vec3 ray_origin, Vec3 ray_direction, Entity *entity);
 

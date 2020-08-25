@@ -219,6 +219,8 @@ static Mat4 sub(Mat4 a, Mat4 b);
 static Mat4 subs(Mat4 a, f32 scalar);
 static Mat4 muls(Mat4 a, f32 scalar);
 static Mat4 mul(Mat4 a, Mat4 b);
+static Vec3 mul(Mat4 a, Vec3 v);
+static Vec4 mul(Mat4 a, Vec4 v);
 
 static Mat4 translate(Mat4 a, Vec3 trans);
 static Mat4 create_translate(Mat4 a, Vec3 trans);
