@@ -176,3 +176,37 @@ bool strings_match(const char *str1, const char *str2)
 {
 	return strcmp(str1, str2) == 0;
 }
+
+// NOTE(mateusz): Modifies the string in place, putting null-termination
+// in places of the delimiter, returns the amount of elements that you can work on.
+static u32
+string_split(char *str, char delimiter)
+{
+    u32 parts = 0;
+    
+    if(str)
+    {
+        parts = 1;
+        while(str && *str)
+        {
+            if(*str == delimiter)
+            {
+                *str = '\0';
+                parts++;
+            }
+            str++;
+        }
+    }
+    
+    return parts;
+}
+
+// NOTE(mateusz): Helper for the string_split function. The user is supposed to
+// know that it can safely ask for the next split element.
+static char *
+string_split_next(char *str)
+{
+    char *result = str + strlen(str) + 1;
+    
+    return result;
+}

@@ -46,19 +46,21 @@ obj_load(const char *filename)
 			OBJMeshFace *face = &mesh.faces[mesh.faces.length - 1];
 			
 			while(part) {
-				char *token = strsep(&part, "/");
-				
+                u32 parts = string_split(part, '/');
+                assert(parts != 0);
+                
+				char *token = part;
 				if(strlen(token) > 0) { 
 					face->vertex_ids.push(atoi(token));
 				}
-				
-				token = strsep(&part, "/");
-				if(strlen(token) > 0) { 
+                
+				token = string_split_next(token);
+                if(strlen(token) > 0) { 
 					// NOTE: not yet implemented
 					assert(false);
 				}
-				
-				token = strsep(&part, "/");
+                
+				token = string_split_next(token);
 				if(strlen(token) > 0) { 
 					face->normal_ids.push(atoi(token));
 				}
