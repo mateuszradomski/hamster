@@ -172,9 +172,23 @@ struct Map
 	}
 };
 
-bool strings_match(const char *str1, const char *str2)
+static bool
+strings_match(const char *str1, const char *str2)
 {
 	return strcmp(str1, str2) == 0;
+}
+
+static bool
+string_starts_with(const char *str, const char *start)
+{
+    u32 str_len = strlen(str);
+    u32 start_len = strlen(start);
+    if(str_len < start_len)
+    {
+        return false;
+    }
+    
+    return strncmp(str, start, start_len) == 0;
 }
 
 // NOTE(mateusz): Modifies the string in place, putting null-termination
@@ -209,4 +223,14 @@ string_split_next(char *str)
     char *result = str + strlen(str) + 1;
     
     return result;
+}
+
+static void
+string_find_and_replace(char *str, char find, char replace)
+{
+    char *newline = strchr(str, find);
+    if(newline)
+    {
+        *newline = replace;
+    }
 }

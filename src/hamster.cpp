@@ -72,7 +72,7 @@ create_opengl_window()
 	glfwMakeContextCurrent(window.ptr);
 	assert(glewInit() == 0); // That means no errors
 	
-	glfwSetInputMode(window.ptr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	//glfwSetInputMode(window.ptr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	
 	return window;
 }
@@ -134,6 +134,7 @@ int main()
 	
 	u64 start = rdtsc();
 	Model obj_model = model_create_from_obj("data/model.obj");
+    OBJModel test = obj_load("data/backpack/backpack.obj"); (void)test;
 	obj_model.texture = texture_create_solid(1.0f, 1.0f, 1.0f, 1.0f);
 	Model floor_model = model_create_debug_floor();
 	BasicShaderProgram basic_program = basic_program_build();

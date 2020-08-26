@@ -14,12 +14,41 @@ struct OBJMeshFace
 	Array<unsigned int> normal_ids;
 };
 
-struct OBJMesh
+enum OBJObjectFlags
+{
+    OBJ_OBJECT_FLAGS_FACE_TYPE_VERTEX = 0x1,
+    OBJ_OBJECT_FLAGS_FACE_TYPE_VERTEX_TEXTURE = 0x2,
+    OBJ_OBJECT_FLAGS_FACE_TYPE_VERTEX_TEXTURE_NORMAL = 0x4,
+    OBJ_OBJECT_FLAGS_FACE_TYPE_VERTEX_NORMAL = 0x8,
+};
+
+// // NOTE(mateusz): No groups support as of right now.
+struct OBJObject
+{
+	char name[64];
+    char mtl_name[64];
+    
+	Array<OBJMeshFace> faces;
+    OBJObjectFlags flags;
+};
+
+struct OBJMaterial
+{
+    char name[64];
+    f32 specular_exponent;
+    Vec3 ambient_component;
+    Vec3 diffuse_component;
+    Vec3 specular_component;
+    f32 visibility;
+};
+
+struct OBJModel
 {
 	// NOTE: We dont support the w element in geo vertex reading 
-	Array<Vec3> vertices;
+    Array<Vec3> vertices;
 	Array<Vec3> normals;
-	Array<OBJMeshFace> faces;
+    Array<OBJObject> objects;
+    Array<OBJMaterial> materials;
 };
 
 struct BasicShaderProgram
@@ -123,7 +152,7 @@ struct Camera
 	f32 pitch;
 };
 
-static OBJMesh obj_load(const char *filename);
+static OBJModel obj_load(const char *filename);
 static Model model_create_basic();
 static Model model_create_debug_floor();
 static Model model_create_from_obj(const char *filename);

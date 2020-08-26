@@ -1,6 +1,6 @@
 #include "hamster_graphics.h"
 
-static OBJMesh
+static OBJModel
 obj_load(const char *filename)
 {
 	FILE *f = fopen(filename, "r");
@@ -9,43 +9,70 @@ obj_load(const char *filename)
 	char *line = NULL;
 	size_t line_len = 0;
 	
-	OBJMesh mesh = {};
+	OBJModel model = {};
+    char mtllib_filename[64] = {};
+    OBJObject *current_object;
 	while(getline(&line, &line_len, f) != -1)
 	{
-		// TODO: better rules of skipping a line
-		if(line[0] != 'v' && line[0] != 'f') {
-			continue;
-		}
+        if(string_starts_with(line, "#")) { continue; }
 		
-		char *beginning = strtok(line, " ");
-		assert(beginning);
+        u32 parts = string_split(line, ' ');
+        char *beginning = line;
 		
-		if(strings_match(beginning, "v")) {
-			char *xpart = strtok(NULL, " ");
-			char *ypart = strtok(NULL, " ");
-			char *zpart = strtok(NULL, " ");
+        if(strings_match(beginning, "o")) {
+            OBJObject object = {};
+            strcpy(object.name, string_split_next(line));
+            string_find_and_replace(object.name, '\n', '\0');
+            
+            model.objects.push(object);
+            current_object = &model.objects[model.objects.length - 1];
+        } else if(strings_match(beginning, "usemtl")) {
+            assert(current_object);
+            
+            strcpy(current_object->mtl_name, string_split_next(line));
+            string_find_and_replace(current_object->mtl_name, '\n', '\0');
+        } else if(strings_match(beginning, "mtllib")) {
+            char *filename = string_split_next(line);
+            assert(strlen(filename) < ARRAY_LEN(mtllib_filename));
+            
+            strcpy(mtllib_filename, filename);
+            string_find_and_replace(mtllib_filename, '\n', '\0');
+        } else if(strings_match(beginning, "v")) {
+            assert(parts >= 4);
+            assert(current_object);
+            char *xpart = string_split_next(line);
+			char *ypart = string_split_next(line);
+			char *zpart = string_split_next(line);
 			assert(xpart && ypart && zpart);
 			
 			f32 x = atof(xpart);
 			f32 y = atof(ypart);
 			f32 z = atof(zpart);
-			mesh.vertices.push(Vec3(x, y, z));
+			model.vertices.push(Vec3(x, y, z));
 		} else if(strings_match(beginning, "vn")) {
-			char *xpart = strtok(NULL, " ");
-			char *ypart = strtok(NULL, " ");
-			char *zpart = strtok(NULL, " ");
+            assert(parts >= 4);
+            assert(current_object);
+			char *xpart = string_split_next(line);
+			char *ypart = string_split_next(line);
+			char *zpart = string_split_next(line);
 			assert(xpart && ypart && zpart);
 			
 			f32 x = atof(xpart);
 			f32 y = atof(ypart);
 			f32 z = atof(zpart);
-			mesh.normals.push(Vec3(x, y, z));
+			model.normals.push(Vec3(x, y, z));
 		} else if(strings_match(beginning, "f")) {
-			char *part = strtok(NULL, " ");
-			mesh.faces.push(OBJMeshFace { });
-			OBJMeshFace *face = &mesh.faces[mesh.faces.length - 1];
+            assert(current_object);
+            current_object->faces.push(OBJMeshFace { });
+			OBJMeshFace *face = &current_object->faces[current_object->faces.length - 1];
 			
-			while(part) {
+			char *part = string_split_next(line);
+            // NOTE(mateusz): Minus one because each line contains also the beginning
+			for(u32 i = 0; i < parts - 1; i++)
+            {
+                // TODO(mateusz): Using the value of parts we can determine the flag status
+                // for each object, saying what face type it is. I just don't want to do it
+                // in a loop.
                 u32 parts = string_split(part, '/');
                 assert(parts != 0);
                 
@@ -57,7 +84,7 @@ obj_load(const char *filename)
 				token = string_split_next(token);
                 if(strlen(token) > 0) { 
 					// NOTE: not yet implemented
-					assert(false);
+					//assert(false);
 				}
                 
 				token = string_split_next(token);
@@ -65,16 +92,90 @@ obj_load(const char *filename)
 					face->normal_ids.push(atoi(token));
 				}
 				
-				part = strtok(NULL, " ");
+				part = string_split_next(line);
 			}
 		}
 	}
 	
 	fclose(f);
 	
-	printf("vertices: %d\tnormals: %d\tfaces: %d\n", mesh.vertices.length * 3, mesh.normals.length * 3, mesh.faces.length);
+	printf("vertices: %d\tnormals: %d\n", model.vertices.length * 3, model.normals.length * 3);
+    
+    const char *path = strrchr(filename, '/');
+    if(path && path - filename > 0)
+    {
+        path += 1; // Move over to copy also the last '/'
+        memmove(mtllib_filename + (u32)(path - filename), mtllib_filename, strlen(mtllib_filename));
+        memmove(mtllib_filename, filename, path - filename);
+    }
+    
+	f = fopen(mtllib_filename, "r");
+	assert(f);
+    
+    OBJMaterial *current_material = NULL;
+    while(getline(&line, &line_len, f) != -1)
+    {
+        if(string_starts_with(line, "#")) { continue; }
+		
+        u32 parts = string_split(line, ' ');
+        assert(parts);
+        char *beginning = line;
+		
+        if(strings_match(beginning, "newmtl")) {
+            OBJMaterial material = {};
+            strcpy(material.name, string_split_next(line));
+            string_find_and_replace(material.name, '\n', '\0');
+            
+            model.materials.push(material);
+            current_material = &model.materials[model.materials.length - 1];
+        } else if(strings_match(beginning, "Ns")) {
+            assert(current_material);
+            char *token = string_split_next(line);
+            current_material->specular_exponent = atof(token);
+        } else if(string_starts_with(beginning, "K")) {
+            assert(parts >= 4);
+            assert(current_material);
+            char *xpart = string_split_next(line);
+			char *ypart = string_split_next(line);
+			char *zpart = string_split_next(line);
+			assert(xpart && ypart && zpart);
+            
+			f32 x = atof(xpart);
+			f32 y = atof(ypart);
+			f32 z = atof(zpart);
+            
+            switch(beginning[1])
+            {
+                case 'a':
+                {
+                    current_material->ambient_component = Vec3(x, y, z);
+                    break;
+                }
+                case 'd':
+                {
+                    current_material->diffuse_component = Vec3(x, y, z);
+                    break;
+                }
+                case 's':
+                {
+                    current_material->specular_component = Vec3(x, y, z);
+                    break;
+                }
+                default:
+                {
+                    assert(false);
+                }
+            }
+        } else if(strings_match(beginning, "d")) {
+            assert(current_material);
+            char *token = string_split_next(line);
+            current_material->visibility = atof(token);
+        }
+    }
+    
+    fclose(f);
 	
-	return mesh;
+	return model;
 }
 
 static Model
@@ -176,8 +277,9 @@ model_create_debug_floor()
 static Model
 model_create_from_obj(const char *filename)
 {
-	OBJMesh obj = obj_load(filename);
-	
+	OBJModel obj = obj_load(filename);
+    (void)obj;
+#if 0
 	unsigned int vertices_count = 0;
 	unsigned int faces_count = 0;
 	for(unsigned int i = 0; i < obj.faces.length; i++)
@@ -248,7 +350,9 @@ model_create_from_obj(const char *filename)
 	
 	model.flags = (ModelFlags)(model.flags | MODEL_FLAGS_MESH_NORMALS_SHADED);
 	model.flags = (ModelFlags)(model.flags & ~MODEL_FLAGS_GOURAUD_SHADED);
-	
+#endif
+    Model model = {};
+    (void)filename;
 	return model;
 }
 
