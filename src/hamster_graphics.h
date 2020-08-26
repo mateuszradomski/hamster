@@ -7,10 +7,7 @@
 struct OBJMeshFace
 {
 	Array<unsigned int> vertex_ids;
-	// NOTE: We want to read in the texture in the future but we are
-	// not doing it just now. Idealy the obj model would flag what type
-	// of face it read
-	// unsigned int texture_id;
+    Array<unsigned int> texture_ids;
 	Array<unsigned int> normal_ids;
 };
 
@@ -35,17 +32,25 @@ struct OBJObject
 struct OBJMaterial
 {
     char name[64];
+    f32 visibility;
     f32 specular_exponent;
+    f32 refraction_factor;
+    u32 illumination_flag;
     Vec3 ambient_component;
     Vec3 diffuse_component;
     Vec3 specular_component;
-    f32 visibility;
+    Vec3 emissive_component;
+    // NOTE(matesz): Right now only supports these maps, maybe more in the future.
+    char diffuse_map_filename[64];
+    char specular_map_filename[64];
+    char normal_map_filename[64];
 };
 
 struct OBJModel
 {
 	// NOTE: We dont support the w element in geo vertex reading 
     Array<Vec3> vertices;
+    Array<Vec2> texture_uvs;
 	Array<Vec3> normals;
     Array<OBJObject> objects;
     Array<OBJMaterial> materials;

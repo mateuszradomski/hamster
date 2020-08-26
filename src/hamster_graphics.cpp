@@ -14,87 +14,101 @@ obj_load(const char *filename)
     OBJObject *current_object;
 	while(getline(&line, &line_len, f) != -1)
 	{
-        if(string_starts_with(line, "#")) { continue; }
-		
+		if(string_starts_with(line, "#") || string_starts_with(line, "\n")) { continue; }
+        
         u32 parts = string_split(line, ' ');
         char *beginning = line;
 		
         if(strings_match(beginning, "o")) {
             OBJObject object = {};
-            strcpy(object.name, string_split_next(line));
+            char *name = string_split_next(line);
+            assert(strlen(name) < ARRAY_LEN(object.name));
+            
+            strcpy(object.name, name);
             string_find_and_replace(object.name, '\n', '\0');
             
             model.objects.push(object);
             current_object = &model.objects[model.objects.length - 1];
-        } else if(strings_match(beginning, "usemtl")) {
+        } else {
             assert(current_object);
             
-            strcpy(current_object->mtl_name, string_split_next(line));
-            string_find_and_replace(current_object->mtl_name, '\n', '\0');
-        } else if(strings_match(beginning, "mtllib")) {
-            char *filename = string_split_next(line);
-            assert(strlen(filename) < ARRAY_LEN(mtllib_filename));
-            
-            strcpy(mtllib_filename, filename);
-            string_find_and_replace(mtllib_filename, '\n', '\0');
-        } else if(strings_match(beginning, "v")) {
-            assert(parts >= 4);
-            assert(current_object);
-            char *xpart = string_split_next(line);
-			char *ypart = string_split_next(line);
-			char *zpart = string_split_next(line);
-			assert(xpart && ypart && zpart);
-			
-			f32 x = atof(xpart);
-			f32 y = atof(ypart);
-			f32 z = atof(zpart);
-			model.vertices.push(Vec3(x, y, z));
-		} else if(strings_match(beginning, "vn")) {
-            assert(parts >= 4);
-            assert(current_object);
-			char *xpart = string_split_next(line);
-			char *ypart = string_split_next(line);
-			char *zpart = string_split_next(line);
-			assert(xpart && ypart && zpart);
-			
-			f32 x = atof(xpart);
-			f32 y = atof(ypart);
-			f32 z = atof(zpart);
-			model.normals.push(Vec3(x, y, z));
-		} else if(strings_match(beginning, "f")) {
-            assert(current_object);
-            current_object->faces.push(OBJMeshFace { });
-			OBJMeshFace *face = &current_object->faces[current_object->faces.length - 1];
-			
-			char *part = string_split_next(line);
-            // NOTE(mateusz): Minus one because each line contains also the beginning
-			for(u32 i = 0; i < parts - 1; i++)
-            {
-                // TODO(mateusz): Using the value of parts we can determine the flag status
-                // for each object, saying what face type it is. I just don't want to do it
-                // in a loop.
-                u32 parts = string_split(part, '/');
-                assert(parts != 0);
+            if(strings_match(beginning, "usemtl")) {
+                char *mtl_name = string_split_next(line);
+                assert(strlen(mtl_name) < ARRAY_LEN(current_object->mtl_name));
                 
-				char *token = part;
-				if(strlen(token) > 0) { 
-					face->vertex_ids.push(atoi(token));
-				}
+                strcpy(current_object->mtl_name, mtl_name);
+                string_find_and_replace(current_object->mtl_name, '\n', '\0');
+            } else if(strings_match(beginning, "mtllib")) {
+                char *filename = string_split_next(line);
+                assert(strlen(filename) < ARRAY_LEN(mtllib_filename));
                 
-				token = string_split_next(token);
-                if(strlen(token) > 0) { 
-					// NOTE: not yet implemented
-					//assert(false);
-				}
+                strcpy(mtllib_filename, filename);
+                string_find_and_replace(mtllib_filename, '\n', '\0');
+            } else if(strings_match(beginning, "vt")) {
+                // NOTE(mateusz): We want do it before the merged v and vt
+                // so we won't go into it, because texture uv's are Vec2's
+                // while normals and vertex_positions are Vec3's.
+                assert(parts >= 3);
+                char *upart = string_split_next(line);
+                char *vpart = string_split_next(line);
+                assert(upart && upart);
                 
-				token = string_split_next(token);
-				if(strlen(token) > 0) { 
-					face->normal_ids.push(atoi(token));
-				}
-				
-				part = string_split_next(line);
-			}
-		}
+                f32 u = atof(upart);
+                f32 v = atof(vpart);
+                
+                model.texture_uvs.push(Vec2(u, v));
+            } else if(string_starts_with(beginning, "v")) {
+                assert(parts >= 4);
+                char *xpart = string_split_next(line);
+                char *ypart = string_split_next(line);
+                char *zpart = string_split_next(line);
+                assert(xpart && ypart && zpart);
+                
+                f32 x = atof(xpart);
+                f32 y = atof(ypart);
+                f32 z = atof(zpart);
+                
+                if(beginning[1] == '\0') {
+                    model.vertices.push(Vec3(x, y, z));
+                } else if(beginning[1] == 'n') {
+                    model.normals.push(Vec3(x, y, z));
+                } else {
+                    // NOTE(mateusz): Unreachable!
+                    assert(false);
+                }
+            } else if(strings_match(beginning, "f")) {
+                current_object->faces.push(OBJMeshFace { });
+                OBJMeshFace *face = &current_object->faces[current_object->faces.length - 1];
+                
+                char *part = string_split_next(line);
+                // NOTE(mateusz): Minus one because each line contains also the beginning
+                for(u32 i = 0; i < parts - 1; i++)
+                {
+                    // TODO(mateusz): Using the value of parts we can determine the flag status
+                    // for each object, saying what face type it is. I just don't want to do it
+                    // in a loop.
+                    u32 parts = string_split(part, '/');
+                    assert(parts != 0);
+                    
+                    char *token = part;
+                    if(strlen(token) > 0) { 
+                        face->vertex_ids.push(atoi(token));
+                    }
+                    
+                    token = string_split_next(token);
+                    if(strlen(token) > 0) { 
+                        face->texture_ids.push(atoi(token));
+                    }
+                    
+                    token = string_split_next(token);
+                    if(strlen(token) > 0) { 
+                        face->normal_ids.push(atoi(token));
+                    }
+                    
+                    part = string_split_next(line);
+                }
+            }
+        }
 	}
 	
 	fclose(f);
@@ -115,7 +129,7 @@ obj_load(const char *filename)
     OBJMaterial *current_material = NULL;
     while(getline(&line, &line_len, f) != -1)
     {
-        if(string_starts_with(line, "#")) { continue; }
+        if(string_starts_with(line, "#") || string_starts_with(line, "\n")) { continue; }
 		
         u32 parts = string_split(line, ' ');
         assert(parts);
@@ -123,53 +137,83 @@ obj_load(const char *filename)
 		
         if(strings_match(beginning, "newmtl")) {
             OBJMaterial material = {};
-            strcpy(material.name, string_split_next(line));
+            
+            char *name = string_split_next(line);
+            assert(strlen(name) < ARRAY_LEN(material.name));
+            
+            strcpy(material.name, name);
             string_find_and_replace(material.name, '\n', '\0');
             
             model.materials.push(material);
             current_material = &model.materials[model.materials.length - 1];
-        } else if(strings_match(beginning, "Ns")) {
+        } else {
             assert(current_material);
-            char *token = string_split_next(line);
-            current_material->specular_exponent = atof(token);
-        } else if(string_starts_with(beginning, "K")) {
-            assert(parts >= 4);
-            assert(current_material);
-            char *xpart = string_split_next(line);
-			char *ypart = string_split_next(line);
-			char *zpart = string_split_next(line);
-			assert(xpart && ypart && zpart);
             
-			f32 x = atof(xpart);
-			f32 y = atof(ypart);
-			f32 z = atof(zpart);
-            
-            switch(beginning[1])
-            {
-                case 'a':
+            if(strings_match(beginning, "Ns")) {
+                char *token = string_split_next(line);
+                current_material->specular_exponent = atof(token);
+            } else if(string_starts_with(beginning, "K")) {
+                assert(parts >= 4);
+                char *xpart = string_split_next(line);
+                char *ypart = string_split_next(line);
+                char *zpart = string_split_next(line);
+                assert(xpart && ypart && zpart);
+                
+                f32 x = atof(xpart);
+                f32 y = atof(ypart);
+                f32 z = atof(zpart);
+                
+                switch(beginning[1])
                 {
-                    current_material->ambient_component = Vec3(x, y, z);
-                    break;
+                    case 'a': {
+                        current_material->ambient_component = Vec3(x, y, z);
+                        break;
+                    }
+                    case 'd': {
+                        current_material->diffuse_component = Vec3(x, y, z);
+                        break;
+                    }
+                    case 's': {
+                        current_material->specular_component = Vec3(x, y, z);
+                        break;
+                    }
+                    case 'e': {
+                        current_material->emissive_component = Vec3(x, y, z);
+                        break;
+                    }
+                    default: {
+                        assert(false);
+                    }
                 }
-                case 'd':
-                {
-                    current_material->diffuse_component = Vec3(x, y, z);
-                    break;
-                }
-                case 's':
-                {
-                    current_material->specular_component = Vec3(x, y, z);
-                    break;
-                }
-                default:
-                {
-                    assert(false);
-                }
+            } else if(strings_match(beginning, "d")) {
+                char *token = string_split_next(line);
+                current_material->visibility = atof(token);
+            } else if(strings_match(beginning, "Ni")) {
+                char *token = string_split_next(line);
+                current_material->refraction_factor = atof(token);
+            } else if(strings_match(beginning, "illum")) {
+                char *token = string_split_next(line);
+                current_material->illumination_flag = atoi(token);
+            } else if(strings_match(beginning, "map_Kd")) {
+                char *filename = string_split_next(line);
+                assert(strlen(filename) < ARRAY_LEN(current_material->diffuse_map_filename));
+                
+                strcpy(current_material->diffuse_map_filename, filename);
+                string_find_and_replace(current_material->diffuse_map_filename, '\n', '\0');
+            } else if(strings_match(beginning, "map_Ks")) {
+                char *filename = string_split_next(line);
+                assert(strlen(filename) < ARRAY_LEN(current_material->specular_map_filename));
+                
+                strcpy(current_material->specular_map_filename, filename);
+                string_find_and_replace(current_material->specular_map_filename, '\n', '\0');
+            } else if(strings_match(beginning, "map_Bump") || strings_match(beginning, "map_bump") ||
+                      strings_match(beginning, "bump")) {
+                char *filename = string_split_next(line);
+                assert(strlen(filename) < ARRAY_LEN(current_material->normal_map_filename));
+                
+                strcpy(current_material->normal_map_filename, filename);
+                string_find_and_replace(current_material->normal_map_filename, '\n', '\0');
             }
-        } else if(strings_match(beginning, "d")) {
-            assert(current_material);
-            char *token = string_split_next(line);
-            current_material->visibility = atof(token);
         }
     }
     
