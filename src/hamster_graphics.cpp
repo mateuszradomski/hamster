@@ -5,20 +5,27 @@ obj_load(const char *filename)
 {
 	FILE *f = fopen(filename, "r");
 	assert(f);
-	
+    
+    char *contents = read_file_to_string(f);
+    fclose(f);
+    
 	char *line = NULL;
-	size_t line_len = 0;
-	
+	char *next_line = contents;
+    u32 lines_count = string_split(contents, '\n');
+    
 	OBJModel model = {};
     char mtllib_filename[64] = {};
-    OBJObject *current_object;
-	while(getline(&line, &line_len, f) != -1)
+    OBJObject *current_object = NULL;
+    for(u32 linenr = 0; linenr < lines_count; linenr++)
 	{
-		if(string_starts_with(line, "#") || string_starts_with(line, "\n")) { continue; }
+        line = next_line;
+        next_line = string_split_next(line);
+        
+		if(string_starts_with(line, "#") || string_starts_with(line, "\n") || string_empty(line)) { continue; }
         
         u32 parts = string_split(line, ' ');
         char *beginning = line;
-		
+        
         if(strings_match(beginning, "o")) {
             OBJObject object = {};
             char *name = string_split_next(line);
@@ -29,6 +36,12 @@ obj_load(const char *filename)
             
             model.objects.push(object);
             current_object = &model.objects[model.objects.length - 1];
+        } else if(strings_match(beginning, "mtllib")) {
+            char *filename = string_split_next(line);
+            assert(strlen(filename) < ARRAY_LEN(mtllib_filename));
+            
+            strcpy(mtllib_filename, filename);
+            string_find_and_replace(mtllib_filename, '\n', '\0'); 
         } else {
             assert(current_object);
             
@@ -38,12 +51,6 @@ obj_load(const char *filename)
                 
                 strcpy(current_object->mtl_name, mtl_name);
                 string_find_and_replace(current_object->mtl_name, '\n', '\0');
-            } else if(strings_match(beginning, "mtllib")) {
-                char *filename = string_split_next(line);
-                assert(strlen(filename) < ARRAY_LEN(mtllib_filename));
-                
-                strcpy(mtllib_filename, filename);
-                string_find_and_replace(mtllib_filename, '\n', '\0');
             } else if(strings_match(beginning, "vt")) {
                 // NOTE(mateusz): We want do it before the merged v and vt
                 // so we won't go into it, because texture uv's are Vec2's
@@ -85,9 +92,6 @@ obj_load(const char *filename)
                 // NOTE(mateusz): Minus one because each line contains also the beginning
                 for(u32 i = 0; i < parts - 1; i++)
                 {
-                    // TODO(mateusz): Using the value of parts we can determine the flag status
-                    // for each object, saying what face type it is. I just don't want to do it
-                    // in a loop.
                     face_set = 0;
                     face_parts = string_split(part, '/');
                     assert(parts != 0);
@@ -124,11 +128,10 @@ obj_load(const char *filename)
                 }
             }
         }
-	}
-	
-	fclose(f);
-	
-	printf("vertices: %d\tnormals: %d\n", model.vertices.length * 3, model.normals.length * 3);
+    }
+    
+    free(contents);
+    printf("vertices: %d\tnormals: %d\n", model.vertices.length * 3, model.normals.length * 3);
     
     const char *path = strrchr(filename, '/');
     if(path && path - filename > 0)
@@ -138,18 +141,27 @@ obj_load(const char *filename)
         memmove(mtllib_filename, filename, path - filename);
     }
     
-	f = fopen(mtllib_filename, "r");
-	assert(f);
+    f = fopen(mtllib_filename, "r");
+    assert(f);
+    
+    contents = read_file_to_string(f);
+    fclose(f);
+    
+    line = NULL;
+    next_line = contents;
+    lines_count = string_split(contents, '\n');
     
     OBJMaterial *current_material = NULL;
-    while(getline(&line, &line_len, f) != -1)
+    for(u32 linenr = 0; linenr < lines_count; linenr++)
     {
-        if(string_starts_with(line, "#") || string_starts_with(line, "\n")) { continue; }
-		
+        line = next_line;
+        next_line = string_split_next(line);
+        if(string_starts_with(line, "#") || string_starts_with(line, "\n") || string_empty(line)) { continue; }
+        
         u32 parts = string_split(line, ' ');
         assert(parts);
         char *beginning = line;
-		
+        
         if(strings_match(beginning, "newmtl")) {
             OBJMaterial material = {};
             
@@ -232,9 +244,9 @@ obj_load(const char *filename)
         }
     }
     
-    fclose(f);
-	
-	return model;
+    free(contents);
+    
+    return model;
 }
 
 static Model

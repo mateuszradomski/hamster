@@ -172,6 +172,18 @@ struct Map
 	}
 };
 
+static char *
+read_file_to_string(FILE *f)
+{
+    fseek(f, 0, SEEK_END);
+    u32 file_size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    
+    char *result = (char *)malloc(file_size);
+    fread(result, file_size, 1, f);
+    return result;
+}
+
 static bool
 strings_match(const char *str1, const char *str2)
 {
