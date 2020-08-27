@@ -50,7 +50,7 @@ obj_load(const char *filename)
                 // while normals and vertex_positions are Vec3's.
                 assert(parts >= 3);
                 char *upart = string_split_next(line);
-                char *vpart = string_split_next(line);
+                char *vpart = string_split_next(upart);
                 assert(upart && upart);
                 
                 f32 u = atof(upart);
@@ -60,8 +60,8 @@ obj_load(const char *filename)
             } else if(string_starts_with(beginning, "v")) {
                 assert(parts >= 4);
                 char *xpart = string_split_next(line);
-                char *ypart = string_split_next(line);
-                char *zpart = string_split_next(line);
+                char *ypart = string_split_next(xpart);
+                char *zpart = string_split_next(ypart);
                 assert(xpart && ypart && zpart);
                 
                 f32 x = atof(xpart);
@@ -105,7 +105,7 @@ obj_load(const char *filename)
                         face->normal_ids.push(atoi(token));
                     }
                     
-                    part = string_split_next(line);
+                    part = string_split_next(token);
                 }
             }
         }
@@ -155,8 +155,8 @@ obj_load(const char *filename)
             } else if(string_starts_with(beginning, "K")) {
                 assert(parts >= 4);
                 char *xpart = string_split_next(line);
-                char *ypart = string_split_next(line);
-                char *zpart = string_split_next(line);
+                char *ypart = string_split_next(xpart);
+                char *zpart = string_split_next(ypart);
                 assert(xpart && ypart && zpart);
                 
                 f32 x = atof(xpart);
@@ -322,16 +322,16 @@ static Model
 model_create_from_obj(const char *filename)
 {
 	OBJModel obj = obj_load(filename);
-    (void)obj;
-#if 0
+    
 	unsigned int vertices_count = 0;
 	unsigned int faces_count = 0;
-	for(unsigned int i = 0; i < obj.faces.length; i++)
+    OBJObject *object = &obj.objects[0];
+	for(unsigned int i = 0; i < object->faces.length; i++)
 	{
-		assert(obj.faces[i].vertex_ids.length == obj.faces[i].normal_ids.length);	
-		unsigned int face_size = obj.faces[i].vertex_ids.length;
-		vertices_count += face_size;
-		faces_count += (face_size - 2) * 3;
+		assert(object->faces[i].vertex_ids.length == object->faces[i].normal_ids.length);	
+        unsigned int face_size = object->faces[i].vertex_ids.length;
+        vertices_count += face_size;
+        faces_count += (face_size - 2) * 3;
 	}
 	
 	Model model = {};
@@ -340,17 +340,17 @@ model_create_from_obj(const char *filename)
 	
 	unsigned int vertices_size = vertices_count * sizeof(Vertex);
 	unsigned int indices_size = faces_count * sizeof(unsigned int);
-	mesh->vertices.reserve(vertices_size);
-	mesh->indices.reserve(indices_size);
+	mesh->vertices.reserve(vertices_count);
+	mesh->indices.reserve(faces_count);
 	
-	for(unsigned int i = 0; i < obj.faces.length; i++)
+	for(unsigned int i = 0; i < object->faces.length; i++)
 	{
-		unsigned int face_size = obj.faces[i].vertex_ids.length;
+		unsigned int face_size = object->faces[i].vertex_ids.length;
 		for(unsigned int j = 0; j < face_size; ++j)
 		{
 			// NOTE: We decrement the array index because obj indexes starting from 1
-			Vec3 vertex = obj.vertices[obj.faces[i].vertex_ids[j] - 1];
-			Vec3 normal = obj.normals[obj.faces[i].normal_ids[j] - 1];
+			Vec3 vertex = obj.vertices[object->faces[i].vertex_ids[j] - 1];
+			Vec3 normal = obj.normals[object->faces[i].normal_ids[j] - 1];
 			Vec2 texuv = {};
 			
 			Vertex v = {};
@@ -381,6 +381,8 @@ model_create_from_obj(const char *filename)
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->ebo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_size, mesh->indices.data, GL_STATIC_DRAW);
 	
+    printf("vertices.length = %d\tindices.length = %d\n", mesh->vertices.length, mesh->indices.length);
+    
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_TRUE, 8 * sizeof(float), nullptr);
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_TRUE, 8 * sizeof(float), (void *)(3 * sizeof(float)));
 	glVertexAttribPointer(2, 2, GL_FLOAT, GL_TRUE, 8 * sizeof(float), (void *)(6 * sizeof(float)));
@@ -394,9 +396,7 @@ model_create_from_obj(const char *filename)
 	
 	model.flags = (ModelFlags)(model.flags | MODEL_FLAGS_MESH_NORMALS_SHADED);
 	model.flags = (ModelFlags)(model.flags & ~MODEL_FLAGS_GOURAUD_SHADED);
-#endif
-    Model model = {};
-    (void)filename;
+    
 	return model;
 }
 

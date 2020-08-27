@@ -19,7 +19,7 @@ enum OBJObjectFlags
     OBJ_OBJECT_FLAGS_FACE_TYPE_VERTEX_NORMAL = 0x8,
 };
 
-// // NOTE(mateusz): No groups support as of right now.
+// NOTE(mateusz): No groups support as of right now.
 struct OBJObject
 {
 	char name[64];
@@ -40,7 +40,7 @@ struct OBJMaterial
     Vec3 diffuse_component;
     Vec3 specular_component;
     Vec3 emissive_component;
-    // NOTE(matesz): Right now only supports these maps, maybe more in the future.
+    // NOTE(mateusz): Right now only supports these maps, maybe more in the future.
     char diffuse_map_filename[64];
     char specular_map_filename[64];
     char normal_map_filename[64];
