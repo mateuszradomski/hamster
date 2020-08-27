@@ -301,7 +301,7 @@ result *= intensity;
 return result;
 }
 
-vec3 calculate_direct_light(DirectionalLight light, Material material, vec3 normal, vec3 view_dir)
+vec3 calculate_direct_light(DirectionalLight light, Material material, vec3 diffuse_map, vec3 specular_map, vec3 normal, vec3 view_dir)
 {
 vec3 lightdir = normalize(-light.direction);
 float diffuse_mul = max(dot(normal, lightdir), 0.0);
@@ -309,8 +309,8 @@ float diffuse_mul = max(dot(normal, lightdir), 0.0);
 vec3 reflection = reflect(-lightdir, normal);
 float specular_mul = pow(max(dot(view_dir, reflection), 0.0f), material.specular_exponent);
 vec3 ambient = light.ambient_component * material.ambient_component;
-vec3 diffuse = light.diffuse_component * (diffuse_mul * material.diffuse_component);
-vec3 specular = light.specular_component * (specular_mul * material.specular_component);
+vec3 diffuse = light.diffuse_component * diffuse_map * (diffuse_mul * material.diffuse_component);
+vec3 specular = light.specular_component * specular_map * (specular_mul * material.specular_component);
 return ambient + diffuse + specular; 
 }
 
@@ -330,7 +330,7 @@ vec3 view_dir = normalize(view_pos - pixel_pos);
 vec3 diffuse_map_factor = texture(diffuse_map, pixel_texuv).xyz;
 vec3 specular_map_factor = texture(specular_map, pixel_texuv).xyz;
 	vec3 spot_shade = calculate_spotlight(spotlight, material, diffuse_map_factor, specular_map_factor, pixel_normal, pixel_pos, view_dir);
-vec3 direct_shade = calculate_direct_light(direct_light, material, pixel_normal, view_dir);
+vec3 direct_shade = calculate_direct_light(direct_light, material, diffuse_map_factor, specular_map_factor, pixel_normal, view_dir);
 vec3 result = spot_shade + direct_shade;
 	pixel_color = texture(tex_sampler, pixel_texuv) * vec4(result, 1.0);
 })";

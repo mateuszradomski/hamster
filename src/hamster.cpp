@@ -133,30 +133,28 @@ int main()
 	glDebugMessageCallback(opengl_error_callback, 0);
 	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
 	
-	u64 start = rdtsc();
-#if 0
-	Model obj_model = model_create_from_obj("data/model.obj");
-    OBJModel test = obj_load("data/backpack/backpack.obj"); (void)test;
-#else
-    Model obj_model = model_create_from_obj("data/backpack/backpack.obj");
-#endif
-	obj_model.texture = texture_create_solid(1.0f, 1.0f, 1.0f, 1.0f);
+	Model monkey_model = model_create_from_obj("data/model.obj");
+    Model backpack_model = model_create_from_obj("data/backpack/backpack.obj");
+	monkey_model.texture = backpack_model.texture = texture_create_solid(1.0f, 1.0f, 1.0f, 1.0f);
 	Model floor_model = model_create_debug_floor();
 	BasicShaderProgram basic_program = basic_program_build();
 	GLuint line_program = program_create(main_vertex_shader_src, line_fragment_shader_src);
 	UIElement crosshair = ui_element_create(Vec2(0.0f, 0.0f), Vec2(0.1f, 0.1f),
 											"data/crosshair.png");
 	
-	u64 end = rdtsc();
-	printf("%lu\n", end - start);
 	Entity monkey = {};
 	monkey.position = Vec3(5.0f, 0.0f, 0.0f);
 	monkey.size = Vec3(1.0f, 1.0f, 1.0f);
-	monkey.model = &obj_model;
+	monkey.model = &monkey_model;
 	
-	Entity floor = {};
+    Entity backpack = {};
+    backpack.position = Vec3(0.0f, 1.0f, -1.0f);
+    backpack.size = Vec3(1.0f, 1.0f, 1.0f);
+    backpack.model = &backpack_model;
+    
+    Entity floor = {};
 	floor.position = Vec3(0.0f, -2.0f, 0.0f);
-	floor.size = Vec3(3.0f, 1.0f, 3.0f);
+	floor.size = Vec3(10.0f, 1.0f, 10.0f);
 	floor.model = &floor_model;
 	
 	Camera camera = {};
@@ -204,14 +202,14 @@ int main()
             state.draw_hitboxes = !state.draw_hitboxes;
         }
         
-		if(state.kbuttons[GLFW_KEY_M].pressed && (obj_model.flags & MODEL_FLAGS_GOURAUD_SHADED))
+		if(state.kbuttons[GLFW_KEY_M].pressed && (monkey_model.flags & MODEL_FLAGS_GOURAUD_SHADED))
 		{
-			model_mesh_normals_shade(&obj_model);
+			model_mesh_normals_shade(&monkey_model);
 		}
 		
-		if(state.kbuttons[GLFW_KEY_N].pressed && obj_model.flags & MODEL_FLAGS_MESH_NORMALS_SHADED)
+		if(state.kbuttons[GLFW_KEY_N].pressed && monkey_model.flags & MODEL_FLAGS_MESH_NORMALS_SHADED)
 		{
-			model_gouraud_shade(&obj_model);
+			model_gouraud_shade(&monkey_model);
 		}
 		
 		float movement_scalar = 0.01f;
@@ -231,7 +229,7 @@ int main()
 			
 			u64 start = rdtsc();
 			bool entity_hit = ray_intersect_entity(camera.position, camera.front, &monkey);
-			end = rdtsc();
+			u64 end = rdtsc();
 			
 			u64 hit_clocks = end - start;
 			printf("EntityHit = %d | %lu clocks/call\n", entity_hit, hit_clocks);
@@ -260,8 +258,8 @@ int main()
 		
 		glUniform3fv(basic_program.spotlight_position, 1, camera.position.m);
 		glUniform3fv(basic_program.spotlight_direction, 1, camera.front.m);
-		glUniform1f(basic_program.spotlight_cutoff, cosf(to_radians(45.5f)));
-		glUniform1f(basic_program.spotlight_outer_cutoff, cosf(to_radians(60.5f)));
+		glUniform1f(basic_program.spotlight_cutoff, cosf(to_radians(12.5f)));
+		glUniform1f(basic_program.spotlight_outer_cutoff, cosf(to_radians(17.5f)));
 		glUniform3fv(basic_program.spotlight_ambient_component, 1, Vec3(0.1f, 0.1f, 0.1f).m);
 		glUniform3fv(basic_program.spotlight_diffuse_component, 1, Vec3(0.8f, 0.8f, 0.8f).m);
 		glUniform3fv(basic_program.spotlight_specular_component, 1, Vec3(1.0f, 1.0f, 1.0f).m);
@@ -275,12 +273,14 @@ int main()
 		glUniform3fv(basic_program.direct_light_specular_component, 1, Vec3(0.4f, 0.4f, 0.4f).m);
 		
 		entity_draw(monkey, basic_program);
+        entity_draw(backpack, basic_program);
 		entity_draw(floor, basic_program);
 		
 		glUseProgram(line_program);
         if(state.draw_hitboxes)
         {
             entity_draw_hitbox(monkey, line_program);
+            entity_draw_hitbox(backpack, line_program);
         }
 		
 		ui_element_draw(crosshair);
