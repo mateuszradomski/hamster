@@ -273,8 +273,9 @@ model_create_basic()
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	
 	Model model = {};
-	model.meshes.push(Mesh {});
-	Mesh *mesh = model.meshes.data;
+    model.meshes = (Mesh *)malloc(sizeof(Mesh));
+    model.meshes[model.meshes_len++] = {};
+	Mesh *mesh = model.meshes;
 	
 	mesh->vao = vao;
 	mesh->vbo = vbo;
@@ -311,8 +312,9 @@ model_create_debug_floor()
 	Model model = {};
 	model.texture = texture_create_from_file("data/wood.png");
 	
-	model.meshes.push(Mesh {});
-	Mesh *mesh = model.meshes.data;
+    model.meshes = (Mesh *)malloc(sizeof(Mesh));
+    model.meshes[model.meshes_len++] = {};
+	Mesh *mesh = model.meshes;
 	
 	mesh->vertices.reserve(sizeof(vertices));
 	mesh->vertices.push_array(vertices, ARRAY_LEN(vertices));
@@ -352,6 +354,8 @@ model_create_from_obj(const char *filename)
     
     Model model = {};
     OBJObject *object = NULL;
+    model.meshes = (Mesh *)malloc(obj.objects.length * sizeof(Mesh));
+    model.hitboxes = (Hitbox *)malloc(obj.objects.length * sizeof(Hitbox));
     for(u32 oi = 0; oi < obj.objects.length; oi++)
     {
         object = &obj.objects[oi];
@@ -365,8 +369,8 @@ model_create_from_obj(const char *filename)
             faces_count += (face_size - 2) * 3;
         }
         
-        model.meshes.push(Mesh { });
-        Mesh *mesh = &model.meshes[model.meshes.length - 1];
+        model.meshes[model.meshes_len++] = {};
+        Mesh *mesh = &model.meshes[model.meshes_len - 1];
         
         strcpy(mesh->material_name, object->mtl_name);
         mesh->vertices.reserve(vertices_count);
@@ -397,8 +401,7 @@ model_create_from_obj(const char *filename)
             }
         }
         
-        Hitbox hbox = hitbox_create_from_mesh(mesh);
-        model.hitboxes.push(hbox);
+        model.hitboxes[model.hitboxes_len++] = hitbox_create_from_mesh(mesh);
         unsigned int vertices_size = vertices_count * sizeof(Vertex);
         unsigned int indices_size = faces_count * sizeof(unsigned int);
         
@@ -425,11 +428,12 @@ model_create_from_obj(const char *filename)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     }
 	
+    model.materials = (Material *)malloc(obj.materials.length * sizeof(Material));
     for(u32 i = 0; i < obj.materials.length; i++)
     {
         OBJMaterial *obj_mtl = &obj.materials[i];
-        model.materials.push(Material {});
-        Material *new_material = &model.materials[model.materials.length - 1];
+        model.materials[model.materials_len++] = {};
+        Material *new_material = &model.materials[model.materials_len - 1];
         
         strcpy(new_material->name, obj_mtl->name);
         new_material->specular_exponent = obj_mtl->specular_exponent;
@@ -479,7 +483,7 @@ model_create_from_obj(const char *filename)
 static void
 model_gouraud_shade(Model *model)
 {
-    for(u32 i = 0; i < model->meshes.length; i++)
+    for(u32 i = 0; i < model->meshes_len; i++)
     {
         Mesh *mesh = &model->meshes[0];
         
@@ -540,7 +544,7 @@ model_gouraud_shade(Model *model)
 static void
 model_mesh_normals_shade(Model *model)
 {
-    for(u32 i = 0; i < model->meshes.length; i++)
+    for(u32 i = 0; i < model->meshes_len; i++)
     {
         Mesh *mesh = &model->meshes[0];
         
@@ -596,7 +600,7 @@ entity_draw(Entity entity, BasicShaderProgram program)
     glUniformMatrix4fv(program.model, 1, GL_FALSE, transform.a1d);
     
     Model *model = entity.model;
-    for(u32 i = 0; i < model->meshes.length; i++)
+    for(u32 i = 0; i < model->meshes_len; i++)
     {
         glBindVertexArray(model->meshes[i].vao);
         glActiveTexture(GL_TEXTURE0);
@@ -604,7 +608,7 @@ entity_draw(Entity entity, BasicShaderProgram program)
         
         Mesh *mesh = &model->meshes[i];
         Material *material = NULL;
-        for(u32 i = 0; i < model->materials.length; i++)
+        for(u32 i = 0; i < model->materials_len; i++)
         {
             if(strings_match(mesh->material_name, model->materials[i].name))
             {
@@ -661,9 +665,9 @@ static void
 entity_draw_hitbox(Entity entity, GLuint program)
 {
 	Model *model = entity.model;
-    for(u32 i = 0; i < model->meshes.length; i++)
+    for(u32 i = 0; i < model->meshes_len; i++)
     {
-        assert(model->hitboxes.length == model->meshes.length);
+        assert(model->hitboxes_len == model->meshes_len);
         
         Hitbox *hbox = &model->hitboxes[i];
         Vec3 vertices[VERTICES_PER_CUBE] = {
@@ -805,7 +809,7 @@ ray_intersect_triangle(Vec3 ray_origin, Vec3 ray_direction,
 static bool
 ray_intersect_model(Vec3 ray_origin, Vec3 ray_direction, Model *model)
 {
-	for(u32 i = 0; i < model->meshes.length; i++)
+	for(u32 i = 0; i < model->meshes_len; i++)
 	{
 		Mesh *mesh = &model->meshes[i];
 		
@@ -968,7 +972,7 @@ ray_intersect_entity(Vec3 ray_origin, Vec3 ray_direction, Entity *entity)
 {
     Mat4 transform = create_translate(Mat4(1.0f), entity->position);
 	transform = scale(transform, entity->size);
-    for(u32 i = 0; i < entity->model->hitboxes.length; i++)
+    for(u32 i = 0; i < entity->model->hitboxes_len; i++)
     {
         Hitbox transformed_hbox = {};
         transformed_hbox.refpoint = mul(transform, entity->model->hitboxes[i].refpoint);

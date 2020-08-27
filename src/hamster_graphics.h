@@ -138,9 +138,12 @@ struct Material
 
 struct Model
 {
-	Array<Mesh> meshes;
-	Array<Hitbox> hitboxes;
-    Array<Material> materials;
+    Mesh *meshes;
+    Hitbox *hitboxes;
+    Material *materials;
+    u32 meshes_len;
+    u32 hitboxes_len;
+    u32 materials_len;
     ModelFlags flags;
 	
 	GLuint texture;
