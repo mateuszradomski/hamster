@@ -81,31 +81,46 @@ obj_load(const char *filename)
                 OBJMeshFace *face = &current_object->faces[current_object->faces.length - 1];
                 
                 char *part = string_split_next(line);
+                u32 face_parts, face_set = 0;
                 // NOTE(mateusz): Minus one because each line contains also the beginning
                 for(u32 i = 0; i < parts - 1; i++)
                 {
                     // TODO(mateusz): Using the value of parts we can determine the flag status
                     // for each object, saying what face type it is. I just don't want to do it
                     // in a loop.
-                    u32 parts = string_split(part, '/');
+                    face_set = 0;
+                    face_parts = string_split(part, '/');
                     assert(parts != 0);
                     
                     char *token = part;
                     if(strlen(token) > 0) { 
+                        face_set++;
                         face->vertex_ids.push(atoi(token));
                     }
                     
                     token = string_split_next(token);
                     if(strlen(token) > 0) { 
+                        face_set++;
                         face->texture_ids.push(atoi(token));
                     }
                     
                     token = string_split_next(token);
                     if(strlen(token) > 0) { 
+                        face_set++;
                         face->normal_ids.push(atoi(token));
                     }
                     
                     part = string_split_next(token);
+                }
+                
+                if(face_parts >= 1) {
+                    current_object->flags = (OBJObjectFlags)(current_object->flags | OBJ_OBJECT_FLAGS_FACE_HAS_VERTEX);
+                }
+                if(face_parts == 2 || face_set == 3) {
+                    current_object->flags = (OBJObjectFlags)(current_object->flags | OBJ_OBJECT_FLAGS_FACE_HAS_TEXTURE);
+                }
+                if(face_parts >= 3) {
+                    current_object->flags = (OBJObjectFlags)(current_object->flags | OBJ_OBJECT_FLAGS_FACE_HAS_NORMAL);
                 }
             }
         }
@@ -351,9 +366,10 @@ model_create_from_obj(const char *filename)
             for(unsigned int j = 0; j < face_size; ++j)
             {
                 // NOTE: We decrement the array index because obj indexes starting from 1
-                Vec3 vertex = obj.vertices[object->faces[i].vertex_ids[j] - 1];
-                Vec3 normal = obj.normals[object->faces[i].normal_ids[j] - 1];
-                Vec2 texuv = {};
+                Vec3 vertex = (object->flags & OBJ_OBJECT_FLAGS_FACE_HAS_VERTEX) ?  obj.vertices[object->faces[i].vertex_ids[j] - 1] : Vec3(0.0f, 0.0f, 0.0f);
+                Vec3 normal = (object->flags & OBJ_OBJECT_FLAGS_FACE_HAS_NORMAL) ? obj.normals[object->faces[i].normal_ids[j] - 1] : Vec3(0.0f, 0.0f, 0.0f);
+                Vec2 texuv = (object->flags & OBJ_OBJECT_FLAGS_FACE_HAS_TEXTURE) ? 
+                    obj.texture_uvs[object->faces[i].texture_ids[j] - 1] : Vec2(0.0f, 0.0f);
                 
                 Vertex v = {};
                 v.position = vertex;
@@ -436,7 +452,9 @@ model_create_from_obj(const char *filename)
         if(!string_empty(obj_mtl->normal_map_filename))
         {
             memcpy(texture_filename + (u32)(path - filename), obj_mtl->normal_map_filename, strlen(obj_mtl->normal_map_filename) + 1);
-            new_material->normal_map = texture_create_from_file(texture_filename);
+            // NOTE(mateusz): Really slows down the start of the program
+            // and I'm not using it right now so I'll just turn it off.
+            //new_material->normal_map = texture_create_from_file(texture_filename);
             new_material->flags = (MaterialFlags)(new_material->flags | MATERIAL_FLAGS_HAS_NORMAL_MAP);
         }
     }
@@ -548,20 +566,69 @@ line_from_direction(Vec3 origin, Vec3 direction, f32 line_length)
 }
 
 static void
-entity_draw(Entity entity, GLuint program)
+entity_draw(Entity entity, BasicShaderProgram program)
 {
 	Mat4 transform = translate(Mat4(1.0f), entity.position);
 	transform = scale(transform, entity.size);
-	opengl_set_uniform(program, "model", transform);
-	
-	Model *model = entity.model;
+    glUniformMatrix4fv(program.model, 1, GL_FALSE, transform.a1d);
+    
+    Model *model = entity.model;
     for(u32 i = 0; i < model->meshes.length; i++)
     {
         glBindVertexArray(model->meshes[i].vao);
+        glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, model->texture);
         
-        glDrawElements(GL_TRIANGLES, model->meshes[i].indices.length, GL_UNSIGNED_INT, NULL);
+        Mesh *mesh = &model->meshes[i];
+        Material *material = NULL;
+        for(u32 i = 0; i < model->materials.length; i++)
+        {
+            if(strings_match(mesh->material_name, model->materials[i].name))
+            {
+                material = &model->materials[i];
+                break;
+            }
+        }
         
+        if(material)
+        {
+            if(material->flags & MATERIAL_FLAGS_HAS_DIFFUSE_MAP)
+            {
+                glUniform1i(glGetUniformLocation(program.id, "diffuse_map"), 1);
+                glActiveTexture(GL_TEXTURE1);
+                glBindTexture(GL_TEXTURE_2D, material->diffuse_map);
+            }
+            if(material->flags & MATERIAL_FLAGS_HAS_SPECULAR_MAP)
+            {
+                glUniform1i(glGetUniformLocation(program.id, "specular_map"), 2);
+                glActiveTexture(GL_TEXTURE2);
+                glBindTexture(GL_TEXTURE_2D, material->specular_map);
+            }
+            if(material->flags & MATERIAL_FLAGS_HAS_NORMAL_MAP)
+            {
+                glUniform1i(glGetUniformLocation(program.id, "normal_map"), 3);
+                glActiveTexture(GL_TEXTURE3);
+                glBindTexture(GL_TEXTURE_2D, material->normal_map);
+            }
+            
+            glUniform3fv(program.material_ambient_component, 1, material->ambient_component.m);
+            glUniform3fv(program.material_diffuse_component, 1, material->diffuse_component.m);
+            glUniform3fv(program.material_specular_component, 1, material->specular_component.m);
+            glUniform1f(program.material_specular_exponent, material->specular_exponent);
+        }
+        else
+        {
+            Vec3 one_vec = Vec3(1.0f, 1.0f, 1.0f);
+            glUniform3fv(program.material_ambient_component, 1, one_vec.m);
+            glUniform3fv(program.material_diffuse_component, 1, one_vec.m);
+            glUniform3fv(program.material_specular_component, 1, one_vec.m);
+            glUniform1f(program.material_specular_exponent, 1.0f);
+        }
+        
+        glDrawElements(GL_TRIANGLES, mesh->indices.length, GL_UNSIGNED_INT, NULL);
+        glUniform1i(glGetUniformLocation(program.id, "diffuse_map"), 0);
+        glUniform1i(glGetUniformLocation(program.id, "specular_map"), 0);
+        glUniform1i(glGetUniformLocation(program.id, "normal_map"), 0);
         glBindVertexArray(0);
         glBindTexture(GL_TEXTURE_2D, 0);
     }
@@ -1041,7 +1108,11 @@ basic_program_build()
 	result.direct_light_ambient_component = glGetUniformLocation(result.id, "direct_light.ambient_component");
 	result.direct_light_diffuse_component = glGetUniformLocation(result.id, "direct_light.diffuse_component");
 	result.direct_light_specular_component = glGetUniformLocation(result.id, "direct_light.specular_component");
-	
+	result.material_ambient_component = glGetUniformLocation(result.id, "material.ambient_component");
+	result.material_diffuse_component = glGetUniformLocation(result.id, "material.diffuse_component");
+	result.material_specular_component = glGetUniformLocation(result.id, "material.specular_component");
+	result.material_specular_exponent = glGetUniformLocation(result.id, "material.specular_exponent");
+    
 	return result;
 }
 

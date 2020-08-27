@@ -13,10 +13,9 @@ struct OBJMeshFace
 
 enum OBJObjectFlags
 {
-    OBJ_OBJECT_FLAGS_FACE_TYPE_VERTEX = 0x1,
-    OBJ_OBJECT_FLAGS_FACE_TYPE_VERTEX_TEXTURE = 0x2,
-    OBJ_OBJECT_FLAGS_FACE_TYPE_VERTEX_TEXTURE_NORMAL = 0x4,
-    OBJ_OBJECT_FLAGS_FACE_TYPE_VERTEX_NORMAL = 0x8,
+    OBJ_OBJECT_FLAGS_FACE_HAS_VERTEX = 0x1,
+    OBJ_OBJECT_FLAGS_FACE_HAS_TEXTURE = 0x2,
+    OBJ_OBJECT_FLAGS_FACE_HAS_NORMAL = 0x4,
 };
 
 // NOTE(mateusz): No groups support as of right now.
@@ -77,6 +76,10 @@ struct BasicShaderProgram
 	GLuint direct_light_ambient_component;
 	GLuint direct_light_diffuse_component;
 	GLuint direct_light_specular_component;
+    GLuint material_ambient_component;
+    GLuint material_diffuse_component;
+    GLuint material_specular_component;
+    GLuint material_specular_exponent;
 };
 
 struct Vertex
@@ -190,7 +193,7 @@ static Hitbox hitbox_create_from_mesh(Mesh *mesh);
 
 static Line line_from_direction(Vec3 origin, Vec3 direction, f32 line_length);
 
-static void entity_draw(Entity entity, GLuint program);
+static void entity_draw(Entity entity, BasicShaderProgram program);
 static void entity_draw_hitbox(Entity entity, GLuint program);
 
 static UIElement ui_element_create(Vec2 position, Vec2 size, const char *texture_filename);
@@ -262,20 +265,32 @@ vec3 diffuse_component;
 vec3 specular_component;
 };
 
-vec3 calculate_spotlight(SpotLight light, vec3 normal, vec3 pix_pos, vec3 view_dir)
+struct Material
+{
+vec3 ambient_component;
+vec3 diffuse_component;
+vec3 specular_component;
+float specular_exponent;
+};
+
+vec3 calculate_spotlight(SpotLight light, Material material, vec3 diffuse_map, vec3 specular_map, vec3 normal, vec3 pix_pos, vec3 view_dir)
 {
 vec3 lightdir = normalize(light.position - pix_pos);
 float diffuse_mul = max(dot(normal, lightdir), 0.0);
 
 vec3 reflection = reflect(-lightdir, normal);
-float specular_mul = pow(max(dot(view_dir, reflection), 0.0f), 64.0f);
+float specular_mul = pow(max(dot(view_dir, reflection), 0.0f), material.specular_exponent);
 
 float dpix = length(pix_pos - light.position);
 float attenuation = 1.0 / (light.atten_const + light.atten_linear * dpix + light.atten_quad * (dpix * dpix));
 
 vec3 ambient = attenuation * light.ambient_component;
-vec3 diffuse = attenuation * diffuse_mul * light.diffuse_component;
-vec3 specular = attenuation * specular_mul * light.specular_component;
+vec3 diffuse = attenuation * light.diffuse_component;
+vec3 specular = attenuation * light.specular_component;
+
+ ambient *= material.ambient_component;
+ diffuse *= diffuse_mul * material.diffuse_component * diffuse_map;
+ specular *= specular_mul * material.specular_component * specular_map;
 vec3 result = ambient + diffuse + specular;
 
 float theta = dot(lightdir, normalize(-light.direction));
@@ -286,16 +301,16 @@ result *= intensity;
 return result;
 }
 
-vec3 calculate_direct_light(DirectionalLight light, vec3 normal, vec3 view_dir)
+vec3 calculate_direct_light(DirectionalLight light, Material material, vec3 normal, vec3 view_dir)
 {
 vec3 lightdir = normalize(-light.direction);
 float diffuse_mul = max(dot(normal, lightdir), 0.0);
 
 vec3 reflection = reflect(-lightdir, normal);
-float specular_mul = pow(max(dot(view_dir, reflection), 0.0f), 64.0f);
-vec3 ambient = light.ambient_component;
-vec3 diffuse = diffuse_mul * light.diffuse_component;
-vec3 specular = specular_mul * light.specular_component;
+float specular_mul = pow(max(dot(view_dir, reflection), 0.0f), material.specular_exponent);
+vec3 ambient = light.ambient_component * material.ambient_component;
+vec3 diffuse = light.diffuse_component * (diffuse_mul * material.diffuse_component);
+vec3 specular = light.specular_component * (specular_mul * material.specular_component);
 return ambient + diffuse + specular; 
 }
 
@@ -306,11 +321,16 @@ out vec4 pixel_color;
 uniform vec3 view_pos;
 uniform SpotLight spotlight;
 uniform DirectionalLight direct_light;
+uniform Material material;
 uniform sampler2D tex_sampler;
+uniform sampler2D diffuse_map;
+uniform sampler2D specular_map;
 void main() {
 vec3 view_dir = normalize(view_pos - pixel_pos);
-	vec3 spot_shade = calculate_spotlight(spotlight, pixel_normal, pixel_pos, view_dir);
-vec3 direct_shade = calculate_direct_light(direct_light, pixel_normal, view_dir);
+vec3 diffuse_map_factor = texture(diffuse_map, pixel_texuv).xyz;
+vec3 specular_map_factor = texture(specular_map, pixel_texuv).xyz;
+	vec3 spot_shade = calculate_spotlight(spotlight, material, diffuse_map_factor, specular_map_factor, pixel_normal, pixel_pos, view_dir);
+vec3 direct_shade = calculate_direct_light(direct_light, material, pixel_normal, view_dir);
 vec3 result = spot_shade + direct_shade;
 	pixel_color = texture(tex_sampler, pixel_texuv) * vec4(result, 1.0);
 })";

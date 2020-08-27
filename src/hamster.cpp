@@ -25,7 +25,7 @@ struct Window
 	int height;
 	
 	Window() :
-	ptr(NULL), width(800), height(600)
+	ptr(NULL), width(1280), height(720)
 	{ }
 };
 
@@ -73,7 +73,7 @@ create_opengl_window()
 	glfwMakeContextCurrent(window.ptr);
 	assert(glewInit() == 0); // That means no errors
 	
-	//glfwSetInputMode(window.ptr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	glfwSetInputMode(window.ptr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	
 	return window;
 }
@@ -260,8 +260,8 @@ int main()
 		
 		glUniform3fv(basic_program.spotlight_position, 1, camera.position.m);
 		glUniform3fv(basic_program.spotlight_direction, 1, camera.front.m);
-		glUniform1f(basic_program.spotlight_cutoff, cosf(to_radians(12.5f)));
-		glUniform1f(basic_program.spotlight_outer_cutoff, cosf(to_radians(16.5f)));
+		glUniform1f(basic_program.spotlight_cutoff, cosf(to_radians(45.5f)));
+		glUniform1f(basic_program.spotlight_outer_cutoff, cosf(to_radians(60.5f)));
 		glUniform3fv(basic_program.spotlight_ambient_component, 1, Vec3(0.1f, 0.1f, 0.1f).m);
 		glUniform3fv(basic_program.spotlight_diffuse_component, 1, Vec3(0.8f, 0.8f, 0.8f).m);
 		glUniform3fv(basic_program.spotlight_specular_component, 1, Vec3(1.0f, 1.0f, 1.0f).m);
@@ -274,8 +274,8 @@ int main()
 		glUniform3fv(basic_program.direct_light_diffuse_component, 1, Vec3(0.2f, 0.2f, 0.2f).m);
 		glUniform3fv(basic_program.direct_light_specular_component, 1, Vec3(0.4f, 0.4f, 0.4f).m);
 		
-		entity_draw(monkey, basic_program.id);
-		entity_draw(floor, basic_program.id);
+		entity_draw(monkey, basic_program);
+		entity_draw(floor, basic_program);
 		
 		glUseProgram(line_program);
         if(state.draw_hitboxes)
