@@ -179,6 +179,12 @@ strings_match(const char *str1, const char *str2)
 }
 
 static bool
+string_empty(const char *str)
+{
+    return str[0] == '\0';
+}
+
+static bool
 string_starts_with(const char *str, const char *start)
 {
     u32 str_len = strlen(str);

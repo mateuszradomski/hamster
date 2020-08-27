@@ -88,6 +88,7 @@ struct Vertex
 
 struct Mesh
 {
+    char material_name[64];
 	Array<Vertex> vertices;
 	Array<u32> indices;
 	
@@ -112,11 +113,32 @@ enum ModelFlags
 	MODEL_FLAGS_DRAW_HITBOXES = 0x4,
 };
 
+enum MaterialFlags
+{
+    MATERIAL_FLAGS_HAS_DIFFUSE_MAP = 0x1,
+    MATERIAL_FLAGS_HAS_SPECULAR_MAP = 0x2,
+    MATERIAL_FLAGS_HAS_NORMAL_MAP = 0x4,
+};
+
+struct Material
+{
+    char name[64];
+    f32 specular_exponent;
+    Vec3 ambient_component;
+    Vec3 diffuse_component;
+    Vec3 specular_component;
+    GLuint diffuse_map;
+    GLuint specular_map;
+    GLuint normal_map;
+    MaterialFlags flags;
+};
+
 struct Model
 {
 	Array<Mesh> meshes;
 	Array<Hitbox> hitboxes;
-	ModelFlags flags;
+    Array<Material> materials;
+    ModelFlags flags;
 	
 	GLuint texture;
 };

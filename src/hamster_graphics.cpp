@@ -341,8 +341,7 @@ model_create_from_obj(const char *filename)
         model.meshes.push(Mesh { });
         Mesh *mesh = &model.meshes[model.meshes.length - 1];
         
-        unsigned int vertices_size = vertices_count * sizeof(Vertex);
-        unsigned int indices_size = faces_count * sizeof(unsigned int);
+        strcpy(mesh->material_name, object->mtl_name);
         mesh->vertices.reserve(vertices_count);
         mesh->indices.reserve(faces_count);
         
@@ -372,6 +371,8 @@ model_create_from_obj(const char *filename)
         
         Hitbox hbox = hitbox_create_from_mesh(mesh);
         model.hitboxes.push(hbox);
+        unsigned int vertices_size = vertices_count * sizeof(Vertex);
+        unsigned int indices_size = faces_count * sizeof(unsigned int);
         
         glGenVertexArrays(1, &mesh->vao);
         glBindVertexArray(mesh->vao);
@@ -398,6 +399,48 @@ model_create_from_obj(const char *filename)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     }
 	
+    for(u32 i = 0; i < obj.materials.length; i++)
+    {
+        OBJMaterial *obj_mtl = &obj.materials[i];
+        model.materials.push(Material {});
+        Material *new_material = &model.materials[model.materials.length - 1];
+        
+        strcpy(new_material->name, obj_mtl->name);
+        new_material->specular_exponent = obj_mtl->specular_exponent;
+        new_material->ambient_component = obj_mtl->ambient_component;
+        new_material->diffuse_component = obj_mtl->diffuse_component;
+        new_material->specular_component = obj_mtl->specular_component;
+        
+        char texture_filename[64] = {};
+        const char *path = strrchr(filename, '/');
+        if(path && path - filename > 0)
+        {
+            path += 1; // Move over to copy also the last '/'
+            memcpy(texture_filename, filename, path - filename);
+        }
+        
+        if(!string_empty(obj_mtl->diffuse_map_filename))
+        {
+            memcpy(texture_filename + (u32)(path - filename), obj_mtl->diffuse_map_filename, strlen(obj_mtl->diffuse_map_filename) + 1);
+            new_material->diffuse_map = texture_create_from_file(texture_filename);
+            new_material->flags = (MaterialFlags)(new_material->flags | MATERIAL_FLAGS_HAS_DIFFUSE_MAP);
+        }
+        
+        if(!string_empty(obj_mtl->specular_map_filename))
+        {
+            memcpy(texture_filename + (u32)(path - filename), obj_mtl->specular_map_filename, strlen(obj_mtl->specular_map_filename) + 1);
+            new_material->specular_map = texture_create_from_file(texture_filename);
+            new_material->flags = (MaterialFlags)(new_material->flags | MATERIAL_FLAGS_HAS_SPECULAR_MAP);
+        }
+        
+        if(!string_empty(obj_mtl->normal_map_filename))
+        {
+            memcpy(texture_filename + (u32)(path - filename), obj_mtl->normal_map_filename, strlen(obj_mtl->normal_map_filename) + 1);
+            new_material->normal_map = texture_create_from_file(texture_filename);
+            new_material->flags = (MaterialFlags)(new_material->flags | MATERIAL_FLAGS_HAS_NORMAL_MAP);
+        }
+    }
+    
 	model.flags = (ModelFlags)(model.flags | MODEL_FLAGS_MESH_NORMALS_SHADED);
 	model.flags = (ModelFlags)(model.flags & ~MODEL_FLAGS_GOURAUD_SHADED);
     
