@@ -473,14 +473,23 @@ model_gouraud_shade(Model *model)
         
         // TODO(mateusz): That's slooooooooooow.
         Map <Vec3, Vec3> normal_map;
-        Array<Vec3> normals;
         
-        Array<Vec3> seen;
+        u32 seen_len = 0;
+        Vec3 *seen = (Vec3 *)malloc(mesh->vertices.length * sizeof(Vec3));
         for(u32 i = 0; i < mesh->vertices.length; i++)
         {
+            bool seen_contains = false;
             Vec3 vertex = mesh->vertices[i].position;
-            if(seen.contains(vertex)) { continue; }
-            seen.push(vertex);
+            for(u32 j = 0; j < seen_len; j++)
+            {
+                if(seen[j] == vertex)
+                { 
+                    seen_contains = true;
+                    break;
+                }
+            }
+            if(seen_contains) { continue; }
+            seen[seen_len++] = vertex;
             
             Vec3 combined_normal = mesh->vertices[i].normal;
             for(u32 j = i + 1; j < mesh->vertices.length; j++)
@@ -494,21 +503,25 @@ model_gouraud_shade(Model *model)
             normal_map[vertex] = noz(combined_normal);
         }
         
-        Array<f32> vertices = {};
-        vertices.reserve(mesh->vertices.length * sizeof(Vertex));
+        free(seen);
+        
+        u32 vertices_len = 0;
+        Vertex *vertices = (Vertex *)malloc(mesh->vertices.length * sizeof(Vertex));
         for(unsigned int i = 0; i < mesh->vertices.length; i++)
         {
             // NOTE: We decrement the array index because mesh indexes are starting from 1
-            vertices.push_array(mesh->vertices[i].position.m, ARRAY_LEN(mesh->vertices[i].position.m));
-            vertices.push_array(normal_map[mesh->vertices[i].position].m, ARRAY_LEN(normal_map[mesh->vertices[i].position].m));
-            vertices.push_array(mesh->vertices[i].texuv.m, ARRAY_LEN(mesh->vertices[i].texuv.m));
+            vertices[vertices_len].position = mesh->vertices[i].position;
+            vertices[vertices_len].normal = normal_map[mesh->vertices[i].position];
+            vertices[vertices_len].texuv = mesh->vertices[i].texuv;
+            vertices_len++;
         }
         glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.length * sizeof(vertices[0]), vertices.data);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, vertices_len * sizeof(vertices[0]), vertices);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
+        free(vertices);
     }
 	
-	model->flags = (ModelFlags)(model->flags | MODEL_FLAGS_GOURAUD_SHADED);
+    model->flags = (ModelFlags)(model->flags | MODEL_FLAGS_GOURAUD_SHADED);
 	model->flags = (ModelFlags)(model->flags & ~MODEL_FLAGS_MESH_NORMALS_SHADED);
 }
 
