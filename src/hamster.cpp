@@ -40,6 +40,7 @@ struct ProgramState
 {
 	Window window;
 	
+    bool draw_hitboxes;
 	Button kbuttons[GLFW_KEY_LAST];
 	Button mbuttons[GLFW_MOUSE_BUTTON_LAST];
 };
@@ -133,8 +134,12 @@ int main()
 	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
 	
 	u64 start = rdtsc();
+#if 0
 	Model obj_model = model_create_from_obj("data/model.obj");
     OBJModel test = obj_load("data/backpack/backpack.obj"); (void)test;
+#else
+    Model obj_model = model_create_from_obj("data/backpack/backpack.obj");
+#endif
 	obj_model.texture = texture_create_solid(1.0f, 1.0f, 1.0f, 1.0f);
 	Model floor_model = model_create_debug_floor();
 	BasicShaderProgram basic_program = basic_program_build();
@@ -194,6 +199,11 @@ int main()
 		//model = rot_around_vec(Mat4(1.0), glfwGetTime(), Vec3(0.0f, 1.0f, 0.0f));
 		model = Mat4(1.0f);
 		
+        if(state.kbuttons[GLFW_KEY_H].pressed)
+        {
+            state.draw_hitboxes = !state.draw_hitboxes;
+        }
+        
 		if(state.kbuttons[GLFW_KEY_M].pressed && (obj_model.flags & MODEL_FLAGS_GOURAUD_SHADED))
 		{
 			model_mesh_normals_shade(&obj_model);
@@ -268,7 +278,10 @@ int main()
 		entity_draw(floor, basic_program.id);
 		
 		glUseProgram(line_program);
-		entity_draw_hitbox(monkey, line_program);
+        if(state.draw_hitboxes)
+        {
+            entity_draw_hitbox(monkey, line_program);
+        }
 		
 		ui_element_draw(crosshair);
 		
