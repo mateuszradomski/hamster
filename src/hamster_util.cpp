@@ -172,6 +172,14 @@ struct Map
 	}
 };
 
+struct Timer
+{
+    f64 frame_start;
+    f64 frame_end;
+    f64 since_last_second;
+    u32 frames;
+};
+
 static char *
 read_file_to_string(FILE *f)
 {
@@ -187,7 +195,11 @@ read_file_to_string(FILE *f)
 static bool
 strings_match(const char *str1, const char *str2)
 {
-	return strcmp(str1, str2) == 0;
+    while(*str1 == *str2 && *str1 && *str2)
+    {
+        str1++; str2++;
+    }
+    return *str1 == *str2;
 }
 
 static bool
@@ -214,20 +226,16 @@ string_starts_with(const char *str, const char *start)
 static u32
 string_split(char *str, char delimiter)
 {
-    u32 parts = 0;
+    u32 parts = 1;
     
-    if(str)
+    while(*str)
     {
-        parts = 1;
-        while(str && *str)
+        if(*str == delimiter)
         {
-            if(*str == delimiter)
-            {
-                *str = '\0';
-                parts++;
-            }
-            str++;
+            *str = '\0';
+            parts++;
         }
+        str++;
     }
     
     return parts;
@@ -252,3 +260,36 @@ string_find_and_replace(char *str, char find, char replace)
         *newline = replace;
     }
 }
+
+// NOTE(mateusz): If the delimiter isn't found, copy the entire string
+static void
+string_copy_until(char *dest, char *src, char delim)
+{
+    while(*src)
+    {
+        if(*src != delim)
+        {
+            *(dest++) = *(src++);
+        }
+        else
+        {
+            *dest = '\0';
+            break;
+        }
+    }
+}
+
+#if 0
+static void
+string_occur_count(char *str, char *substr)
+{
+    u32 count = 0;
+    
+    while(str)
+    {
+        
+    }
+    
+    return count;
+}
+#endif

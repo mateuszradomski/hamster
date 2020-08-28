@@ -31,17 +31,16 @@ obj_load(const char *filename)
             char *name = string_split_next(line);
             assert(strlen(name) < ARRAY_LEN(object.name));
             
-            strcpy(object.name, name);
-            string_find_and_replace(object.name, '\n', '\0');
+            string_copy_until(object.name, name, '\n');
             
             model.objects.push(object);
             current_object = &model.objects[model.objects.length - 1];
         } else if(strings_match(beginning, "mtllib")) {
             char *filename = string_split_next(line);
+            assert(strlen(mtllib_filename) == 0);
             assert(strlen(filename) < ARRAY_LEN(mtllib_filename));
             
-            strcpy(mtllib_filename, filename);
-            string_find_and_replace(mtllib_filename, '\n', '\0'); 
+            string_copy_until(mtllib_filename, filename, '\n');
         } else {
             assert(current_object);
             
@@ -49,8 +48,7 @@ obj_load(const char *filename)
                 char *mtl_name = string_split_next(line);
                 assert(strlen(mtl_name) < ARRAY_LEN(current_object->mtl_name));
                 
-                strcpy(current_object->mtl_name, mtl_name);
-                string_find_and_replace(current_object->mtl_name, '\n', '\0');
+                string_copy_until(current_object->mtl_name, mtl_name, '\n');
             } else if(strings_match(beginning, "vt")) {
                 // NOTE(mateusz): We want do it before the merged v and vt
                 // so we won't go into it, because texture uv's are Vec2's
@@ -65,7 +63,7 @@ obj_load(const char *filename)
                 
                 model.texture_uvs.push(Vec2(u, v));
             } else if(string_starts_with(beginning, "v")) {
-                assert(parts >= 4);
+                assert(parts == 4);
                 char *xpart = string_split_next(line);
                 char *ypart = string_split_next(xpart);
                 char *zpart = string_split_next(ypart);
@@ -168,8 +166,7 @@ obj_load(const char *filename)
             char *name = string_split_next(line);
             assert(strlen(name) < ARRAY_LEN(material.name));
             
-            strcpy(material.name, name);
-            string_find_and_replace(material.name, '\n', '\0');
+            string_copy_until(material.name, name, '\n');
             
             model.materials.push(material);
             current_material = &model.materials[model.materials.length - 1];
@@ -225,21 +222,18 @@ obj_load(const char *filename)
                 char *filename = string_split_next(line);
                 assert(strlen(filename) < ARRAY_LEN(current_material->diffuse_map_filename));
                 
-                strcpy(current_material->diffuse_map_filename, filename);
-                string_find_and_replace(current_material->diffuse_map_filename, '\n', '\0');
+                string_copy_until(current_material->diffuse_map_filename, filename, '\n');
             } else if(strings_match(beginning, "map_Ks")) {
                 char *filename = string_split_next(line);
                 assert(strlen(filename) < ARRAY_LEN(current_material->specular_map_filename));
                 
-                strcpy(current_material->specular_map_filename, filename);
-                string_find_and_replace(current_material->specular_map_filename, '\n', '\0');
+                string_copy_until(current_material->specular_map_filename, filename, '\n');
             } else if(strings_match(beginning, "map_Bump") || strings_match(beginning, "map_bump") ||
                       strings_match(beginning, "bump")) {
                 char *filename = string_split_next(line);
                 assert(strlen(filename) < ARRAY_LEN(current_material->normal_map_filename));
                 
-                strcpy(current_material->normal_map_filename, filename);
-                string_find_and_replace(current_material->normal_map_filename, '\n', '\0');
+                string_copy_until(current_material->normal_map_filename, filename, '\n');
             }
         }
     }

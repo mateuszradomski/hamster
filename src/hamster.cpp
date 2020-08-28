@@ -39,7 +39,8 @@ struct Button
 struct ProgramState
 {
 	Window window;
-	
+	Timer timer;
+    
     bool draw_hitboxes;
 	Button kbuttons[GLFW_KEY_LAST];
 	Button mbuttons[GLFW_MOUSE_BUTTON_LAST];
@@ -76,6 +77,16 @@ create_opengl_window()
 	glfwSetInputMode(window.ptr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	
 	return window;
+}
+
+static void
+window_debug_title(Window *window, Timer timer)
+{
+    f64 frame_time = timer.frame_end - timer.frame_start;
+    
+    char title[128] = {};
+    sprintf(title, "hamster | %d fps | %f ms frame", timer.frames, frame_time);
+    glfwSetWindowTitle(window->ptr, title);
 }
 
 // TODO: I don't know if this keyboard button callback is going to stay because
@@ -183,6 +194,7 @@ int main()
 	glfwGetCursorPos(state.window.ptr, &xmouse, &ymouse);
 	while(!glfwWindowShouldClose(state.window.ptr))
 	{
+        state.timer.frame_start = glfwGetTime();
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		
 		xmouseold = xmouse;
@@ -287,6 +299,16 @@ int main()
 		
 		glfwSwapBuffers(state.window.ptr);
 		glfwPollEvents();
+        
+        state.timer.frame_end = glfwGetTime();
+        state.timer.since_last_second += state.timer.frame_end - state.timer.frame_start;
+        state.timer.frames++;
+        if(state.timer.since_last_second >= 1.0)
+        {
+            window_debug_title(&state.window, state.timer);
+            state.timer.since_last_second -= 1.0;
+            state.timer.frames = 0;
+        }
 	}
 	
 	glfwTerminate();
