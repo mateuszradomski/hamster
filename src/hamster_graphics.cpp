@@ -249,6 +249,7 @@ obj_load(const char *filename)
     return model;
 }
 
+#if 0
 static Model
 model_create_basic()
 {
@@ -293,6 +294,7 @@ model_create_basic()
 	
 	return model;
 }
+#endif
 
 static Model
 model_create_debug_floor()
@@ -316,11 +318,17 @@ model_create_debug_floor()
     model.meshes[model.meshes_len++] = {};
 	Mesh *mesh = model.meshes;
 	
-	mesh->vertices.reserve(sizeof(vertices));
-	mesh->vertices.push_array(vertices, ARRAY_LEN(vertices));
-	
-	mesh->indices.reserve(sizeof(indices));
-	mesh->indices.push_array(indices, ARRAY_LEN(indices));
+    mesh->vertices = (Vertex *)malloc(sizeof(vertices));
+	for(u32 i = 0; i < ARRAY_LEN(vertices); i++)
+    {
+        mesh->vertices[mesh->vertices_len] = vertices[i];
+    }
+    
+    mesh->indices = (u32 *)malloc(sizeof(indices));
+    for(u32 i = 0; i < ARRAY_LEN(indices); i++)
+    {
+        mesh->indices[mesh->indices_len++] = indices[i];
+    }
 	
 	glGenVertexArrays(1, &mesh->vao);
 	glBindVertexArray(mesh->vao);
@@ -373,8 +381,8 @@ model_create_from_obj(const char *filename)
         Mesh *mesh = &model.meshes[model.meshes_len - 1];
         
         strcpy(mesh->material_name, object->mtl_name);
-        mesh->vertices.reserve(vertices_count);
-        mesh->indices.reserve(faces_count);
+        mesh->vertices = (Vertex *)malloc(vertices_count * sizeof(Vertex));
+        mesh->indices = (u32 *)malloc(faces_count * sizeof(u32));
         
         for(unsigned int i = 0; i < object->faces.length; i++)
         {
@@ -387,17 +395,16 @@ model_create_from_obj(const char *filename)
                 Vec2 texuv = (object->flags & OBJ_OBJECT_FLAGS_FACE_HAS_TEXTURE) ? 
                     obj.texture_uvs[object->faces[i].texture_ids[j] - 1] : Vec2(0.0f, 0.0f);
                 
-                Vertex v = {};
-                v.position = vertex;
-                v.normal = normal;
-                v.texuv = texuv;
-                mesh->vertices.push(v);
+                Vertex *v = &mesh->vertices[mesh->vertices_len++];
+                v->position = vertex;
+                v->normal = normal;
+                v->texuv = texuv;
             }
             
             for(unsigned int k = 0; k < (face_size - 2) * 3; k++)
             {
-                unsigned int face_id = mesh->vertices.length - face_size;
-                mesh->indices.push(face_id + ((k - (k / 3)) % face_size));
+                unsigned int face_id = mesh->vertices_len - face_size;
+                mesh->indices[mesh->indices_len++] = face_id + ((k - (k / 3)) % face_size);
             }
         }
         
@@ -410,11 +417,11 @@ model_create_from_obj(const char *filename)
         
         glGenBuffers(1, &mesh->vbo);
         glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
-        glBufferData(GL_ARRAY_BUFFER, vertices_size, mesh->vertices.data, GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, vertices_size, mesh->vertices, GL_STATIC_DRAW);
         
         glGenBuffers(1, &mesh->ebo);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->ebo);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_size, mesh->indices.data, GL_STATIC_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_size, mesh->indices, GL_STATIC_DRAW);
         
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_TRUE, 8 * sizeof(float), nullptr);
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_TRUE, 8 * sizeof(float), (void *)(3 * sizeof(float)));
@@ -491,8 +498,8 @@ model_gouraud_shade(Model *model)
         Map <Vec3, Vec3> normal_map;
         
         u32 seen_len = 0;
-        Vec3 *seen = (Vec3 *)malloc(mesh->vertices.length * sizeof(Vec3));
-        for(u32 i = 0; i < mesh->vertices.length; i++)
+        Vec3 *seen = (Vec3 *)malloc(mesh->vertices_len * sizeof(Vec3));
+        for(u32 i = 0; i < mesh->vertices_len; i++)
         {
             bool seen_contains = false;
             Vec3 vertex = mesh->vertices[i].position;
@@ -508,7 +515,7 @@ model_gouraud_shade(Model *model)
             seen[seen_len++] = vertex;
             
             Vec3 combined_normal = mesh->vertices[i].normal;
-            for(u32 j = i + 1; j < mesh->vertices.length; j++)
+            for(u32 j = i + 1; j < mesh->vertices_len; j++)
             {
                 if(vertex == mesh->vertices[j].position)
                 {
@@ -522,8 +529,8 @@ model_gouraud_shade(Model *model)
         free(seen);
         
         u32 vertices_len = 0;
-        Vertex *vertices = (Vertex *)malloc(mesh->vertices.length * sizeof(Vertex));
-        for(unsigned int i = 0; i < mesh->vertices.length; i++)
+        Vertex *vertices = (Vertex *)malloc(mesh->vertices_len * sizeof(Vertex));
+        for(unsigned int i = 0; i < mesh->vertices_len; i++)
         {
             // NOTE: We decrement the array index because mesh indexes are starting from 1
             vertices[vertices_len].position = mesh->vertices[i].position;
@@ -549,7 +556,7 @@ model_mesh_normals_shade(Model *model)
         Mesh *mesh = &model->meshes[0];
         
         glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, mesh->vertices.length * sizeof(mesh->vertices[0]), mesh->vertices.data);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, mesh->vertices_len * sizeof(mesh->vertices[0]), mesh->vertices);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 	
@@ -563,7 +570,7 @@ hitbox_create_from_mesh(Mesh *mesh)
 	Vec3 maxpoint = {};
 	Vec3 minpoint = {};
 	
-	for(u32 i = 0; i < mesh->vertices.length; i++)
+	for(u32 i = 0; i < mesh->vertices_len; i++)
     {
 		maxpoint.x = MAX(mesh->vertices[i].position.x, maxpoint.x);
 		maxpoint.y = MAX(mesh->vertices[i].position.y, maxpoint.y);
@@ -652,7 +659,7 @@ entity_draw(Entity entity, BasicShaderProgram program)
             glUniform1f(program.material_specular_exponent, 1.0f);
         }
         
-        glDrawElements(GL_TRIANGLES, mesh->indices.length, GL_UNSIGNED_INT, NULL);
+        glDrawElements(GL_TRIANGLES, mesh->indices_len, GL_UNSIGNED_INT, NULL);
         glUniform1i(glGetUniformLocation(program.id, "diffuse_map"), 0);
         glUniform1i(glGetUniformLocation(program.id, "specular_map"), 0);
         glUniform1i(glGetUniformLocation(program.id, "normal_map"), 0);
@@ -813,7 +820,7 @@ ray_intersect_model(Vec3 ray_origin, Vec3 ray_direction, Model *model)
 	{
 		Mesh *mesh = &model->meshes[i];
 		
-		for(u32 t = 0; t < mesh->indices.length; t += 3)
+		for(u32 t = 0; t < mesh->indices_len; t += 3)
 		{
 			Vertex vert0 = mesh->vertices[mesh->indices[t + 0]];
 			Vertex vert1 = mesh->vertices[mesh->indices[t + 1]];
@@ -838,7 +845,7 @@ ray_intersect_model(Vec3 ray_origin, Vec3 ray_direction, Model *model)
 static bool 
 ray_intersect_mesh_transformed(Vec3 ray_origin, Vec3 ray_direction, Mesh *mesh, Mat4 transform)
 {
-    for(u32 t = 0; t < mesh->indices.length; t += 3)
+    for(u32 t = 0; t < mesh->indices_len; t += 3)
     {
         Vertex vert0 = mesh->vertices[mesh->indices[t + 0]];
         Vertex vert1 = mesh->vertices[mesh->indices[t + 1]];

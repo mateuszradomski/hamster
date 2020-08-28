@@ -92,8 +92,10 @@ struct Vertex
 struct Mesh
 {
     char material_name[64];
-	Array<Vertex> vertices;
-	Array<u32> indices;
+    u32 *indices;
+    Vertex *vertices;
+    u32 indices_len;
+    u32 vertices_len;
 	
 	GLuint vao;
 	GLuint vbo;
