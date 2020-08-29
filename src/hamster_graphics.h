@@ -171,7 +171,8 @@ struct Entity
 {
 	Vec3 position;
 	Vec3 size;
-	
+	Quat rotate;
+    
 	Model *model;
 };
 

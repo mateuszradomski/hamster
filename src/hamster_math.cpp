@@ -748,6 +748,49 @@ inner(Vec4 a, Vec4 b)
 	return result;
 }
 
+
+inline static f32
+len(Quat a)
+{
+    f32 result = 0.0f;
+    result = sqrtf(a.w * a.w + a.v.x * a.v.x + a.v.y * a.v.y + a.v.z * a.v.z);
+    return result;
+}
+
+inline static Quat
+noz(Quat a)
+{
+    f32 l = len(a);
+    Quat result = Quat(a.w / l, Vec3(a.v.x / l, a.v.y / l, a.v.z / l));
+    return result;
+}
+
+inline static Quat
+mul(Quat a, Quat b)
+{
+    Quat result = {};
+    
+    result.w = a.w * b.w - a.v.x * b.v.x - a.v.y * b.v.y - a.v.z * b.v.z;
+    result.v.x = a.w * b.w + a.v.x * b.v.x + a.v.y * b.v.y - a.v.z * b.v.z;
+    result.v.y = a.w * b.w - a.v.x * b.v.x + a.v.y * b.v.y + a.v.z * b.v.z;
+    result.v.z = a.w * b.w + a.v.x * b.v.x - a.v.y * b.v.y + a.v.z * b.v.z;
+    
+    return result;
+}
+
+inline static Quat
+lerp(Quat a, f32 t, Quat b)
+{
+    Quat result = { 0 };
+	
+	result.w = (1.0f - t) * a.w + t * b.w;
+	result.v.x = (1.0f - t) * a.v.x + t * b.v.x;
+	result.v.y = (1.0f - t) * a.v.y + t * b.v.y;
+	result.v.z = (1.0f - t) * a.v.z + t * b.v.z;
+	
+	return result;
+}
+
 inline static Mat2 
 add(Mat2 a, Mat2 b)
 {
@@ -761,6 +804,28 @@ add(Mat2 a, Mat2 b)
 	}
 	
 	return result;
+}
+
+inline static Quat
+qrot(Quat a, f32 angle, Vec3 dir)
+{
+    Quat b = create_qrot(angle, dir);
+    Quat result = mul(b, a);
+    
+    return result;
+}
+
+inline static Quat
+create_qrot(f32 theta, Vec3 dir)
+{
+    dir = noz(dir);
+    
+    f32 half_theta = 0.5f * theta;
+    f32 sin_theta = sinf(half_theta);
+    f32 cos_theta = cosf(half_theta);
+    Quat result = Quat(cos_theta, Vec3(dir.x * sin_theta, dir.y * sin_theta, dir.z * sin_theta));
+    
+    return noz(result);
 }
 
 inline static Mat2 
@@ -1030,7 +1095,7 @@ translate(Mat4 a, Vec3 trans)
 {
 	Mat4 result = { 0 };
 	
-	result = create_translate(a, trans);
+	result = create_translate(Mat4(1.0f), trans);
 	result = mul(result, a);
 	
 	return result;
@@ -1109,4 +1174,40 @@ rot_around_vec(Mat4 a, f32 angle, Vec3 vec)
 	rotation_matrix.a[3][3] = 1.0f;
 	
 	return mul(rotation_matrix, a);
+}
+
+static Mat4 
+rotate_from_quat(Quat a)
+{
+    Mat4 result = {};
+    
+    f32 qw = a.w;
+    f32 qi = a.v.x;
+    f32 qj = a.v.y;
+    f32 qk = a.v.z;
+    f32 twos = 2.0f / (qw*qw + qi*qi + qj*qj + qk*qk);
+    
+    result.a[0][0] = 1.0f - twos * (qj*qj + qk*qk);
+    result.a[1][0] = twos * (qi*qi - qk*qw);
+    result.a[2][0] = twos * (qi*qk + qj*qw);
+    
+    result.a[0][1] = twos * (qi*qj + qk*qw);
+    result.a[1][1] = 1.0f - twos * (qi*qi + qk*qk);
+    result.a[2][1] = twos * (qj*qk - qi*qw);
+    
+    result.a[0][2] = twos * (qi*qk - qj*qw);
+    result.a[1][2] = twos * (qj*qk + qi*qw);
+    result.a[2][2] = 1.0f - twos * (qi*qi + qj*qj);
+    
+    result.a[3][3] = 1.0;
+    
+    return result;
+}
+
+static Mat4 
+rotate_quat(Mat4 a, Quat q)
+{
+    Mat4 new_matrix = rotate_from_quat(q);
+    
+    return mul(new_matrix, a);
 }

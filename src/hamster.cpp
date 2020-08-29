@@ -157,7 +157,7 @@ int main()
 	monkey.position = Vec3(5.0f, 0.0f, 0.0f);
 	monkey.size = Vec3(1.0f, 1.0f, 1.0f);
 	monkey.model = &monkey_model;
-	
+    
     Entity backpack = {};
     backpack.position = Vec3(0.0f, 1.0f, -1.0f);
     backpack.size = Vec3(1.0f, 1.0f, 1.0f);
@@ -206,7 +206,6 @@ int main()
 		buttons_update(state.mbuttons, ARRAY_LEN(state.mbuttons));
 		
 		lookat = look_at(add(camera.front, camera.position), camera.position, camera.up);
-		//model = rot_around_vec(Mat4(1.0), glfwGetTime(), Vec3(0.0f, 1.0f, 0.0f));
 		model = Mat4(1.0f);
 		
         if(state.kbuttons[GLFW_KEY_H].pressed)
@@ -247,7 +246,10 @@ int main()
 			printf("EntityHit = %d | %lu clocks/call\n", entity_hit, hit_clocks);
 		}
 		
-		glBindVertexArray(line_vao);
+        monkey.rotate = create_qrot(to_radians(glfwGetTime() * 14.0f) * 8.0f, Vec3(1.0f, 0.0f, 0.0f));
+        backpack.rotate = create_qrot(to_radians(glfwGetTime() * 8.0f) * 13.0f, Vec3(0.0f, 1.0f, 0.0f));
+        
+        glBindVertexArray(line_vao);
 		glBindBuffer(GL_ARRAY_BUFFER, line_vbo);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(ray_line), &ray_line, GL_STATIC_DRAW);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_TRUE, 3 * sizeof(float), nullptr);

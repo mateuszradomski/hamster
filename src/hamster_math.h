@@ -107,6 +107,15 @@ union Vec4
 	x(x), y(y), z(z), w(w) { }
 };
 
+struct Quat
+{
+    f32 w;
+    Vec3 v;
+    
+    Quat(f32 w = 1.0f, Vec3 v = Vec3()) :
+    w(w), v(v) { }
+};
+
 union Mat2 
 {
 	Vec2 columns[2];
@@ -206,6 +215,13 @@ static Vec4 scale(Vec4 a, f32 scalar);
 static Vec4 lerp(Vec4 a, f32 t, Vec4 b);
 static f32 inner(Vec4 a, Vec4 b);
 
+static f32 len(Quat a);
+static Quat noz(Quat a);
+static Quat mul(Quat a, Quat b);
+static Quat lerp(Quat a, f32 t, Quat b);
+static Quat qrot(Quat a, f32 angle, Vec3 dir);
+static Quat create_qrot(f32 angle, Vec3 dir);
+
 static Mat2 add(Mat2 a, Mat2 b);
 static Mat2 adds(Mat2 a, f32 scalar);
 static Mat2 sub(Mat2 a, Mat2 b);
@@ -226,6 +242,9 @@ static Mat4 translate(Mat4 a, Vec3 trans);
 static Mat4 create_translate(Mat4 a, Vec3 trans);
 static Mat4 scale(Mat4 a, Vec3 size);
 static Mat4 create_scale(Vec3 size);
+static Mat4 rot_around_vec(Mat4 a, f32 angle, Vec3 vec);
+static Mat4 rotate_from_quat(Quat a);
+static Mat4 rotate_quat(Mat4 a, Quat q);
 static Mat4 create_perspective(f32 aspect_ratio, f32 fov, f32 near_z, f32 far_z);
 static Mat4 create_ortographic(f32 aspect_ratio, f32 near_z, f32 far_z);
 static Mat4 look_at(Vec3 cam_target, Vec3 cam_pos, Vec3 cam_up);

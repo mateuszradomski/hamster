@@ -668,8 +668,9 @@ line_from_direction(Vec3 origin, Vec3 direction, f32 line_length)
 static void
 entity_draw(Entity entity, BasicShaderProgram program)
 {
-	Mat4 transform = translate(Mat4(1.0f), entity.position);
-	transform = scale(transform, entity.size);
+    Mat4 transform = scale(Mat4(1.0f), entity.size);
+    transform = rotate_quat(transform, entity.rotate);
+    transform = translate(transform, entity.position);
     glUniformMatrix4fv(program.model, 1, GL_FALSE, transform.a1d);
     
     Model *model = entity.model;
