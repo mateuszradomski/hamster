@@ -1188,7 +1188,7 @@ rotate_from_quat(Quat a)
     f32 twos = 2.0f / (qw*qw + qi*qi + qj*qj + qk*qk);
     
     result.a[0][0] = 1.0f - twos * (qj*qj + qk*qk);
-    result.a[1][0] = twos * (qi*qi - qk*qw);
+    result.a[1][0] = twos * (qi*qj - qk*qw);
     result.a[2][0] = twos * (qi*qk + qj*qw);
     
     result.a[0][1] = twos * (qi*qj + qk*qw);

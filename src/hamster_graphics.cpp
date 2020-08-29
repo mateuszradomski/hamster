@@ -787,8 +787,9 @@ entity_draw_hitbox(Entity entity, GLuint program)
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_TRUE, 3 * sizeof(f32), nullptr);
         glEnableVertexAttribArray(0);
         
-        Mat4 transform = translate(Mat4(1.0f), entity.position);
-        transform = scale(transform, entity.size);
+        Mat4 transform = scale(Mat4(1.0f), entity.size);
+        transform = rotate_quat(transform, entity.rotate);
+        transform = translate(transform, entity.position);
         opengl_set_uniform(program, "model", transform);
         
         glDrawElements(GL_LINES, ARRAY_LEN(indicies), GL_UNSIGNED_INT, NULL);
