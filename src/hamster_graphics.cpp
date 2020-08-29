@@ -754,7 +754,12 @@ ui_element_create(Vec2 position, Vec2 size, const char *texture_filename)
 	element.program = program_create(ui_vertex_src, ui_fragment_src);
 	element.texture = texture_create_from_file(texture_filename);
 	
-	return element;
+    glBindTexture(GL_TEXTURE_2D, element.texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    
+    return element;
 }
 
 static void
@@ -764,9 +769,12 @@ ui_element_draw(UIElement element)
 	// once. That would be more efficient
 	glUseProgram(element.program);
 	Mat4 transform = translate(Mat4(1.0f), Vec3(element.position.x, element.position.y, 0.0f));
-	transform = scale(transform, Vec3(element.size.x, element.size.y));
+	transform = scale(transform, Vec3(element.size.x, element.size.y, 1.0f));
 	opengl_set_uniform(element.program, "transform", transform);
-	
+    
+    Mat4 ortho = create_ortographic(1280.0f/720.0f, 0.01f, 10.0f);
+    opengl_set_uniform(element.program, "ortho", ortho);
+    
 	glEnable(GL_BLEND);
 	glDisable(GL_DEPTH_TEST);
 	

@@ -227,6 +227,7 @@ static Mat4 create_translate(Mat4 a, Vec3 trans);
 static Mat4 scale(Mat4 a, Vec3 size);
 static Mat4 create_scale(Vec3 size);
 static Mat4 create_perspective(f32 aspect_ratio, f32 fov, f32 near_z, f32 far_z);
+static Mat4 create_ortographic(f32 aspect_ratio, f32 near_z, f32 far_z);
 static Mat4 look_at(Vec3 cam_target, Vec3 cam_pos, Vec3 cam_up);
 
 #define HAMSTER_MATH_H

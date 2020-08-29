@@ -973,13 +973,26 @@ create_perspective(f32 aspect_ratio, f32 fov, f32 near_z, f32 far_z)
 	tan_half_fov = tanf(to_radians(fov) * 0.5f);
 	
 	result.a[0][0] = 1.0f / (aspect_ratio * tan_half_fov);
-	/* result.a[0][0] = aspect_ratio / (tan_half_fov); */
 	result.a[1][1] = 1.0f / tan_half_fov;
 	result.a[2][2] = (near_z + far_z) / (near_z - far_z);
 	result.a[2][3] = -1.0f;
 	result.a[3][2] = (2.0f * near_z * far_z) / (near_z - far_z);
-	
+    
 	return result;
+}
+
+static Mat4
+create_ortographic(f32 aspect_ratio, f32 near_z, f32 far_z)
+{
+    Mat4 result = {};
+    
+    result.a[0][0] = 1.0f / aspect_ratio;
+    result.a[1][1] = 1.0f;
+    result.a[2][2] = -2.0f / (far_z - near_z);
+    result.a[3][2] = -(far_z + near_z) / far_z - near_z; 
+    result.a[3][3] = 1.0f;
+    
+    return result;
 }
 
 static Mat4
