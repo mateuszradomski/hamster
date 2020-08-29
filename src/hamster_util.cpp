@@ -187,8 +187,9 @@ read_file_to_string(FILE *f)
     u32 file_size = ftell(f);
     fseek(f, 0, SEEK_SET);
     
-    char *result = (char *)malloc(file_size);
+    char *result = (char *)malloc(file_size + 1);
     fread(result, file_size, 1, f);
+    result[file_size] = '\0';
     return result;
 }
 
@@ -247,6 +248,24 @@ static char *
 string_split_next(char *str)
 {
     char *result = str + strlen(str) + 1;
+    
+    return result;
+}
+
+static u32
+string_split_count_starting(char *lines, u32 lines_count, const char *start)
+{
+    u32 result = 0;
+    
+    char *line = lines;
+    for(u32 i = 0; i < lines_count; i++)
+    {
+        if(string_starts_with(line, start))
+        {
+            result++;
+        }
+        line = string_split_next(line);
+    }
     
     return result;
 }

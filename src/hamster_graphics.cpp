@@ -1,5 +1,27 @@
 #include "hamster_graphics.h"
 
+static u32
+obj_count_faces_for_object(char *lines, u32 lines_left)
+{
+    u32 result = 0;
+    
+    char *line = string_split_next(lines);
+    for(u32 i = 0; i < lines_left; i++)
+    {
+        if(line[0] == 'f')
+        {
+            result++;
+        }
+        else if(line[0] == 'o')
+        {
+            break;
+        }
+        line = string_split_next(line);
+    }
+    
+    return result;
+}
+
 static OBJModel
 obj_load(const char *filename)
 {
@@ -13,7 +35,19 @@ obj_load(const char *filename)
 	char *next_line = contents;
     u32 lines_count = string_split(contents, '\n');
     
-	OBJModel model = {};
+    OBJModel model = {};
+    u32 objects_count = string_split_count_starting(contents, lines_count, "o");
+    model.objects = (OBJObject *)malloc(objects_count * sizeof(OBJObject));
+    
+    // NOTE(mateusz): Needs the space, otherwise v will pick up the vt and vn also.
+    u32 vertices_count = string_split_count_starting(contents, lines_count, "v ");
+    u32 texuvs_count = string_split_count_starting(contents, lines_count, "vt ");
+    u32 normals_count = string_split_count_starting(contents, lines_count, "vn ");
+    
+    model.vertices = (Vec3 *)malloc(vertices_count * sizeof(Vec3));
+    model.texture_uvs = (Vec2 *)malloc(texuvs_count * sizeof(Vec2));
+    model.normals = (Vec3 *)malloc(normals_count * sizeof(Vec3));
+    
     char mtllib_filename[64] = {};
     OBJObject *current_object = NULL;
     for(u32 linenr = 0; linenr < lines_count; linenr++)
@@ -33,8 +67,11 @@ obj_load(const char *filename)
             
             string_copy_until(object.name, name, '\n');
             
-            model.objects.push(object);
-            current_object = &model.objects[model.objects.length - 1];
+            model.objects[model.objects_len++] = object;
+            current_object = &model.objects[model.objects_len - 1];
+            
+            u32 faces_count = obj_count_faces_for_object(line, lines_count - linenr);
+            current_object->faces = (OBJMeshFace *)malloc(faces_count * sizeof(OBJMeshFace));
         } else if(strings_match(beginning, "mtllib")) {
             char *filename = string_split_next(line);
             assert(strlen(mtllib_filename) == 0);
@@ -61,7 +98,7 @@ obj_load(const char *filename)
                 f32 u = atof(upart);
                 f32 v = atof(vpart);
                 
-                model.texture_uvs.push(Vec2(u, v));
+                model.texture_uvs[model.texuvs_len++] = Vec2(u, v);
             } else if(string_starts_with(beginning, "v")) {
                 assert(parts == 4);
                 char *xpart = string_split_next(line);
@@ -74,19 +111,20 @@ obj_load(const char *filename)
                 f32 z = atof(zpart);
                 
                 if(beginning[1] == '\0') {
-                    model.vertices.push(Vec3(x, y, z));
+                    model.vertices[model.vertices_len++] = Vec3(x, y, z);
                 } else if(beginning[1] == 'n') {
-                    model.normals.push(Vec3(x, y, z));
+                    model.normals[model.normals_len++] = Vec3(x, y, z);
                 } else {
                     // NOTE(mateusz): Unreachable!
                     assert(false);
                 }
             } else if(strings_match(beginning, "f")) {
-                current_object->faces.push(OBJMeshFace { });
-                OBJMeshFace *face = &current_object->faces[current_object->faces.length - 1];
+                current_object->faces[current_object->faces_len++] = { };
+                OBJMeshFace *face = &current_object->faces[current_object->faces_len - 1];
                 
                 char *part = string_split_next(line);
-                u32 face_parts, face_set = 0;
+                u32 face_parts = 0;
+                u32 face_set = 0;
                 // NOTE(mateusz): Minus one because each line contains also the beginning
                 for(u32 i = 0; i < parts - 1; i++)
                 {
@@ -129,7 +167,7 @@ obj_load(const char *filename)
     }
     
     free(contents);
-    printf("vertices: %d\tnormals: %d\n", model.vertices.length * 3, model.normals.length * 3);
+    printf("vertices: %d\tnormals: %d\n", model.vertices_len * 3, model.normals_len * 3);
     
     const char *path = strrchr(filename, '/');
     if(path && path - filename > 0)
@@ -148,6 +186,9 @@ obj_load(const char *filename)
     line = NULL;
     next_line = contents;
     lines_count = string_split(contents, '\n');
+    
+    u32 materials_count = string_split_count_starting(contents, lines_count, "newmtl");
+    model.materials = (OBJMaterial *)malloc(materials_count * sizeof(OBJMaterial));
     
     OBJMaterial *current_material = NULL;
     for(u32 linenr = 0; linenr < lines_count; linenr++)
@@ -168,8 +209,8 @@ obj_load(const char *filename)
             
             string_copy_until(material.name, name, '\n');
             
-            model.materials.push(material);
-            current_material = &model.materials[model.materials.length - 1];
+            model.materials[model.materials_len++] = material;
+            current_material = &model.materials[model.materials_len - 1];
         } else {
             assert(current_material);
             
@@ -241,6 +282,20 @@ obj_load(const char *filename)
     free(contents);
     
     return model;
+}
+
+static void
+obj_model_destory(OBJModel *model)
+{
+    for(u32 i = 0; i < model->objects_len; i++)
+    {
+        free(model->objects[i].faces);
+    }
+    free(model->objects);
+    free(model->materials);
+    free(model->vertices);
+    free(model->texture_uvs);
+    free(model->normals);
 }
 
 #if 0
@@ -356,14 +411,14 @@ model_create_from_obj(const char *filename)
     
     Model model = {};
     OBJObject *object = NULL;
-    model.meshes = (Mesh *)malloc(obj.objects.length * sizeof(Mesh));
-    model.hitboxes = (Hitbox *)malloc(obj.objects.length * sizeof(Hitbox));
-    for(u32 oi = 0; oi < obj.objects.length; oi++)
+    model.meshes = (Mesh *)malloc(obj.objects_len * sizeof(Mesh));
+    model.hitboxes = (Hitbox *)malloc(obj.objects_len * sizeof(Hitbox));
+    for(u32 oi = 0; oi < obj.objects_len; oi++)
     {
         object = &obj.objects[oi];
         unsigned int vertices_count = 0;
         unsigned int faces_count = 0;
-        for(unsigned int i = 0; i < object->faces.length; i++)
+        for(unsigned int i = 0; i < object->faces_len; i++)
         {
             assert(object->faces[i].vertex_ids.length == object->faces[i].normal_ids.length);	
             unsigned int face_size = object->faces[i].vertex_ids.length;
@@ -378,7 +433,7 @@ model_create_from_obj(const char *filename)
         mesh->vertices = (Vertex *)malloc(vertices_count * sizeof(Vertex));
         mesh->indices = (u32 *)malloc(faces_count * sizeof(u32));
         
-        for(unsigned int i = 0; i < object->faces.length; i++)
+        for(unsigned int i = 0; i < object->faces_len; i++)
         {
             unsigned int face_size = object->faces[i].vertex_ids.length;
             for(unsigned int j = 0; j < face_size; ++j)
@@ -429,8 +484,8 @@ model_create_from_obj(const char *filename)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     }
 	
-    model.materials = (Material *)malloc(obj.materials.length * sizeof(Material));
-    for(u32 i = 0; i < obj.materials.length; i++)
+    model.materials = (Material *)malloc(obj.materials_len * sizeof(Material));
+    for(u32 i = 0; i < obj.materials_len; i++)
     {
         OBJMaterial *obj_mtl = &obj.materials[i];
         model.materials[model.materials_len++] = {};
@@ -454,6 +509,12 @@ model_create_from_obj(const char *filename)
         {
             memcpy(texture_filename + (u32)(path - filename), obj_mtl->diffuse_map_filename, strlen(obj_mtl->diffuse_map_filename) + 1);
             new_material->diffuse_map = texture_create_from_file(texture_filename);
+            
+            glBindTexture(GL_TEXTURE_2D, new_material->diffuse_map);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glBindTexture(GL_TEXTURE_2D, 0);
+            
             new_material->flags = (MaterialFlags)(new_material->flags | MATERIAL_FLAGS_HAS_DIFFUSE_MAP);
         }
         
@@ -461,6 +522,12 @@ model_create_from_obj(const char *filename)
         {
             memcpy(texture_filename + (u32)(path - filename), obj_mtl->specular_map_filename, strlen(obj_mtl->specular_map_filename) + 1);
             new_material->specular_map = texture_create_from_file(texture_filename);
+            
+            glBindTexture(GL_TEXTURE_2D, new_material->specular_map);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glBindTexture(GL_TEXTURE_2D, 0);
+            
             new_material->flags = (MaterialFlags)(new_material->flags | MATERIAL_FLAGS_HAS_SPECULAR_MAP);
         }
         
@@ -473,6 +540,8 @@ model_create_from_obj(const char *filename)
             new_material->flags = (MaterialFlags)(new_material->flags | MATERIAL_FLAGS_HAS_NORMAL_MAP);
         }
     }
+    
+    obj_model_destory(&obj);
     
 	model.flags = (ModelFlags)(model.flags | MODEL_FLAGS_MESH_NORMALS_SHADED);
 	model.flags = (ModelFlags)(model.flags & ~MODEL_FLAGS_GOURAUD_SHADED);

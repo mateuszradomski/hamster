@@ -3,6 +3,7 @@
 #define VERTICES_PER_CUBE 8
 #define INDICES_PER_CUBE 24
 
+#define OBJ_MAX_MATERIALS 10
 
 struct OBJMeshFace
 {
@@ -24,7 +25,8 @@ struct OBJObject
 	char name[64];
     char mtl_name[64];
     
-	Array<OBJMeshFace> faces;
+    OBJMeshFace *faces;
+    u32 faces_len;
     OBJObjectFlags flags;
 };
 
@@ -48,11 +50,16 @@ struct OBJMaterial
 struct OBJModel
 {
 	// NOTE: We dont support the w element in geo vertex reading 
-    Array<Vec3> vertices;
-    Array<Vec2> texture_uvs;
-	Array<Vec3> normals;
-    Array<OBJObject> objects;
-    Array<OBJMaterial> materials;
+    Vec3 *vertices;
+    Vec2 *texture_uvs;
+	Vec3 *normals;
+    OBJObject *objects;
+    OBJMaterial *materials;
+    u32 vertices_len;
+    u32 texuvs_len;
+    u32 normals_len;
+    u32 objects_len;
+    u32 materials_len;
 };
 
 struct BasicShaderProgram
@@ -187,7 +194,10 @@ struct Camera
 	f32 pitch;
 };
 
+static u32 obj_count_faces_for_object(char *lines, u32 lines_left);
 static OBJModel obj_load(const char *filename);
+static void obj_model_destory(OBJModel *model);
+
 static Model model_create_basic();
 static Model model_create_debug_floor();
 static Model model_create_from_obj(const char *filename);
