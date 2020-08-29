@@ -7,9 +7,12 @@
 
 struct OBJMeshFace
 {
-	Array<unsigned int> vertex_ids;
-    Array<unsigned int> texture_ids;
-	Array<unsigned int> normal_ids;
+    u32 vertex_ids[10];
+    u32 texture_ids[10];
+    u32 normal_ids[10];
+    u32 vids_len;
+    u32 tids_len;
+    u32 nids_len;
 };
 
 enum OBJObjectFlags

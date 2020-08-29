@@ -187,7 +187,7 @@ int main()
 	glGenBuffers(1, &line_vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, line_vbo);
 	
-	glfwSwapInterval(0);
+	glfwSwapInterval(1);
 	
 	f64 xmouse, ymouse;
 	f64 xmouseold, ymouseold;

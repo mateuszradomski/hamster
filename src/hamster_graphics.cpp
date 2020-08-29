@@ -135,19 +135,22 @@ obj_load(const char *filename)
                     char *token = part;
                     if(strlen(token) > 0) { 
                         face_set++;
-                        face->vertex_ids.push(atoi(token));
+                        assert(face->vids_len < ARRAY_LEN(face->vertex_ids));
+                        face->vertex_ids[face->vids_len++] = atoi(token);
                     }
                     
                     token = string_split_next(token);
                     if(strlen(token) > 0) { 
                         face_set++;
-                        face->texture_ids.push(atoi(token));
+                        assert(face->tids_len < ARRAY_LEN(face->texture_ids));
+                        face->texture_ids[face->tids_len++] = atoi(token);
                     }
                     
                     token = string_split_next(token);
                     if(strlen(token) > 0) { 
                         face_set++;
-                        face->normal_ids.push(atoi(token));
+                        assert(face->nids_len < ARRAY_LEN(face->normal_ids));
+                        face->normal_ids[face->nids_len++] = atoi(token);
                     }
                     
                     part = string_split_next(token);
@@ -420,8 +423,8 @@ model_create_from_obj(const char *filename)
         unsigned int faces_count = 0;
         for(unsigned int i = 0; i < object->faces_len; i++)
         {
-            assert(object->faces[i].vertex_ids.length == object->faces[i].normal_ids.length);	
-            unsigned int face_size = object->faces[i].vertex_ids.length;
+            assert(object->faces[i].vids_len == object->faces[i].nids_len);	
+            unsigned int face_size = object->faces[i].vids_len;
             vertices_count += face_size;
             faces_count += (face_size - 2) * 3;
         }
@@ -435,7 +438,7 @@ model_create_from_obj(const char *filename)
         
         for(unsigned int i = 0; i < object->faces_len; i++)
         {
-            unsigned int face_size = object->faces[i].vertex_ids.length;
+            unsigned int face_size = object->faces[i].vids_len;
             for(unsigned int j = 0; j < face_size; ++j)
             {
                 // NOTE: We decrement the array index because obj indexes starting from 1

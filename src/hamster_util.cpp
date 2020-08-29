@@ -2,106 +2,6 @@
 
 #define ARRAY_LEN(a) ((sizeof((a)))/(sizeof((a[0]))))
 
-template <typename T>
-struct Array
-{
-	T* data;
-	unsigned int length;
-	unsigned int capacity;
-	
-	Array();
-	~Array();
-	
-	void push(T val);
-	void push_array(T *array, u32 size);
-	T pop();
-	void clear();
-	
-	bool contains(T val);
-	
-	void reserve(unsigned int size);
-	T &operator[](unsigned int index);
-};
-
-template <typename T>
-Array<T>::Array():
-data(nullptr), length(0), capacity(0)
-{ }
-
-template <typename T>
-Array<T>::~Array()
-{
-	free(data);
-}
-
-template <typename T>
-void Array<T>::push(T val)
-{
-	if(length == capacity)
-	{
-		capacity += ALLOC_CHUNK_SIZE;
-		data = (T *)realloc(data, capacity * sizeof(T));
-		assert(data);
-	}
-	
-	data[length++] = val;
-}
-
-template <typename T>
-void Array<T>::push_array(T *array, u32 size)
-{
-	for(u32 i = 0; i < size; ++i)
-	{
-		this->push(array[i]);
-	}
-}
-
-template <typename T>
-T Array<T>::pop()
-{
-	assert(length != 0);
-	return data[--length];
-}
-
-template <typename T>
-void Array<T>::clear()
-{
-	memset(this->data, 0, sizeof(T) * this->length);
-	this->length = 0;
-}
-
-template <typename T>
-void Array<T>::reserve(unsigned int size)
-{
-	capacity += size;
-	data = (T *)realloc(data, capacity * sizeof(T));
-	assert(data);
-}
-
-template <typename T>
-T &Array<T>::operator[](unsigned int index)
-{
-	assert(index <= length - 1);
-	return data[index];
-}
-
-template <typename T>
-bool Array<T>::contains(T val)
-{
-	bool result = false;
-	
-	for(unsigned int i = 0; i < length; i++)
-	{
-		if(data[i] == val)
-		{
-			result = true;
-			break;
-		}
-	}
-	
-	return result;
-}
-
 template <typename T, typename R>
 struct Map
 {
@@ -311,4 +211,107 @@ string_occur_count(char *str, char *substr)
     
     return count;
 }
+
+#if 0
+template <typename T>
+struct Array
+{
+	T* data;
+	unsigned int length;
+	unsigned int capacity;
+	
+	Array();
+	~Array();
+	
+	void push(T val);
+	void push_array(T *array, u32 size);
+	T pop();
+	void clear();
+	
+	bool contains(T val);
+	
+	void reserve(unsigned int size);
+	T &operator[](unsigned int index);
+};
+
+template <typename T>
+Array<T>::Array():
+data(nullptr), length(0), capacity(0)
+{ }
+
+template <typename T>
+Array<T>::~Array()
+{
+	free(data);
+}
+
+template <typename T>
+void Array<T>::push(T val)
+{
+	if(length == capacity)
+	{
+		capacity += ALLOC_CHUNK_SIZE;
+		data = (T *)realloc(data, capacity * sizeof(T));
+		assert(data);
+	}
+	
+	data[length++] = val;
+}
+
+template <typename T>
+void Array<T>::push_array(T *array, u32 size)
+{
+	for(u32 i = 0; i < size; ++i)
+	{
+		this->push(array[i]);
+	}
+}
+
+template <typename T>
+T Array<T>::pop()
+{
+	assert(length != 0);
+	return data[--length];
+}
+
+template <typename T>
+void Array<T>::clear()
+{
+	memset(this->data, 0, sizeof(T) * this->length);
+	this->length = 0;
+}
+
+template <typename T>
+void Array<T>::reserve(unsigned int size)
+{
+	capacity += size;
+	data = (T *)realloc(data, capacity * sizeof(T));
+	assert(data);
+}
+
+template <typename T>
+T &Array<T>::operator[](unsigned int index)
+{
+	assert(index <= length - 1);
+	return data[index];
+}
+
+template <typename T>
+bool Array<T>::contains(T val)
+{
+	bool result = false;
+	
+	for(unsigned int i = 0; i < length; i++)
+	{
+		if(data[i] == val)
+		{
+			result = true;
+			break;
+		}
+	}
+	
+	return result;
+}
+#endif
+
 #endif
