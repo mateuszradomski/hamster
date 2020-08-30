@@ -74,7 +74,7 @@ create_opengl_window()
 	glfwMakeContextCurrent(window.ptr);
 	assert(glewInit() == 0); // That means no errors
 	
-	glfwSetInputMode(window.ptr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	//glfwSetInputMode(window.ptr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	
 	return window;
 }
@@ -247,7 +247,7 @@ int main()
 		}
 		
         monkey.rotate = create_qrot(to_radians(glfwGetTime() * 14.0f) * 8.0f, Vec3(1.0f, 0.0f, 0.0f));
-        backpack.rotate = create_qrot(to_radians(glfwGetTime() * 8.0f) * 13.0f, Vec3(0.0f, 1.0f, 0.0f));
+        backpack.rotate = create_qrot(to_radians(glfwGetTime() * 8.0f) * 13.0f, Vec3(1.0f, 0.4f, 0.2f));
         
         glBindVertexArray(line_vao);
 		glBindBuffer(GL_ARRAY_BUFFER, line_vbo);

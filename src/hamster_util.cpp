@@ -80,6 +80,18 @@ struct Timer
     u32 frames;
 };
 
+static bool
+is_digit(char a)
+{
+    return a >= '0' && a <= '9';
+}
+
+static bool
+is_whitespace(char a)
+{
+    return a == ' ' || a == '\n' || a == '\t';
+}
+
 static char *
 read_file_to_string(FILE *f)
 {
@@ -196,6 +208,65 @@ string_copy_until(char *dest, char *src, char delim)
             break;
         }
     }
+}
+
+// NOTE(mateusz): These are not really that error checking, just made to be fast.
+static f32
+string_to_float(char *str)
+{
+    bool negative = false;
+    if(str[0] == '-')
+    {
+        negative = true;
+        str++;
+    }
+    
+    f32 result = 0.0f;
+    f32 base = 0.1f;
+    bool after_decimal = false;
+    while(*str)
+    {
+        if(*str != '.')
+        {
+            if(!after_decimal)
+            {
+                result = result * 10.0f + (f32)(*str - '0');
+            }
+            else
+            {
+                result += (f32)(*str - '0') * base;
+                base /= 10.0f;
+            }
+        }
+        else
+        {
+            after_decimal = true;
+        }
+        
+        str++;
+    }
+    
+    return negative ? -result : result;
+}
+
+static i32
+string_to_int(char *str)
+{
+    bool negative = false;
+    if(str[0] == '-')
+    {
+        negative = true;
+        str++;
+    }
+    
+    i32 result = 0;
+    while(*str)
+    {
+        result = result * 10 + *str - '0';
+        str++;
+    }
+    
+    return negative ? -result : result;
 }
 
 #if 0

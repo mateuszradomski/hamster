@@ -95,8 +95,8 @@ obj_load(const char *filename)
                 char *vpart = string_split_next(upart);
                 assert(upart && upart);
                 
-                f32 u = atof(upart);
-                f32 v = atof(vpart);
+                f32 u = string_to_float(upart);
+                f32 v = string_to_float(vpart);
                 
                 model.texture_uvs[model.texuvs_len++] = Vec2(u, v);
             } else if(string_starts_with(beginning, "v")) {
@@ -106,9 +106,9 @@ obj_load(const char *filename)
                 char *zpart = string_split_next(ypart);
                 assert(xpart && ypart && zpart);
                 
-                f32 x = atof(xpart);
-                f32 y = atof(ypart);
-                f32 z = atof(zpart);
+                f32 x = string_to_float(xpart);
+                f32 y = string_to_float(ypart);
+                f32 z = string_to_float(zpart);
                 
                 if(beginning[1] == '\0') {
                     model.vertices[model.vertices_len++] = Vec3(x, y, z);
@@ -136,21 +136,21 @@ obj_load(const char *filename)
                     if(strlen(token) > 0) { 
                         face_set++;
                         assert(face->vids_len < ARRAY_LEN(face->vertex_ids));
-                        face->vertex_ids[face->vids_len++] = atoi(token);
+                        face->vertex_ids[face->vids_len++] = string_to_int(token);
                     }
                     
                     token = string_split_next(token);
                     if(strlen(token) > 0) { 
                         face_set++;
                         assert(face->tids_len < ARRAY_LEN(face->texture_ids));
-                        face->texture_ids[face->tids_len++] = atoi(token);
+                        face->texture_ids[face->tids_len++] = string_to_int(token);
                     }
                     
                     token = string_split_next(token);
                     if(strlen(token) > 0) { 
                         face_set++;
                         assert(face->nids_len < ARRAY_LEN(face->normal_ids));
-                        face->normal_ids[face->nids_len++] = atoi(token);
+                        face->normal_ids[face->nids_len++] = string_to_int(token);
                     }
                     
                     part = string_split_next(token);
@@ -219,7 +219,7 @@ obj_load(const char *filename)
             
             if(strings_match(beginning, "Ns")) {
                 char *token = string_split_next(line);
-                current_material->specular_exponent = atof(token);
+                current_material->specular_exponent = string_to_float(token);
             } else if(string_starts_with(beginning, "K")) {
                 assert(parts >= 4);
                 char *xpart = string_split_next(line);
@@ -227,9 +227,9 @@ obj_load(const char *filename)
                 char *zpart = string_split_next(ypart);
                 assert(xpart && ypart && zpart);
                 
-                f32 x = atof(xpart);
-                f32 y = atof(ypart);
-                f32 z = atof(zpart);
+                f32 x = string_to_float(xpart);
+                f32 y = string_to_float(ypart);
+                f32 z = string_to_float(zpart);
                 
                 switch(beginning[1])
                 {
@@ -255,13 +255,13 @@ obj_load(const char *filename)
                 }
             } else if(strings_match(beginning, "d")) {
                 char *token = string_split_next(line);
-                current_material->visibility = atof(token);
+                current_material->visibility = string_to_float(token);
             } else if(strings_match(beginning, "Ni")) {
                 char *token = string_split_next(line);
-                current_material->refraction_factor = atof(token);
+                current_material->refraction_factor = string_to_float(token);
             } else if(strings_match(beginning, "illum")) {
                 char *token = string_split_next(line);
-                current_material->illumination_flag = atoi(token);
+                current_material->illumination_flag = string_to_int(token);
             } else if(strings_match(beginning, "map_Kd")) {
                 char *filename = string_split_next(line);
                 assert(strlen(filename) < ARRAY_LEN(current_material->diffuse_map_filename));
@@ -410,7 +410,11 @@ model_create_debug_floor()
 static Model
 model_create_from_obj(const char *filename)
 {
+    f64 start = glfwGetTime();
 	OBJModel obj = obj_load(filename);
+    f64 end = glfwGetTime();
+    
+    printf("Loaded in %f\n", end - start);
     
     Model model = {};
     OBJObject *object = NULL;
