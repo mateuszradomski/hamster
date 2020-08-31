@@ -146,17 +146,30 @@ int main()
 	
 	Model monkey_model = model_create_from_obj("data/model.obj");
     Model backpack_model = model_create_from_obj("data/backpack/backpack.obj");
-	monkey_model.texture = backpack_model.texture = texture_create_solid(1.0f, 1.0f, 1.0f, 1.0f);
+    monkey_model.texture = backpack_model.texture = texture_create_solid(1.0f, 1.0f, 1.0f, 1.0f);
+#if 0
+    Model crysis_model = model_create_from_obj("data/nanosuit/nanosuit.obj");
+    crysis_model.texture = monkey_model.texture;
+#endif
 	Model floor_model = model_create_debug_floor();
 	BasicShaderProgram basic_program = basic_program_build();
-	GLuint line_program = program_create(main_vertex_shader_src, line_fragment_shader_src);
+	GLuint line_program = program_create_from_file(MAIN_VERTEX_FILENAME, LINE_FRAG_FILENAME);
 	UIElement crosshair = ui_element_create(Vec2(0.0f, 0.0f), Vec2(0.1f, 0.1f),
 											"data/crosshair.png");
-	
+	Cubemap skybox = cubemap_create_skybox();
+    GLuint skybox_program = program_create_from_file(SKYBOX_VERTEX_FILENAME, SKYBOX_FRAG_FILENAME);
+    
 	Entity monkey = {};
 	monkey.position = Vec3(5.0f, 0.0f, 0.0f);
 	monkey.size = Vec3(1.0f, 1.0f, 1.0f);
 	monkey.model = &monkey_model;
+    
+#if 0
+    Entity crysis_guy = {};
+    crysis_guy.position = Vec3(0.0f, 0.0f, 5.0f);
+    crysis_guy.size = Vec3(0.1f, 0.1f, 0.1f);
+    crysis_guy.model = &crysis_model;
+#endif
     
     Entity backpack = {};
     backpack.position = Vec3(0.0f, 1.0f, -1.0f);
@@ -207,7 +220,11 @@ int main()
 		
 		lookat = look_at(add(camera.front, camera.position), camera.position, camera.up);
 		model = Mat4(1.0f);
-		
+		if(state.kbuttons[GLFW_KEY_P].pressed)
+        {
+            glfwSetInputMode(state.window.ptr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        }
+        
         if(state.kbuttons[GLFW_KEY_H].pressed)
         {
             state.draw_hitboxes = !state.draw_hitboxes;
@@ -223,7 +240,7 @@ int main()
 			model_gouraud_shade(&monkey_model);
 		}
 		
-		float movement_scalar = 0.01f;
+		float movement_scalar = 0.1f;
 		if(state.kbuttons[GLFW_KEY_W].down) {
 			camera.position = add(camera.position, scale(camera.front, movement_scalar));
 		} if(state.kbuttons[GLFW_KEY_S].down) {
@@ -263,6 +280,16 @@ int main()
 		glDrawArrays(GL_LINES, 0, 2);
 		glUseProgram(0);
 		
+        glUseProgram(skybox_program);
+        Mat4 view_no_translation = lookat;
+        view_no_translation.columns[3] = Vec4(0.0f, 0.0f, 0.0f, 1.0f);
+        opengl_set_uniform(skybox_program, "view", view_no_translation);
+        opengl_set_uniform(skybox_program, "proj", proj);
+        
+        cubemap_draw_skybox(skybox);
+        
+        glUseProgram(0);
+        
 		glUseProgram(basic_program.id);
 		glUniformMatrix4fv(basic_program.view, 1, GL_FALSE, lookat.a1d);
 		glUniformMatrix4fv(basic_program.proj, 1, GL_FALSE, proj.a1d);

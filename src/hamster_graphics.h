@@ -5,6 +5,14 @@
 
 #define OBJ_MAX_MATERIALS 10
 
+#define MAIN_VERTEX_FILENAME "src/shaders/main_vertex.glsl"
+#define MAIN_FRAG_FILENAME "src/shaders/main_frag.glsl"
+#define LINE_FRAG_FILENAME "src/shaders/line_vertex.glsl"
+#define UI_VERTEX_FILENAME "src/shaders/ui_vertex.glsl"
+#define UI_FRAG_FILENAME "src/shaders/ui_frag.glsl"
+#define SKYBOX_VERTEX_FILENAME "src/shaders/skybox_vertex.glsl"
+#define SKYBOX_FRAG_FILENAME "src/shaders/skybox_frag.glsl"
+
 struct OBJMeshFace
 {
     u32 vertex_ids[10];
@@ -176,6 +184,15 @@ struct Entity
 	Model *model;
 };
 
+struct Cubemap
+{
+    GLuint vao;
+    GLuint vbo;
+    GLuint ebo;
+    
+    GLuint texture;
+};
+
 struct UIElement
 {
 	Vec2 position;
@@ -215,6 +232,9 @@ static Line line_from_direction(Vec3 origin, Vec3 direction, f32 line_length);
 static void entity_draw(Entity entity, BasicShaderProgram program);
 static void entity_draw_hitbox(Entity entity, GLuint program);
 
+static Cubemap cubemap_create_skybox();
+static void cubemap_draw_skybox(Cubemap skybox);
+
 static UIElement ui_element_create(Vec2 position, Vec2 size, const char *texture_filename);
 static void ui_element_draw(UIElement element);
 
@@ -230,6 +250,7 @@ static GLuint texture_create_solid(f32 r, f32 g, f32 b, f32 a);
 static bool program_shader_check_error(GLuint shader);
 static bool program_check_error(GLuint program);
 static GLuint program_create(const char *vertex_shader_src, const char *fragment_shader_src);
+static GLuint program_create_from_file(const char *vertex_filename, const char *fragment_filename);
 static BasicShaderProgram basic_program_build();
 
 static void camera_calculate_vectors(Camera *cam);
@@ -240,167 +261,6 @@ static void opengl_set_uniform(GLuint program, const char *name, Vec3 vec);
 static void opengl_set_uniform(GLuint program, const char *name, Mat4 mat, GLboolean transpose = GL_FALSE);
 
 static Vec3 triangle_normal(Vec3 v0, Vec3 v1, Vec3 v2);
-
-const char *main_vertex_shader_src =
-R"(#version 330 core
-layout (location = 0) in vec3 vertex_pos;
-layout (location = 1) in vec3 normal;
-layout (location = 2) in vec2 texuv;
-uniform mat4 proj;
-uniform mat4 view;
-uniform mat4 model;
-out vec3 pixel_pos;
-out vec3 pixel_normal;
-out vec2 pixel_texuv;
-void main() {
-	pixel_pos = vec3(model * vec4(vertex_pos, 1.0));
-	pixel_normal = mat3(transpose(inverse(model))) * normal;
-	pixel_texuv = texuv;
-	gl_Position = proj * view * model * vec4(vertex_pos.xyz, 1.0);
-})";
-
-const char *main_fragment_shader_src = 
-R"(#version 330 core
-struct SpotLight {
-	vec3 position;
-	vec3 direction;
-	float cutoff;
-	float outer_cutoff;
-
-vec3 ambient_component;
-vec3 diffuse_component;
-vec3 specular_component;
-
-float atten_const;
-float atten_linear;
-float atten_quad;
-};
-
-struct DirectionalLight {
-vec3 direction;
-
-vec3 ambient_component;
-vec3 diffuse_component;
-vec3 specular_component;
-};
-
-struct Material
-{
-vec3 ambient_component;
-vec3 diffuse_component;
-vec3 specular_component;
-float specular_exponent;
-};
-
-vec3 calculate_spotlight(SpotLight light, Material material, vec3 diffuse_map, vec3 specular_map, vec3 normal, vec3 pix_pos, vec3 view_dir)
-{
-vec3 lightdir = normalize(light.position - pix_pos);
-float diffuse_mul = max(dot(normal, lightdir), 0.0);
-
-vec3 reflection = reflect(-lightdir, normal);
-float specular_mul = pow(max(dot(view_dir, reflection), 0.0f), material.specular_exponent);
-
-float dpix = length(pix_pos - light.position);
-float attenuation = 1.0 / (light.atten_const + light.atten_linear * dpix + light.atten_quad * (dpix * dpix));
-
-vec3 ambient = attenuation * light.ambient_component;
-vec3 diffuse = attenuation * light.diffuse_component;
-vec3 specular = attenuation * light.specular_component;
-
- ambient *= material.ambient_component;
- diffuse *= diffuse_mul * material.diffuse_component * diffuse_map;
- specular *= specular_mul * material.specular_component * specular_map;
-vec3 result = ambient + diffuse + specular;
-
-float theta = dot(lightdir, normalize(-light.direction));
-	float epsilon = light.cutoff - light.outer_cutoff; // Switched because of how cosine works
-	float intensity = clamp((theta - light.outer_cutoff) / epsilon, 0.0, 1.0);
-result *= intensity;
-
-return result;
-}
-
-vec3 calculate_direct_light(DirectionalLight light, Material material, vec3 diffuse_map, vec3 specular_map, vec3 normal, vec3 view_dir)
-{
-vec3 lightdir = normalize(-light.direction);
-float diffuse_mul = max(dot(normal, lightdir), 0.0);
-
-vec3 reflection = reflect(-lightdir, normal);
-float specular_mul = pow(max(dot(view_dir, reflection), 0.0f), material.specular_exponent);
-vec3 ambient = light.ambient_component * material.ambient_component;
-vec3 diffuse = light.diffuse_component * diffuse_map * (diffuse_mul * material.diffuse_component);
-vec3 specular = light.specular_component * specular_map * (specular_mul * material.specular_component);
-return ambient + diffuse + specular; 
-}
-
-in vec3 pixel_pos;
-in vec3 pixel_normal;
-in vec2 pixel_texuv;
-out vec4 pixel_color;
-uniform vec3 view_pos;
-uniform SpotLight spotlight;
-uniform DirectionalLight direct_light;
-uniform Material material;
-uniform sampler2D tex_sampler;
-uniform sampler2D diffuse_map;
-uniform sampler2D specular_map;
-void main() {
-vec3 view_dir = normalize(view_pos - pixel_pos);
-vec3 diffuse_map_factor = texture(diffuse_map, pixel_texuv).xyz;
-vec3 specular_map_factor = texture(specular_map, pixel_texuv).xyz;
-	vec3 spot_shade = calculate_spotlight(spotlight, material, diffuse_map_factor, specular_map_factor, pixel_normal, pixel_pos, view_dir);
-vec3 direct_shade = calculate_direct_light(direct_light, material, diffuse_map_factor, specular_map_factor, pixel_normal, view_dir);
-vec3 result = spot_shade + direct_shade;
-	pixel_color = texture(tex_sampler, pixel_texuv) * vec4(result, 1.0);
-})";
-
-const char *line_fragment_shader_src =
-R"(
-#version 330 core
-out vec4 pixel_color;
-void main()
-{
-pixel_color = vec4(1.0, 0.0, 0.0, 1.0);
-}
-)";
-
-const char *ui_vertex_src =
-R"(
-#version 330 core
-layout (location = 0) in vec2 vertex_pos;
-
- uniform mat4 ortho;
-uniform mat4 transform;
-
-out vec2 pixel_texuv;
-
-void main()
-{
-gl_Position = ortho * transform * vec4(vertex_pos, -1.0f, 1.0f);
-pixel_texuv = vec2((vertex_pos.x + 1.0) / 2.0, 1 - (vertex_pos.y + 1.0) / 2.0);
-}
-)";
-
-const char *ui_fragment_src =
-R"(
-#version 330 core
-
-in vec2 pixel_texuv;
-uniform sampler2D tex_sampler;
-
-out vec4 pixel_color;
-
-void main()
-{
-vec4 tex_color = texture(tex_sampler, pixel_texuv);
-if(tex_color.a < 0.01)
-{
-discard;
-}
-
-pixel_color = tex_color;
-}
-)";
 
 #define HAMSTER_GRAPHICS_H
 #endif

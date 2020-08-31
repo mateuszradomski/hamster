@@ -479,9 +479,9 @@ model_create_from_obj(const char *filename)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->ebo);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_size, mesh->indices, GL_STATIC_DRAW);
         
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_TRUE, 8 * sizeof(float), nullptr);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_TRUE, 8 * sizeof(float), (void *)(3 * sizeof(float)));
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_TRUE, 8 * sizeof(float), (void *)(6 * sizeof(float)));
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), nullptr);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(3 * sizeof(float)));
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(6 * sizeof(float)));
         glEnableVertexAttribArray(0);
         glEnableVertexAttribArray(1);
         glEnableVertexAttribArray(2);
@@ -788,7 +788,7 @@ entity_draw_hitbox(Entity entity, GLuint program)
         
         glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indicies), indicies, GL_STATIC_DRAW);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_TRUE, 3 * sizeof(f32), nullptr);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(f32), nullptr);
         glEnableVertexAttribArray(0);
         
         Mat4 transform = scale(Mat4(1.0f), entity.size);
@@ -802,6 +802,128 @@ entity_draw_hitbox(Entity entity, GLuint program)
         glDeleteBuffers(1, &hbox_vbo);
         glDeleteBuffers(1, &hbox_ebo);
     }
+}
+
+static Cubemap
+cubemap_create_skybox()
+{
+    Cubemap map = {};
+    
+    const char *filenames[] = {
+        "data/skybox/right.jpg",
+        "data/skybox/left.jpg",
+        "data/skybox/top.jpg",
+        "data/skybox/bottom.jpg",
+        "data/skybox/front.jpg",
+        "data/skybox/back.jpg"
+    };
+    
+    glGenTextures(1, &map.texture);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, map.texture);
+    
+    for(u32 i = 0; i < ARRAY_LEN(filenames); i++)
+    {
+        i32 width, height, channels;
+        u8 *pixels = stbi_load(filenames[i], &width, &height, &channels, 0);
+        assert(pixels);
+        
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB,
+                     width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+        free(pixels);
+    }
+    
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    
+    f32 vertices[] = {
+        -1.0f,  1.0f, -1.0f,
+        -1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f,  1.0f, -1.0f,
+        
+        -1.0f, -1.0f,  1.0f,
+        -1.0f, -1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f,  1.0f,
+        
+        1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f, -1.0f,
+        
+        -1.0f, -1.0f,  1.0f,
+        -1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f, -1.0f,  1.0f,
+        
+        -1.0f,  1.0f, -1.0f,
+        1.0f,  1.0f, -1.0f,
+        1.0f,  1.0f,  1.0f,
+        -1.0f,  1.0f,  1.0f,
+        
+        -1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f,  1.0f,
+        1.0f, -1.0f,  1.0f,
+        1.0f, -1.0f, -1.0f,
+    };
+    
+    u32 indices[] = {
+        0, 1, 2,
+        2, 3, 0,
+        
+        4, 5, 6,
+        6, 7, 4,
+        
+        8, 9, 10,
+        10, 11, 8,
+        
+        12, 13, 14,
+        14, 15, 12,
+        
+        16, 17, 18,
+        18, 19, 16,
+        
+        20, 21, 22,
+        22, 23, 20,
+    };
+    
+	glGenVertexArrays(1, &map.vao);
+	glBindVertexArray(map.vao);
+    
+	glGenBuffers(1, &map.vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, map.vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    
+    glGenBuffers(1, &map.ebo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, map.ebo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+	
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(f32), nullptr);
+	glEnableVertexAttribArray(0);
+    
+    glBindVertexArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+    
+    return map;
+}
+
+static void
+cubemap_draw_skybox(Cubemap skybox)
+{
+    glBindVertexArray(skybox.vao);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.texture);
+    
+    glDepthFunc(GL_LEQUAL);
+    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, NULL);
+    
+    glDepthFunc(GL_LESS);
+    glBindVertexArray(0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 }
 
 static UIElement
@@ -829,7 +951,7 @@ ui_element_create(Vec2 position, Vec2 size, const char *texture_filename)
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(f32), nullptr);
 	glEnableVertexAttribArray(0);
 	
-	element.program = program_create(ui_vertex_src, ui_fragment_src);
+	element.program = program_create_from_file(UI_VERTEX_FILENAME, UI_FRAG_FILENAME);
 	element.texture = texture_create_from_file(texture_filename);
 	
     glBindTexture(GL_TEXTURE_2D, element.texture);
@@ -1198,12 +1320,30 @@ program_create(const char *vertex_shader_src, const char *fragment_shader_src)
 	return program;
 }
 
+static GLuint
+program_create_from_file(const char *vertex_filename, const char *fragment_filename)
+{
+    FILE *f = fopen(vertex_filename, "r");
+    assert(f);
+    char *vertex_src = read_file_to_string(f);
+    fclose(f);
+    
+    f = fopen(fragment_filename, "r");
+    assert(f);
+    char *fragment_src = read_file_to_string(f);
+    fclose(f);
+    
+    GLuint program = program_create(vertex_src, fragment_src);
+    
+    return program;
+}
+
 static BasicShaderProgram
 basic_program_build()
 {
 	BasicShaderProgram result = {};
 	
-	result.id = program_create(main_vertex_shader_src, main_fragment_shader_src);
+	result.id = program_create_from_file(MAIN_VERTEX_FILENAME, MAIN_FRAG_FILENAME);
 	result.model = glGetUniformLocation(result.id, "model");
 	result.view = glGetUniformLocation(result.id, "view");
 	result.proj = glGetUniformLocation(result.id, "proj");
