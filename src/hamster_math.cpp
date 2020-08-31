@@ -146,6 +146,16 @@ to_radians(f32 a)
 	return result;
 }
 
+static f32
+to_degrees(f32 a)
+{
+    f32 result = 0.0f;
+    
+    result = (a * 180.0f) / PI;
+    
+    return result;
+}
+
 inline static u32
 clamp(u32 a, u32 min, u32 max)
 {

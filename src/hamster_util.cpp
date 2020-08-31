@@ -1,6 +1,8 @@
 #define ALLOC_CHUNK_SIZE 32
 
 #define ARRAY_LEN(a) ((sizeof((a)))/(sizeof((a[0]))))
+#define FLAG_SET(flag, value, type) ((flag) = ((type)((flag) | (value))))
+#define FLAG_UNSET(flag, value, type) ((flag) = ((type)((flag) & ~(value))))
 
 template <typename T, typename R>
 struct Map
@@ -267,6 +269,22 @@ string_to_int(char *str)
     }
     
     return negative ? -result : result;
+}
+
+static u32
+string_get_char_count(char *str, char c)
+{
+    u32 result = 0;
+    while(*str)
+    {
+        if(*str == c)
+        {
+            result++;
+        }
+        str++;
+    }
+    
+    return result;
 }
 
 #if 0

@@ -84,14 +84,17 @@ uniform Material material;
 uniform sampler2D tex_sampler;
 uniform sampler2D diffuse_map;
 uniform sampler2D specular_map;
+uniform sampler2D normal_map;
 
 void main()
 {
     vec3 view_dir = normalize(view_pos - pixel_pos);
     vec3 diffuse_map_factor = texture(diffuse_map, pixel_texuv).xyz;
     vec3 specular_map_factor = texture(specular_map, pixel_texuv).xyz;
-	vec3 spot_shade = calculate_spotlight(spotlight, material, diffuse_map_factor, specular_map_factor, pixel_normal, pixel_pos, view_dir);
-    vec3 direct_shade = calculate_direct_light(direct_light, material, diffuse_map_factor, specular_map_factor, pixel_normal, view_dir);
+    vec3 mapped_normal = texture(normal_map, pixel_texuv).rgb * 2.0f - 1.0f;
+    vec3 _normal = mapped_normal;
+	vec3 spot_shade = calculate_spotlight(spotlight, material, diffuse_map_factor, specular_map_factor, _normal, pixel_pos, view_dir);
+    vec3 direct_shade = calculate_direct_light(direct_light, material, diffuse_map_factor, specular_map_factor, _normal, view_dir);
     vec3 result = spot_shade + direct_shade;
 	pixel_color = texture(tex_sampler, pixel_texuv) * vec4(result, 1.0);
 }

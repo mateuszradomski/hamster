@@ -13,32 +13,43 @@
 #define SKYBOX_VERTEX_FILENAME "src/shaders/skybox_vertex.glsl"
 #define SKYBOX_FRAG_FILENAME "src/shaders/skybox_frag.glsl"
 
-struct OBJMeshFace
+enum OBJParseFlags
 {
-    u32 vertex_ids[10];
-    u32 texture_ids[10];
-    u32 normal_ids[10];
-    u32 vids_len;
-    u32 tids_len;
-    u32 nids_len;
+    OBJ_PARSE_FLAG_EMPTY = 0x0,
+    OBJ_PARSE_FLAG_TRIANGULATE = 0x1,
+    OBJ_PARSE_FLAG_GEN_TANGENTS = 0x2,
 };
 
-enum OBJObjectFlags
+// TODO(mateusz): This is ok for model that are loaded from blender, because
+// i guess it splits them up so each face is max 4 elements. But anything
+// loaded from somewhere else might blow this up if used with triangulation
+enum OBJMeshFlags
 {
-    OBJ_OBJECT_FLAGS_FACE_HAS_VERTEX = 0x1,
-    OBJ_OBJECT_FLAGS_FACE_HAS_TEXTURE = 0x2,
-    OBJ_OBJECT_FLAGS_FACE_HAS_NORMAL = 0x4,
+    OBJ_MESH_FLAG_FACE_HAS_VERTEX = 0x1,
+    OBJ_MESH_FLAG_FACE_HAS_TEXTURE = 0x2,
+    OBJ_MESH_FLAG_FACE_HAS_NORMAL = 0x4,
+};
+
+struct OBJVILengths
+{
+    u32 vertices;
+    u32 indices;
 };
 
 // NOTE(mateusz): No groups support as of right now.
-struct OBJObject
+struct OBJMesh
 {
 	char name[64];
     char mtl_name[64];
     
-    OBJMeshFace *faces;
-    u32 faces_len;
-    OBJObjectFlags flags;
+    Vec3 *vertexes;
+    Vec2 *texture_uvs;
+	Vec3 *normals;
+    Vec3 *tangents;
+    u32 *indices;
+    u32 vertices_len;
+    u32 indices_len;
+    OBJMeshFlags flags;
 };
 
 struct OBJMaterial
@@ -61,15 +72,11 @@ struct OBJMaterial
 struct OBJModel
 {
 	// NOTE: We dont support the w element in geo vertex reading 
-    Vec3 *vertices;
-    Vec2 *texture_uvs;
-	Vec3 *normals;
-    OBJObject *objects;
+    
+    OBJMesh *meshes;
     OBJMaterial *materials;
-    u32 vertices_len;
-    u32 texuvs_len;
-    u32 normals_len;
-    u32 objects_len;
+    
+    u32 meshes_len;
     u32 materials_len;
 };
 
@@ -215,13 +222,14 @@ struct Camera
 	f32 pitch;
 };
 
-static u32 obj_count_faces_for_object(char *lines, u32 lines_left);
-static OBJModel obj_load(const char *filename);
+static OBJVILengths obj_get_mesh_vilength(char *lines, u32 lines_left);
+static OBJModel obj_parse(const char *filename, OBJParseFlags flags = OBJ_PARSE_FLAG_EMPTY);
 static void obj_model_destory(OBJModel *model);
 
+static void model_load_obj_materials(Model *model, OBJMaterial *materials, u32 count, const char *working_filename);
 static Model model_create_basic();
 static Model model_create_debug_floor();
-static Model model_create_from_obj(const char *filename);
+static Model model_create_from_obj(OBJModel *obj);
 static void model_gouraud_shade(Model *model);
 static void model_mesh_normals_shade(Model *model);
 

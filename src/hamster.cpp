@@ -143,9 +143,32 @@ int main()
 	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 	glDebugMessageCallback(opengl_error_callback, 0);
 	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
-	
-	Model monkey_model = model_create_from_obj("data/model.obj");
-    Model backpack_model = model_create_from_obj("data/backpack/backpack.obj");
+    
+    OBJParseFlags flags = OBJ_PARSE_FLAG_EMPTY;
+    f64 start = glfwGetTime();
+    const char *filename = "data/model.obj";
+	OBJModel obj = obj_parse(filename, flags);
+    printf("OBJ parsed in %f\n", glfwGetTime() - start);
+    start = glfwGetTime();
+	Model monkey_model = model_create_from_obj(&obj);
+    printf("Model loaded in %f\n", glfwGetTime() - start);
+    start = glfwGetTime();
+    model_load_obj_materials(&monkey_model, obj.materials, obj.materials_len, filename);
+    printf("Model materials loaded in %f\n", glfwGetTime() - start);
+    obj_model_destory(&obj);
+    
+    start = glfwGetTime();
+    filename = "data/backpack/backpack.obj";
+    obj = obj_parse(filename, flags);
+    printf("OBJ parsed in %f\n", glfwGetTime() - start);
+    start = glfwGetTime();
+	Model backpack_model = model_create_from_obj(&obj);
+    printf("Model loaded in %f\n", glfwGetTime() - start);
+    start = glfwGetTime();
+    model_load_obj_materials(&backpack_model, obj.materials, obj.materials_len, filename);
+    printf("Model materials loaded in %f\n", glfwGetTime() - start);
+    obj_model_destory(&obj);
+    
     monkey_model.texture = backpack_model.texture = texture_create_solid(1.0f, 1.0f, 1.0f, 1.0f);
 #if 0
     Model crysis_model = model_create_from_obj("data/nanosuit/nanosuit.obj");
@@ -225,6 +248,17 @@ int main()
             glfwSetInputMode(state.window.ptr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         }
         
+        if(state.kbuttons[GLFW_KEY_L].down)
+        {
+            backpack.rotate = create_qrot(to_radians(glfwGetTime() * 8.0f) * 13.0f, Vec3(1.0f, 0.4f, 0.2f));
+        }
+        
+        if(state.kbuttons[GLFW_KEY_R].pressed)
+        {
+            glDeleteProgram(basic_program.id);
+            basic_program = basic_program_build();
+        }
+        
         if(state.kbuttons[GLFW_KEY_H].pressed)
         {
             state.draw_hitboxes = !state.draw_hitboxes;
@@ -264,7 +298,7 @@ int main()
 		}
 		
         monkey.rotate = create_qrot(to_radians(glfwGetTime() * 14.0f) * 8.0f, Vec3(1.0f, 0.0f, 0.0f));
-        backpack.rotate = create_qrot(to_radians(glfwGetTime() * 8.0f) * 13.0f, Vec3(1.0f, 0.4f, 0.2f));
+        //backpack.rotate = create_qrot(to_radians(glfwGetTime() * 8.0f) * 13.0f, Vec3(1.0f, 0.4f, 0.2f));
         
         glBindVertexArray(line_vao);
 		glBindBuffer(GL_ARRAY_BUFFER, line_vbo);
@@ -299,10 +333,10 @@ int main()
 		
 		glUniform3fv(basic_program.spotlight_position, 1, camera.position.m);
 		glUniform3fv(basic_program.spotlight_direction, 1, camera.front.m);
-		glUniform1f(basic_program.spotlight_cutoff, cosf(to_radians(12.5f)));
-		glUniform1f(basic_program.spotlight_outer_cutoff, cosf(to_radians(17.5f)));
+		glUniform1f(basic_program.spotlight_cutoff, cosf(to_radians(22.5f)));
+		glUniform1f(basic_program.spotlight_outer_cutoff, cosf(to_radians(27.5f)));
 		glUniform3fv(basic_program.spotlight_ambient_component, 1, Vec3(0.1f, 0.1f, 0.1f).m);
-		glUniform3fv(basic_program.spotlight_diffuse_component, 1, Vec3(0.8f, 0.8f, 0.8f).m);
+		glUniform3fv(basic_program.spotlight_diffuse_component, 1, Vec3(1.8f, 1.8f,1.8f).m);
 		glUniform3fv(basic_program.spotlight_specular_component, 1, Vec3(1.0f, 1.0f, 1.0f).m);
 		glUniform1f(basic_program.spotlight_atten_const, 1.0f);
 		glUniform1f(basic_program.spotlight_atten_linear, 0.09f);
@@ -315,11 +349,11 @@ int main()
 		
 		entity_draw(monkey, basic_program);
         entity_draw(backpack, basic_program);
-		entity_draw(floor, basic_program);
+		//entity_draw(floor, basic_program);
 		
-		glUseProgram(line_program);
         if(state.draw_hitboxes)
         {
+            glUseProgram(line_program);
             entity_draw_hitbox(monkey, line_program);
             entity_draw_hitbox(backpack, line_program);
         }
