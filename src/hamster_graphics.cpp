@@ -274,6 +274,12 @@ obj_parse(const char *filename, OBJParseFlags flags)
                 Vec2 uv_v1 = mesh->texture_uvs[id1];
                 Vec2 uv_v2 = mesh->texture_uvs[id2];
                 
+#if 0                
+                uv_v0.y = 1 - uv_v0.y;
+                uv_v1.y = 1 - uv_v1.y;
+                uv_v2.y = 1 - uv_v2.y;
+#endif
+                
                 Vec3 delta_pos0 = sub(pos_v1, pos_v0);
                 Vec3 delta_pos1 = sub(pos_v2, pos_v0);
                 Vec2 delta_uv0  = sub(uv_v1, uv_v0);
@@ -281,7 +287,7 @@ obj_parse(const char *filename, OBJParseFlags flags)
                 
                 f32 rdet = 1.0f / (delta_uv0.x * delta_uv1.y - delta_uv0.y * delta_uv1.x);
                 Vec3 tangent = sub(scale(delta_pos0, delta_uv1.y),
-                                   scale(delta_pos1, -delta_uv0.y));
+                                   scale(delta_pos1, delta_uv0.y));
                 tangent = scale(tangent, rdet);
                 mesh->tangents[id0] = mesh->tangents[id1] = mesh->tangents[id2] = tangent;
                 // TODO(mateusz): Calculate Bitangents?
@@ -539,12 +545,25 @@ model_create_basic()
 static Model
 model_create_debug_floor()
 {
-    Vertex vertices[] = {
-        { { -1.0f, 0.0f, 1.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },
-        { { 1.0f, 0.0f, 1.0f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
-        { { 1.0f, 0.0f, -1.0f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 1.0f } },
-        { { -1.0f, 0.0f, -1.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f } },
-    };
+    Vertices vs = {};
+    vs.positions = (Vec3 *)malloc(4 * sizeof(Vec3));
+    vs.texture_uvs = (Vec2 *)malloc(4 * sizeof(Vec2));
+    vs.normals = (Vec3 *)malloc(4 * sizeof(Vec3));
+    
+    vs.positions[0] = Vec3(-1.0f, 0.0f, 1.0f);
+    vs.positions[1] = Vec3(1.0f, 0.0f, 1.0f);
+    vs.positions[2] = Vec3(1.0f, 0.0f, -1.0f);
+    vs.positions[3] = Vec3(-1.0f, 0.0f, -1.0f);
+    
+    vs.texture_uvs[0] = Vec2(0.0f, 0.0f);
+    vs.texture_uvs[1] = Vec2(1.0f, 0.0f);
+    vs.texture_uvs[2] = Vec2(1.0f, 1.0f);
+    vs.texture_uvs[3] = Vec2(0.0f, 1.0f);
+    
+    vs.normals[0] = Vec3(0.0f, 1.0f, 0.0f);
+    vs.normals[1] = Vec3(0.0f, 1.0f, 0.0f);
+    vs.normals[2] = Vec3(0.0f, 1.0f, 0.0f);
+    vs.normals[3] = Vec3(0.0f, 1.0f, 0.0f);
     
     u32 indices[] = {
         0, 1, 2,
@@ -558,11 +577,8 @@ model_create_debug_floor()
     model.meshes[model.meshes_len++] = {};
     Mesh *mesh = model.meshes;
     
-    mesh->vertices = (Vertex *)malloc(sizeof(vertices));
-    for(u32 i = 0; i < ARRAY_LEN(vertices); i++)
-    {
-        mesh->vertices[mesh->vertices_len] = vertices[i];
-    }
+    mesh->vertices = vs;
+    mesh->vertices_len = 4;
     
     mesh->indices = (u32 *)malloc(sizeof(indices));
     for(u32 i = 0; i < ARRAY_LEN(indices); i++)
@@ -570,27 +586,7 @@ model_create_debug_floor()
         mesh->indices[mesh->indices_len++] = indices[i];
     }
     
-    glGenVertexArrays(1, &mesh->vao);
-    glBindVertexArray(mesh->vao);
-    
-    glGenBuffers(1, &mesh->vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    
-    glGenBuffers(1, &mesh->ebo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-    
-    u32 vertex_size = 8 * sizeof(f32);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, vertex_size, nullptr);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, vertex_size, (void *)(3 * sizeof(f32)));
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, vertex_size, (void *)(6 * sizeof(f32)));
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-    glEnableVertexAttribArray(2);
-    
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    model_finalize_mesh(mesh);
     
     return model;
 }
@@ -611,19 +607,35 @@ model_create_from_obj(OBJModel *obj)
         Mesh *mesh = &model.meshes[model.meshes_len - 1];
         
         strcpy(mesh->material_name, objmesh->mtl_name);
-        mesh->vertices = (Vertex *)malloc(objmesh->vertices_len * sizeof(Vertex));
+        mesh->vertices = {};
+        bool uvs = objmesh->texture_uvs;
+        bool normals = objmesh->normals;
+        bool tangents = objmesh->tangents;
+        bool bitangents = objmesh->bitangents;
+        
+        mesh->vertices.positions = (Vec3 *)malloc(objmesh->vertices_len * sizeof(Vec3));
+        
+        if(uvs)
+            mesh->vertices.texture_uvs = (Vec2 *)malloc(objmesh->vertices_len * sizeof(Vec2));
+        if(normals)
+            mesh->vertices.normals = (Vec3 *)malloc(objmesh->vertices_len * sizeof(Vec3));
+        if(tangents)
+            mesh->vertices.tangents = (Vec3 *)malloc(objmesh->vertices_len * sizeof(Vec3));
+        if(bitangents)
+            mesh->vertices.bitangents = (Vec3 *)malloc(objmesh->vertices_len * sizeof(Vec3));
+        
+        mesh->vertices_len = objmesh->vertices_len;
         for(unsigned int j = 0; j < objmesh->vertices_len; ++j)
         {
-            // NOTE: We decrement the array index because obj indexes starting from 1
-            Vec3 vertex = (objmesh->flags & OBJ_MESH_FLAG_FACE_HAS_VERTEX) ? objmesh->vertexes[j] : Vec3(0.0f, 0.0f, 0.0f);
-            Vec3 normal = (objmesh->flags & OBJ_MESH_FLAG_FACE_HAS_NORMAL) ? objmesh->normals[j] : Vec3(0.0f, 0.0f, 0.0f);
-            Vec2 texuv = (objmesh->flags & OBJ_MESH_FLAG_FACE_HAS_TEXTURE) ? objmesh->texture_uvs[j] : Vec2(0.0f, 0.0f);
-            
-            
-            Vertex *v = &mesh->vertices[mesh->vertices_len++];
-            v->position = vertex;
-            v->normal = normal;
-            v->texuv = texuv;
+            mesh->vertices.positions[j] = objmesh->vertexes[j];
+            if(uvs)
+                mesh->vertices.texture_uvs[j] = objmesh->texture_uvs[j];
+            if(normals)
+                mesh->vertices.normals[j] = objmesh->normals[j];
+            if(tangents)
+                mesh->vertices.tangents[j] = objmesh->tangents[j];
+            if(bitangents)
+                mesh->vertices.bitangents[j] = objmesh->bitangents[j];
         }
         
         mesh->indices = (u32 *)malloc(objmesh->indices_len * sizeof(u32));
@@ -633,30 +645,7 @@ model_create_from_obj(OBJModel *obj)
         }
         
         model.hitboxes[model.hitboxes_len++] = hitbox_create_from_mesh(mesh);
-        unsigned int vertices_size = objmesh->vertices_len * sizeof(Vertex);
-        unsigned int indices_size = objmesh->indices_len * sizeof(unsigned int);
-        
-        glGenVertexArrays(1, &mesh->vao);
-        glBindVertexArray(mesh->vao);
-        
-        glGenBuffers(1, &mesh->vbo);
-        glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
-        glBufferData(GL_ARRAY_BUFFER, vertices_size, mesh->vertices, GL_STATIC_DRAW);
-        
-        glGenBuffers(1, &mesh->ebo);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->ebo);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_size, mesh->indices, GL_STATIC_DRAW);
-        
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), nullptr);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(3 * sizeof(float)));
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(6 * sizeof(float)));
-        glEnableVertexAttribArray(0);
-        glEnableVertexAttribArray(1);
-        glEnableVertexAttribArray(2);
-        
-        glBindVertexArray(0);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+        model_finalize_mesh(mesh);
     }
     
     FLAG_SET(model.flags, MODEL_FLAGS_MESH_NORMALS_SHADED, ModelFlags);
@@ -666,12 +655,112 @@ model_create_from_obj(OBJModel *obj)
 }
 
 static void 
+model_finalize_mesh(Mesh *mesh)
+{
+    bool uvs = mesh->vertices.texture_uvs != NULL;
+    bool normals = mesh->vertices.normals != NULL;
+    bool tangents = mesh->vertices.tangents != NULL;
+    bool bitangents = mesh->vertices.bitangents != NULL;
+    
+    u32 stride = sizeof(*mesh->vertices.positions);
+    stride += uvs ? sizeof(*mesh->vertices.texture_uvs) : 0;
+    stride += normals ? sizeof(*mesh->vertices.normals) : 0;
+    stride += tangents ? sizeof(*mesh->vertices.tangents) : 0;
+    stride += bitangents ? sizeof(*mesh->vertices.bitangents) : 0;
+    
+    u32 data_len = 0;
+    u32 size = mesh->vertices_len * stride;
+    f32 *data = (f32 *)malloc(size);
+    for(u32 i = 0; i < mesh->vertices_len; i++)
+    {
+        data[data_len++] = mesh->vertices.positions[i].x;
+        data[data_len++] = mesh->vertices.positions[i].y;
+        data[data_len++] = mesh->vertices.positions[i].z;
+        
+        if(uvs)
+        {
+            data[data_len++] = mesh->vertices.texture_uvs[i].x;
+            data[data_len++] = mesh->vertices.texture_uvs[i].y;
+        }
+        if(normals)
+        {
+            data[data_len++] = mesh->vertices.normals[i].x;
+            data[data_len++] = mesh->vertices.normals[i].y;
+            data[data_len++] = mesh->vertices.normals[i].z;
+        }
+        if(tangents)
+        {
+            data[data_len++] = mesh->vertices.tangents[i].x;
+            data[data_len++] = mesh->vertices.tangents[i].y;
+            data[data_len++] = mesh->vertices.tangents[i].z;
+        }
+        if(bitangents)
+        {
+            data[data_len++] = mesh->vertices.bitangents[i].x;
+            data[data_len++] = mesh->vertices.bitangents[i].y;
+            data[data_len++] = mesh->vertices.bitangents[i].z;
+        }
+    }
+    
+    assert(mesh->indices_len != 0);
+    if(mesh->vao == 0)
+    {
+        glGenVertexArrays(1, &mesh->vao);
+        glGenBuffers(1, &mesh->vbo);
+        glGenBuffers(1, &mesh->ebo);
+    }
+    
+    glBindVertexArray(mesh->vao);
+    glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
+    glBufferData(GL_ARRAY_BUFFER, size, data, GL_STATIC_DRAW);
+    
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->indices_len * sizeof(u32), mesh->indices, GL_STATIC_DRAW);
+    
+    size_t offset = 0;
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void *)offset);
+    offset += sizeof(Vec3);
+    
+    if(uvs)
+    {
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, (void *)offset);
+        offset += sizeof(Vec2);
+    }
+    
+    if(normals)
+    {
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, stride, (void *)offset);
+        offset += sizeof(Vec3);
+    }
+    
+    if(tangents)
+    {
+        glEnableVertexAttribArray(3);
+        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, stride, (void *)offset);
+        offset += sizeof(Vec3);
+    }
+    
+    if(bitangents)
+    {
+        glEnableVertexAttribArray(4);
+        glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, stride, (void *)offset);
+        offset += sizeof(Vec3);
+    }
+    
+    assert(offset == stride);
+}
+
+static void 
 model_destory(Model model)
 {
     for(u32 i = 0; i < model.meshes_len; i++)
     {
         free(model.meshes[i].indices);
-        free(model.meshes[i].vertices);
+        // TODO(mateusz): THIS!
+        //free(model.meshes[i].vertices);
         glDeleteVertexArrays(1, &model.meshes[i].vao);
         glDeleteBuffers(1, &model.meshes[i].vbo);
         glDeleteBuffers(1, &model.meshes[i].ebo);
@@ -693,6 +782,7 @@ model_destory(Model model)
 static void
 model_gouraud_shade(Model *model)
 {
+#if 0
     for(u32 i = 0; i < model->meshes_len; i++)
     {
         Mesh *mesh = &model->meshes[0];
@@ -746,7 +836,7 @@ model_gouraud_shade(Model *model)
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         free(vertices);
     }
-    
+#endif
     model->flags = (ModelFlags)(model->flags | MODEL_FLAGS_GOURAUD_SHADED);
     model->flags = (ModelFlags)(model->flags & ~MODEL_FLAGS_MESH_NORMALS_SHADED);
 }
@@ -754,6 +844,7 @@ model_gouraud_shade(Model *model)
 static void
 model_mesh_normals_shade(Model *model)
 {
+#if 0
     for(u32 i = 0; i < model->meshes_len; i++)
     {
         Mesh *mesh = &model->meshes[0];
@@ -762,6 +853,7 @@ model_mesh_normals_shade(Model *model)
         glBufferSubData(GL_ARRAY_BUFFER, 0, mesh->vertices_len * sizeof(mesh->vertices[0]), mesh->vertices);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
+#endif
     
     model->flags = (ModelFlags)(model->flags | MODEL_FLAGS_MESH_NORMALS_SHADED);
     model->flags = (ModelFlags)(model->flags & ~MODEL_FLAGS_GOURAUD_SHADED);
@@ -775,13 +867,13 @@ hitbox_create_from_mesh(Mesh *mesh)
     
     for(u32 i = 0; i < mesh->vertices_len; i++)
     {
-        maxpoint.x = MAX(mesh->vertices[i].position.x, maxpoint.x);
-        maxpoint.y = MAX(mesh->vertices[i].position.y, maxpoint.y);
-        maxpoint.z = MAX(mesh->vertices[i].position.z, maxpoint.z);
+        maxpoint.x = MAX(mesh->vertices.positions[i].x, maxpoint.x);
+        maxpoint.y = MAX(mesh->vertices.positions[i].y, maxpoint.y);
+        maxpoint.z = MAX(mesh->vertices.positions[i].z, maxpoint.z);
         
-        minpoint.x = MIN(mesh->vertices[i].position.x, minpoint.x);
-        minpoint.y = MIN(mesh->vertices[i].position.y, minpoint.y);
-        minpoint.z = MIN(mesh->vertices[i].position.z, minpoint.z);	
+        minpoint.x = MIN(mesh->vertices.positions[i].x, minpoint.x);
+        minpoint.y = MIN(mesh->vertices.positions[i].y, minpoint.y);
+        minpoint.z = MIN(mesh->vertices.positions[i].z, minpoint.z);	
     }
     
     Hitbox result = {};
@@ -1159,15 +1251,13 @@ ray_intersect_model(Vec3 ray_origin, Vec3 ray_direction, Model *model)
         
         for(u32 t = 0; t < mesh->indices_len; t += 3)
         {
-            Vertex vert0 = mesh->vertices[mesh->indices[t + 0]];
-            Vertex vert1 = mesh->vertices[mesh->indices[t + 1]];
-            Vertex vert2 = mesh->vertices[mesh->indices[t + 2]];
-            assert(vert0.normal == vert1.normal && vert1.normal == vert2.normal);
+            Vec3 normal = mesh->vertices.normals[mesh->indices[t + 0]];
+            assert(normal == mesh->vertices.normals[mesh->indices[t + 1]] &&
+                   normal == mesh->vertices.normals[mesh->indices[t + 2]]);
             
-            Vec3 normal = vert0.normal;
-            Vec3 v0 = vert0.position;
-            Vec3 v1 = vert1.position;
-            Vec3 v2 = vert2.position;
+            Vec3 v0 = mesh->vertices.positions[mesh->indices[t + 0]];
+            Vec3 v1 = mesh->vertices.positions[mesh->indices[t + 1]];
+            Vec3 v2 = mesh->vertices.positions[mesh->indices[t + 2]];
             if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal))
             {
                 printf("t: %d\n", t);
@@ -1184,19 +1274,20 @@ ray_intersect_mesh_transformed(Vec3 ray_origin, Vec3 ray_direction, Mesh *mesh, 
 {
     for(u32 t = 0; t < mesh->indices_len; t += 3)
     {
-        Vertex vert0 = mesh->vertices[mesh->indices[t + 0]];
-        Vertex vert1 = mesh->vertices[mesh->indices[t + 1]];
-        Vertex vert2 = mesh->vertices[mesh->indices[t + 2]];
-        Vec3 v0 = mul(transform, vert0.position);
-        Vec3 v1 = mul(transform, vert1.position);
-        Vec3 v2 = mul(transform, vert2.position);
+        Vec3 v0 = mul(transform, mesh->vertices.positions[mesh->indices[t + 0]]);
+        Vec3 v1 = mul(transform, mesh->vertices.positions[mesh->indices[t + 1]]);
+        Vec3 v2 = mul(transform, mesh->vertices.positions[mesh->indices[t + 2]]);
+        
+        Vec3 normal0 = mesh->vertices.normals[mesh->indices[t + 0]];
+        Vec3 normal1 = mesh->vertices.normals[mesh->indices[t + 1]];
+        Vec3 normal2 = mesh->vertices.normals[mesh->indices[t + 2]];
         
         // NOTE(mateusz): I don't know if this is going to be faster,
         // but my guess is that it's going to be, because either the
         // model is smoothed or not, so it will be basicly free.
         Vec3 normal = {};
-        if(vert0.normal == vert1.normal && vert1.normal == vert2.normal) {
-            normal = vert0.normal;
+        if(normal0 == normal1 && normal1 == normal2) {
+            normal = normal0;
         } else {
             normal = triangle_normal(v0, v1, v2);
         }
@@ -1486,7 +1577,8 @@ basic_program_build()
     result.view = glGetUniformLocation(result.id, "view");
     result.proj = glGetUniformLocation(result.id, "proj");
     result.view_pos = glGetUniformLocation(result.id, "view_pos");
-    result.spotlight_position = glGetUniformLocation(result.id, "spotlight.position");
+    //result.spotlight_position = glGetUniformLocation(result.id, "spotlight.position");
+    result.spotlight_position = glGetUniformLocation(result.id, "light_pos");
     result.spotlight_direction = glGetUniformLocation(result.id, "spotlight.direction");
     result.spotlight_cutoff = glGetUniformLocation(result.id, "spotlight.cutoff");
     result.spotlight_outer_cutoff = glGetUniformLocation(result.id, "spotlight.outer_cutoff");

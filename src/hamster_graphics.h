@@ -46,6 +46,7 @@ struct OBJMesh
     Vec2 *texture_uvs;
 	Vec3 *normals;
     Vec3 *tangents;
+    Vec3 *bitangents;
     u32 *indices;
     u32 vertices_len;
     u32 indices_len;
@@ -107,18 +108,20 @@ struct BasicShaderProgram
     GLuint material_specular_exponent;
 };
 
-struct Vertex
+struct Vertices
 {
-	Vec3 position;
-	Vec3 normal;
-	Vec2 texuv;
+	Vec3 *positions;
+	Vec2 *texture_uvs;
+	Vec3 *normals;
+    Vec3 *tangents;
+    Vec3 *bitangents;
 };
 
 struct Mesh
 {
     char material_name[64];
     u32 *indices;
-    Vertex *vertices;
+    Vertices vertices;
     u32 indices_len;
     u32 vertices_len;
 	
@@ -230,6 +233,7 @@ static void model_load_obj_materials(Model *model, OBJMaterial *materials, u32 c
 static Model model_create_basic();
 static Model model_create_debug_floor();
 static Model model_create_from_obj(OBJModel *obj);
+static void model_finalize_mesh(Mesh *mesh);
 static void model_destory(Model model);
 static void model_gouraud_shade(Model *model);
 static void model_mesh_normals_shade(Model *model);
