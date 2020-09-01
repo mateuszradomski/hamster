@@ -157,6 +157,7 @@ int main()
     printf("Model materials loaded in %f\n", glfwGetTime() - start);
     obj_model_destory(&obj);
     
+    flags = OBJ_PARSE_FLAG_GEN_TANGENTS;
     start = glfwGetTime();
     filename = "data/backpack/backpack.obj";
     obj = obj_parse(filename, flags);
@@ -374,7 +375,10 @@ int main()
         }
 	}
 	
-	glfwTerminate();
+    model_destory(monkey_model);
+    model_destory(backpack_model);
+    model_destory(floor_model);
+    glfwTerminate();
 	
 	return 0;
 }

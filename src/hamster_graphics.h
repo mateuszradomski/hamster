@@ -230,6 +230,7 @@ static void model_load_obj_materials(Model *model, OBJMaterial *materials, u32 c
 static Model model_create_basic();
 static Model model_create_debug_floor();
 static Model model_create_from_obj(OBJModel *obj);
+static void model_destory(Model model);
 static void model_gouraud_shade(Model *model);
 static void model_mesh_normals_shade(Model *model);
 

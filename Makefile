@@ -8,3 +8,6 @@ debug:
 
 fast:
 	$(CXX) -O2 src/hamster.cpp -o bin/hamster_fast $(CFLAGS) $(DEFINES) $(LDFLAGS)
+
+asan:
+	$(CXX) -g -fsanitize=address src/hamster.cpp -o bin/hamster_debug -Werror $(CFLAGS) $(DEFINES) $(LDFLAGS)
