@@ -8,6 +8,10 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
+#include <libs/imgui/imgui.h>
+#include <libs/imgui/imgui_impl_glfw.h>
+#include <libs/imgui/imgui_impl_opengl3.h>
+
 // TODO: As a learning expierience try to implement png reading yourself.
 // PNG reading is quite a chore, just because of the zlib compressed IDAT chunks,
 // maybe just use zlib and decode the rest yourself.
@@ -42,6 +46,9 @@ struct ProgramState
 	Timer timer;
     
     bool draw_hitboxes;
+    bool in_editor;
+    bool show_normal_map;
+    bool use_mapped_normals;
 	Button kbuttons[GLFW_KEY_LAST];
 	Button mbuttons[GLFW_MOUSE_BUTTON_LAST];
 };
@@ -145,39 +152,71 @@ int main()
 	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
     
     OBJParseFlags flags = OBJ_PARSE_FLAG_EMPTY;
+    FLAG_SET(flags, OBJ_PARSE_FLAG_GEN_TANGENTS, OBJParseFlags);
+    FLAG_SET(flags, OBJ_PARSE_FLAG_GEN_BITANGETS, OBJParseFlags);
+    FLAG_SET(flags, OBJ_PARSE_FLAG_FLIP_UVS, OBJParseFlags);
     f64 start = glfwGetTime();
     const char *filename = "data/model.obj";
 	OBJModel obj = obj_parse(filename, flags);
-    printf("OBJ parsed in %f\n", glfwGetTime() - start);
+    printf("[%s] parsed in %f\n", filename, glfwGetTime() - start);
     start = glfwGetTime();
 	Model monkey_model = model_create_from_obj(&obj);
-    printf("Model loaded in %f\n", glfwGetTime() - start);
+    printf("[%s] loaded in %f\n", filename, glfwGetTime() - start);
     start = glfwGetTime();
     model_load_obj_materials(&monkey_model, obj.materials, obj.materials_len, filename);
-    printf("Model materials loaded in %f\n", glfwGetTime() - start);
+    printf("[%s] materials loaded in %f\n\n", filename, glfwGetTime() - start);
     obj_model_destory(&obj);
     
-    flags = OBJ_PARSE_FLAG_GEN_TANGENTS;
+    FLAG_UNSET(flags, OBJ_PARSE_FLAG_FLIP_UVS, OBJParseFlags);
     start = glfwGetTime();
     filename = "data/backpack/backpack.obj";
     obj = obj_parse(filename, flags);
-    printf("OBJ parsed in %f\n", glfwGetTime() - start);
+    printf("[%s] parsed in %f\n", filename, glfwGetTime() - start);
     start = glfwGetTime();
 	Model backpack_model = model_create_from_obj(&obj);
-    printf("Model loaded in %f\n", glfwGetTime() - start);
+    printf("[%s] loaded in %f\n", filename, glfwGetTime() - start);
     start = glfwGetTime();
     model_load_obj_materials(&backpack_model, obj.materials, obj.materials_len, filename);
-    printf("Model materials loaded in %f\n", glfwGetTime() - start);
+    printf("[%s] materials loaded in %f\n\n", filename, glfwGetTime() - start);
     obj_model_destory(&obj);
     
     monkey_model.texture = backpack_model.texture = texture_create_solid(1.0f, 1.0f, 1.0f, 1.0f);
-#if 0
-    Model crysis_model = model_create_from_obj("data/nanosuit/nanosuit.obj");
+    
+    flags = OBJ_PARSE_FLAG_EMPTY;
+    FLAG_SET(flags, OBJ_PARSE_FLAG_GEN_TANGENTS, OBJParseFlags);
+    FLAG_SET(flags, OBJ_PARSE_FLAG_GEN_BITANGETS, OBJParseFlags);
+    FLAG_SET(flags, OBJ_PARSE_FLAG_FLIP_UVS, OBJParseFlags);
+    start = glfwGetTime();
+    filename = "data/nanosuit/nanosuit.obj";
+    obj = obj_parse(filename, flags);
+    printf("[%s] parsed in %f\n", filename, glfwGetTime() - start);
+    start = glfwGetTime();
+	Model crysis_model = model_create_from_obj(&obj);
+    printf("[%s] loaded in %f\n", filename, glfwGetTime() - start);
+    start = glfwGetTime();
+    model_load_obj_materials(&crysis_model, obj.materials, obj.materials_len, filename);
     crysis_model.texture = monkey_model.texture;
-#endif
+    printf("[%s] materials loaded in %f\n\n", filename, glfwGetTime() - start);
+    obj_model_destory(&obj);
+    
+    flags = OBJ_PARSE_FLAG_EMPTY;
+    FLAG_SET(flags, OBJ_PARSE_FLAG_GEN_TANGENTS, OBJParseFlags);
+    FLAG_SET(flags, OBJ_PARSE_FLAG_GEN_BITANGETS, OBJParseFlags);
+    FLAG_SET(flags, OBJ_PARSE_FLAG_FLIP_UVS, OBJParseFlags);
+    start = glfwGetTime();
+    filename = "data/cyborg/cyborg.obj";
+    obj = obj_parse(filename, flags);
+    printf("[%s] parsed in %f\n", filename, glfwGetTime() - start);
+    start = glfwGetTime();
+	Model cyborg_model = model_create_from_obj(&obj);
+    printf("[%s] loaded in %f\n", filename, glfwGetTime() - start);
+    start = glfwGetTime();
+    model_load_obj_materials(&cyborg_model, obj.materials, obj.materials_len, filename);
+    cyborg_model.texture = monkey_model.texture;
+    printf("[%s] materials loaded in %f\n\n", filename, glfwGetTime() - start);
+    obj_model_destory(&obj);
+    
 	Model floor_model = model_create_debug_floor();
-	BasicShaderProgram basic_program = basic_program_build();
-	GLuint line_program = program_create_from_file(MAIN_VERTEX_FILENAME, LINE_FRAG_FILENAME);
 	UIElement crosshair = ui_element_create(Vec2(0.0f, 0.0f), Vec2(0.1f, 0.1f),
 											"data/crosshair.png");
 	Cubemap skybox = cubemap_create_skybox();
@@ -188,17 +227,20 @@ int main()
 	monkey.size = Vec3(1.0f, 1.0f, 1.0f);
 	monkey.model = &monkey_model;
     
-#if 0
-    Entity crysis_guy = {};
-    crysis_guy.position = Vec3(0.0f, 0.0f, 5.0f);
-    crysis_guy.size = Vec3(0.1f, 0.1f, 0.1f);
-    crysis_guy.model = &crysis_model;
-#endif
-    
     Entity backpack = {};
     backpack.position = Vec3(0.0f, 1.0f, -1.0f);
     backpack.size = Vec3(1.0f, 1.0f, 1.0f);
     backpack.model = &backpack_model;
+    
+    Entity crysis_guy = {};
+    crysis_guy.position = Vec3(-5.0f, -1.0f, 0.0f);
+    crysis_guy.size = Vec3(0.25f, 0.25f, 0.25f);
+    crysis_guy.model = &crysis_model;
+    
+    Entity cyborg = {};
+    cyborg.position = Vec3(-7.5f, -1.0f, 2.0f);
+    cyborg.size = Vec3(1.0f, 1.0f, 1.0f);
+    cyborg.model = &cyborg_model;
     
     Entity floor = {};
 	floor.position = Vec3(0.0f, -2.0f, 0.0f);
@@ -216,16 +258,28 @@ int main()
 	Mat4 proj = create_perspective(aspect_ratio, 90.0f, 0.1f, 100.0f);
 	Mat4 model = Mat4(1.0f);
 	
-	glEnable(GL_DEPTH_TEST);
+    BasicShaderProgram basic_program = basic_program_build();
+	GLuint line_program = program_create_from_file(MAIN_VERTEX_FILENAME, LINE_FRAG_FILENAME);
+    GLuint simple_program = program_create_from_file(SIMPLE_VERTEX_FILENAME, SIMPLE_FRAG_FILENAME);
+    
+    glEnable(GL_DEPTH_TEST);
 	Line ray_line = {};
 	GLuint line_vao, line_vbo;
 	glGenVertexArrays(1, &line_vao);
 	glBindVertexArray(line_vao);
 	glGenBuffers(1, &line_vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, line_vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, line_vbo);
 	
 	glfwSwapInterval(1);
-	
+    
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGui::StyleColorsDark();
+    
+    ImGui_ImplGlfw_InitForOpenGL(state.window.ptr, true);
+    ImGui_ImplOpenGL3_Init("#version 130");
+    
 	f64 xmouse, ymouse;
 	f64 xmouseold, ymouseold;
 	glfwGetCursorPos(state.window.ptr, &xmouse, &ymouse);
@@ -237,11 +291,30 @@ int main()
 		xmouseold = xmouse;
 		ymouseold = ymouse;
 		glfwGetCursorPos(state.window.ptr, &xmouse, &ymouse);
-		camera_mouse_moved(&camera, xmouse - xmouseold, ymouse - ymouseold);
+        if(!state.in_editor)
+            camera_mouse_moved(&camera, xmouse - xmouseold, ymouse - ymouseold);
 		
 		buttons_update(state.kbuttons, ARRAY_LEN(state.kbuttons));
 		buttons_update(state.mbuttons, ARRAY_LEN(state.mbuttons));
 		
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+        if(state.in_editor)
+        {
+            ImGui::Begin("Editor");
+            
+            ImGui::Checkbox("Use mapped normals", &state.use_mapped_normals);
+            ImGui::Checkbox("Shade with normal map", &state.show_normal_map);
+            ImGui::SliderFloat("backpack.position.x", &monkey.size.x, 0.0f, 1.0f);
+            ImGui::SliderFloat("backpack.position.y", &monkey.size.y, 0.0f, 1.0f);
+            ImGui::SliderFloat("backpack.position.z", &monkey.size.z, 0.0f, 1.0f);
+            
+            ImGui::SameLine();
+            
+            ImGui::End();
+        }
+        
 		lookat = look_at(add(camera.front, camera.position), camera.position, camera.up);
 		model = Mat4(1.0f);
 		if(state.kbuttons[GLFW_KEY_P].pressed)
@@ -249,9 +322,9 @@ int main()
             glfwSetInputMode(state.window.ptr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         }
         
-        if(state.kbuttons[GLFW_KEY_L].down)
+        if(state.kbuttons[GLFW_KEY_E].pressed)
         {
-            backpack.rotate = create_qrot(to_radians(glfwGetTime() * 8.0f) * 13.0f, Vec3(1.0f, 0.4f, 0.2f));
+            state.in_editor = !state.in_editor;
         }
         
         if(state.kbuttons[GLFW_KEY_R].pressed)
@@ -298,7 +371,7 @@ int main()
 			printf("EntityHit = %d | %lu clocks/call\n", entity_hit, hit_clocks);
 		}
 		
-        monkey.rotate = create_qrot(to_radians(glfwGetTime() * 14.0f) * 8.0f, Vec3(1.0f, 0.0f, 0.0f));
+        //monkey.rotate = create_qrot(to_radians(glfwGetTime() * 14.0f) * 8.0f, Vec3(1.0f, 0.0f, 0.0f));
         //backpack.rotate = create_qrot(to_radians(glfwGetTime() * 8.0f) * 13.0f, Vec3(1.0f, 0.4f, 0.2f));
         
         glBindVertexArray(line_vao);
@@ -348,19 +421,75 @@ int main()
 		glUniform3fv(basic_program.direct_light_diffuse_component, 1, Vec3(0.2f, 0.2f, 0.2f).m);
 		glUniform3fv(basic_program.direct_light_specular_component, 1, Vec3(0.4f, 0.4f, 0.4f).m);
 		
-		entity_draw(monkey, basic_program);
+        glUniform1i(glGetUniformLocation(basic_program.id, "show_normal_map"), state.show_normal_map);
+        glUniform1i(glGetUniformLocation(basic_program.id, "use_mapped_normals"), state.use_mapped_normals);
+        
         entity_draw(backpack, basic_program);
-		//entity_draw(floor, basic_program);
+        entity_draw(crysis_guy, basic_program);
+        entity_draw(cyborg, basic_program);
+        
+        glUseProgram(simple_program);
+        
+        opengl_set_uniform(simple_program, "view", lookat);
+        opengl_set_uniform(simple_program, "proj", proj);
 		
+        opengl_set_uniform(simple_program, "view_pos", camera.position);
+        
+        opengl_set_uniform(simple_program, "light_pos", camera.position);
+        opengl_set_uniform(simple_program, "spotlight.direction", camera.front);
+        opengl_set_uniform(simple_program, "spotlight.cutoff", cosf(to_radians(22.5f)));
+        opengl_set_uniform(simple_program, "spotlight.outer_cutoff", cosf(to_radians(27.5f)));
+        opengl_set_uniform(simple_program, "spotlight.ambient_component", Vec3(0.1f, 0.1f, 0.1f));
+        opengl_set_uniform(simple_program, "spotlight.diffuse_component", Vec3(1.8f, 1.8f, 1.8f));
+        opengl_set_uniform(simple_program, "spotlight.specular_component", Vec3(1.0f, 1.0f, 1.0f));
+        opengl_set_uniform(simple_program, "spotlight.atten_const", 1.0f);
+        opengl_set_uniform(simple_program, "spotlight.atten_linear", 0.09f);
+        opengl_set_uniform(simple_program, "spotlight.atten_quad", 0.032f);
+        
+        opengl_set_uniform(simple_program, "direct_light.direction", Vec3(0.0f, -1.0f, 0.0f));
+        opengl_set_uniform(simple_program, "direct_light.ambient_component", Vec3(0.05f, 0.05f, 0.05f));
+        opengl_set_uniform(simple_program, "direct_light.diffuse_component", Vec3(0.2f, 0.2f, 0.2f));
+        opengl_set_uniform(simple_program, "direct_light.specular_component", Vec3(0.4f, 0.4f, 0.4f));
+        
+        GLuint id = basic_program.id;
+        GLuint model_id = basic_program.model;
+        GLuint ambient = basic_program.material_ambient_component;
+        GLuint diffuse = basic_program.material_diffuse_component;
+        GLuint specular = basic_program.material_specular_component;
+        GLuint specular_exp = basic_program.material_specular_exponent;
+        
+        basic_program.id = simple_program;
+        basic_program.model = glGetUniformLocation(simple_program, "model");
+        basic_program.material_ambient_component = glGetUniformLocation(simple_program, "material.ambient_component");
+        basic_program.material_diffuse_component = glGetUniformLocation(simple_program, "material.diffuse_component");
+        basic_program.material_specular_component = glGetUniformLocation(simple_program, "material.specular_component");
+        basic_program.material_specular_exponent = glGetUniformLocation(simple_program, "material.specular_exponent");
+        
+        
+        entity_draw(monkey, basic_program);
+		entity_draw(floor, basic_program);
+		
+        basic_program.id = id;
+        basic_program.model = model_id;
+        basic_program.material_ambient_component = ambient;
+        basic_program.material_diffuse_component = diffuse;
+        basic_program.material_specular_component = specular;
+        basic_program.material_specular_exponent = specular_exp;
+        
         if(state.draw_hitboxes)
         {
             glUseProgram(line_program);
             entity_draw_hitbox(monkey, line_program);
             entity_draw_hitbox(backpack, line_program);
+            entity_draw_hitbox(crysis_guy, line_program);
+            entity_draw_hitbox(cyborg, line_program);
         }
 		
 		ui_element_draw(crosshair);
 		
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        
 		glfwSwapBuffers(state.window.ptr);
 		glfwPollEvents();
         
@@ -377,6 +506,8 @@ int main()
 	
     model_destory(monkey_model);
     model_destory(backpack_model);
+    model_destory(crysis_model);
+    model_destory(cyborg_model);
     model_destory(floor_model);
     glfwTerminate();
 	

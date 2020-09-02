@@ -3,6 +3,7 @@ layout (location = 0) in vec3 vertex_pos;
 layout (location = 1) in vec2 texuv;
 layout (location = 2) in vec3 normal;
 layout (location = 3) in vec3 tangent;
+layout (location = 4) in vec3 bitangent;
 
 uniform mat4 proj;
 uniform mat4 view;
@@ -22,8 +23,7 @@ void main()
     mat3 normalMatrix = transpose(inverse(mat3(model)));
     vec3 T = normalize(normalMatrix * tangent);
     vec3 N = normalize(normalMatrix * normal);
-    T = normalize(T - dot(T, N) * N);
-    vec3 B = cross(N, T);
+    vec3 B = normalize(normalMatrix * bitangent);
     
     mat3 tbn = transpose(mat3(T, B, N));
     

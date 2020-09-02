@@ -81,7 +81,6 @@ obj_parse(const char *filename, OBJParseFlags flags)
             current_mesh->vertexes = (Vec3 *)malloc(len.vertices * sizeof(Vec3));
             current_mesh->texture_uvs = (Vec2 *)malloc(len.vertices * sizeof(Vec2));
             current_mesh->normals = (Vec3 *)malloc(len.vertices * sizeof(Vec3));
-            current_mesh->tangents = (Vec3 *)malloc(len.vertices * sizeof(Vec3));
             current_mesh->indices = (u32 *)malloc(len.indices * sizeof(u32));
         } else if(strings_match(beginning, "mtllib")) {
             char *filename = string_split_next(line);
@@ -194,65 +193,17 @@ obj_parse(const char *filename, OBJParseFlags flags)
     
     free(contents);
     
-#if 0    
-    if(flags & OBJ_PARSE_FLAG_TRIANGULATE)
+    if(flags & OBJ_PARSE_FLAG_FLIP_UVS)
     {
         for(u32 i = 0; i < model.meshes_len; i++)
         {
-            for(u32 j = 0; j < model.meshes[i].faces_len; j++)
+            OBJMesh *mesh = &model.meshes[i];
+            for(u32 j = 0; j < mesh->vertices_len; j++)
             {
-                OBJMeshFace *face = &model.meshes[i].faces[j];
-                if(face->vids_len > 3)
-                {
-                    u32 result[ARRAY_LEN(face->vertex_ids)] = {
-                        face->vertex_ids[0], face->vertex_ids[1], face->vertex_ids[2]
-                    };
-                    
-                    for(u32 k = 3; k < (face->vids_len - 2) * 3; k++)
-                    {
-                        result[k] = face->vertex_ids[(k - (k / 3)) % face->vids_len];
-                    }
-                    
-                    memcpy(face->vertex_ids, result, sizeof(result));
-                    face->vids_len = (face->vids_len - 2) * 3;
-                }
-                
-                face = &model.meshes[i].faces[j];
-                if(face->tids_len > 3)
-                {
-                    u32 result[ARRAY_LEN(face->texture_ids)] = {
-                        face->texture_ids[0], face->texture_ids[1], face->texture_ids[2]
-                    };
-                    
-                    for(u32 k = 3; k < (face->tids_len - 2) * 3; k++)
-                    {
-                        result[k] = face->texture_ids[(k - (k / 3)) % face->tids_len];
-                    }
-                    
-                    memcpy(face->texture_ids, result, sizeof(result));
-                    face->tids_len = (face->tids_len - 2) * 3;
-                }
-                
-                face = &model.meshes[i].faces[j];
-                if(face->nids_len > 3)
-                {
-                    u32 result[ARRAY_LEN(face->normal_ids)] = {
-                        face->normal_ids[0], face->normal_ids[1], face->normal_ids[2]
-                    };
-                    
-                    for(u32 k = 3; k < (face->nids_len - 2) * 3; k++)
-                    {
-                        result[k] = face->normal_ids[(k - (k / 3)) % face->nids_len];
-                    }
-                    
-                    memcpy(face->normal_ids, result, sizeof(result));
-                    face->nids_len = (face->nids_len - 2) * 3;
-                }
+                mesh->texture_uvs[j].y = 1.0f - mesh->texture_uvs[j].y;
             }
         }
     }
-#endif
-    
     
     if(flags & OBJ_PARSE_FLAG_GEN_TANGENTS)
     {
@@ -260,6 +211,11 @@ obj_parse(const char *filename, OBJParseFlags flags)
         {
             OBJMesh *mesh = &model.meshes[i];
             mesh->tangents = (Vec3 *)malloc(mesh->vertices_len * sizeof(Vec3));
+            if(flags & OBJ_PARSE_FLAG_GEN_BITANGETS)
+            {
+                mesh->bitangents = (Vec3 *)malloc(mesh->vertices_len * sizeof(Vec3));
+            }
+            
             for(u32 j = 0; j < mesh->indices_len; j += 3)
             {
                 u32 id0 = mesh->indices[j + 0];
@@ -274,23 +230,22 @@ obj_parse(const char *filename, OBJParseFlags flags)
                 Vec2 uv_v1 = mesh->texture_uvs[id1];
                 Vec2 uv_v2 = mesh->texture_uvs[id2];
                 
-#if 0                
-                uv_v0.y = 1 - uv_v0.y;
-                uv_v1.y = 1 - uv_v1.y;
-                uv_v2.y = 1 - uv_v2.y;
-#endif
-                
                 Vec3 delta_pos0 = sub(pos_v1, pos_v0);
                 Vec3 delta_pos1 = sub(pos_v2, pos_v0);
                 Vec2 delta_uv0  = sub(uv_v1, uv_v0);
                 Vec2 delta_uv1  = sub(uv_v2, uv_v0);
                 
                 f32 rdet = 1.0f / (delta_uv0.x * delta_uv1.y - delta_uv0.y * delta_uv1.x);
-                Vec3 tangent = sub(scale(delta_pos0, delta_uv1.y),
-                                   scale(delta_pos1, delta_uv0.y));
+                Vec3 tangent = sub(scale(delta_pos0, delta_uv1.y), scale(delta_pos1, delta_uv0.y));
                 tangent = scale(tangent, rdet);
                 mesh->tangents[id0] = mesh->tangents[id1] = mesh->tangents[id2] = tangent;
-                // TODO(mateusz): Calculate Bitangents?
+                
+                if(flags & OBJ_PARSE_FLAG_GEN_BITANGETS)
+                {
+                    Vec3 bitangent = add(scale(delta_pos0, -delta_uv1.x), scale(delta_pos1, delta_uv0.x));
+                    bitangent = scale(bitangent, rdet);
+                    mesh->bitangents[id0] = mesh->bitangents[id1] = mesh->bitangents[id2] = bitangent;
+                }
             }
         }
     }
@@ -421,8 +376,9 @@ obj_model_destory(OBJModel *model)
         free(model->meshes[i].vertexes);
         free(model->meshes[i].texture_uvs);
         free(model->meshes[i].normals);
-        free(model->meshes[i].indices);
         free(model->meshes[i].tangents);
+        free(model->meshes[i].bitangents);
+        free(model->meshes[i].indices);
     }
     free(model->meshes);
     free(model->materials);
@@ -494,53 +450,6 @@ model_load_obj_materials(Model *model, OBJMaterial *materials, u32 count, const 
         }
     }
 }
-
-#if 0
-static Model
-model_create_basic()
-{
-    float vertices[] = {
-        -0.5f, -0.5f, 0.0f,
-        0.5f, -0.5f, 0.0f,
-        0.0f,  0.5f, 0.0f
-    };
-    
-    GLuint vbo = 0;
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    
-    GLuint vao = 0;
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
-    glEnableVertexAttribArray(0);
-    
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    
-    Model model = {};
-    model.meshes = (Mesh *)malloc(sizeof(Mesh));
-    model.meshes[model.meshes_len++] = {};
-    Mesh *mesh = model.meshes;
-    
-    mesh->vao = vao;
-    mesh->vbo = vbo;
-    mesh->vertices.reserve(sizeof(vertices));
-    
-    mesh->vertices.push(Vertex {});
-    Vertex *v = &mesh->vertices[mesh->vertices.length - 1];
-    v->position = *((Vec3 *)vertices);
-    mesh->vertices.push(Vertex {});
-    v = &mesh->vertices[mesh->vertices.length - 1];
-    v->position = *((Vec3 *)vertices + 3);
-    mesh->vertices.push(Vertex {});
-    v = &mesh->vertices[mesh->vertices.length - 1];
-    v->position = *((Vec3 *)vertices + 6);
-    
-    return model;
-}
-#endif
 
 static Model
 model_create_debug_floor()
@@ -713,6 +622,7 @@ model_finalize_mesh(Mesh *mesh)
     glBindVertexArray(mesh->vao);
     glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
     glBufferData(GL_ARRAY_BUFFER, size, data, GL_STATIC_DRAW);
+    free(data);
     
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->ebo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->indices_len * sizeof(u32), mesh->indices, GL_STATIC_DRAW);
@@ -759,8 +669,11 @@ model_destory(Model model)
     for(u32 i = 0; i < model.meshes_len; i++)
     {
         free(model.meshes[i].indices);
-        // TODO(mateusz): THIS!
-        //free(model.meshes[i].vertices);
+        free(model.meshes[i].vertices.positions);
+        free(model.meshes[i].vertices.texture_uvs);
+        free(model.meshes[i].vertices.normals);
+        free(model.meshes[i].vertices.tangents);
+        free(model.meshes[i].vertices.bitangents);
         glDeleteVertexArrays(1, &model.meshes[i].vao);
         glDeleteBuffers(1, &model.meshes[i].vbo);
         glDeleteBuffers(1, &model.meshes[i].ebo);
@@ -768,6 +681,7 @@ model_destory(Model model)
     
     for(u32 i = 0; i < model.materials_len; i++)
     {
+        glDeleteTextures(1, &model.texture);
         glDeleteTextures(1, &model.materials[i].diffuse_map);
         glDeleteTextures(1, &model.materials[i].specular_map);
         glDeleteTextures(1, &model.materials[i].normal_map);

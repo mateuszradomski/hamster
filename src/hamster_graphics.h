@@ -7,6 +7,8 @@
 
 #define MAIN_VERTEX_FILENAME "src/shaders/main_vertex.glsl"
 #define MAIN_FRAG_FILENAME "src/shaders/main_frag.glsl"
+#define SIMPLE_VERTEX_FILENAME "src/shaders/simple_vertex.glsl"
+#define SIMPLE_FRAG_FILENAME "src/shaders/simple_frag.glsl"
 #define LINE_FRAG_FILENAME "src/shaders/line_vertex.glsl"
 #define UI_VERTEX_FILENAME "src/shaders/ui_vertex.glsl"
 #define UI_FRAG_FILENAME "src/shaders/ui_frag.glsl"
@@ -18,11 +20,10 @@ enum OBJParseFlags
     OBJ_PARSE_FLAG_EMPTY = 0x0,
     OBJ_PARSE_FLAG_TRIANGULATE = 0x1,
     OBJ_PARSE_FLAG_GEN_TANGENTS = 0x2,
+    OBJ_PARSE_FLAG_GEN_BITANGETS = 0x4,
+    OBJ_PARSE_FLAG_FLIP_UVS = 0x8,
 };
 
-// TODO(mateusz): This is ok for model that are loaded from blender, because
-// i guess it splits them up so each face is max 4 elements. But anything
-// loaded from somewhere else might blow this up if used with triangulation
 enum OBJMeshFlags
 {
     OBJ_MESH_FLAG_FACE_HAS_VERTEX = 0x1,
