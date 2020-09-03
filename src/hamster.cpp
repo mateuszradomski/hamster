@@ -2,6 +2,12 @@
 #include <cstdlib>
 #include <cstring>
 #include <cassert>
+#include <ctime>
+
+// NOTE(mateusz): Unix systems only!
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include <x86intrin.h>
 
@@ -21,48 +27,19 @@
 #include "hamster_math.cpp"
 #include "hamster_util.cpp"
 #include "hamster_graphics.cpp"
-
-struct Window
-{
-	GLFWwindow *ptr;
-	int width;
-	int height;
-	
-	Window() :
-	ptr(NULL), width(1280), height(720)
-	{ }
-};
-
-struct Button
-{
-	u8 down : 1;
-	u8 last : 1;
-	u8 pressed : 1;
-};
-
-struct ProgramState
-{
-	Window window;
-	Timer timer;
-    
-    bool draw_hitboxes;
-    bool in_editor;
-    bool show_normal_map;
-    bool use_mapped_normals;
-	Button kbuttons[GLFW_KEY_LAST];
-	Button mbuttons[GLFW_MOUSE_BUTTON_LAST];
-};
+#include "hamster_render.cpp"
+#include "hamster.h"
 
 void
 opengl_error_callback(GLenum source, GLenum type, GLuint id, GLenum severity,
 					  GLsizei length, const GLchar *message, const void *userParam)
 {
-	(void)source;
-	(void)type;
-	(void)id;
-	(void)severity;
-	(void)length;
-	(void)userParam;
+	NOT_USED(source);
+	NOT_USED(type);
+	NOT_USED(id);
+	NOT_USED(severity);
+	NOT_USED(length);
+	NOT_USED(userParam);
 	
 	printf("OpenGL Error: %s\n", message);
 	assert(false);
@@ -80,8 +57,6 @@ create_opengl_window()
 	window.ptr = glfwCreateWindow(window.width, window.height, "hamster", NULL, NULL);
 	glfwMakeContextCurrent(window.ptr);
 	assert(glewInit() == 0); // That means no errors
-	
-	//glfwSetInputMode(window.ptr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	
 	return window;
 }
@@ -105,14 +80,14 @@ keyboard_button_callback(GLFWwindow *window, int key, int scancode, int action, 
 {
 	assert(key != GLFW_KEY_UNKNOWN);
 	ProgramState *state = (ProgramState *)glfwGetWindowUserPointer(window);
-	(void)mods; // NOTE: I guess we would use it somewhere??
-	(void)scancode; // That is unused.
-	
-	if(action == GLFW_PRESS) {
-		state->kbuttons[key].down = true;
-	} else if(action == GLFW_RELEASE) {
-		state->kbuttons[key].down = false;
-	}
+	NOT_USED(mods); // NOTE: I guess we would use it somewhere??
+    NOT_USED(scancode); // That is unused.
+    
+    if(action == GLFW_PRESS) {
+        state->kbuttons[key].down = true;
+    } else if(action == GLFW_RELEASE) {
+        state->kbuttons[key].down = false;
+    }
 }
 
 static void
@@ -120,7 +95,7 @@ mouse_button_callback(GLFWwindow *window, int key, int action, int mods)
 {
 	assert(key != GLFW_KEY_UNKNOWN);
 	ProgramState *state = (ProgramState *)glfwGetWindowUserPointer(window);
-	(void)mods; // NOTE: I guess we would use it somewhere??
+	NOT_USED(mods); // NOTE: I guess we would use it somewhere??
 	
 	if(action == GLFW_PRESS) {
 		state->mbuttons[key].down = true;
@@ -218,11 +193,13 @@ int main()
     
 	Model floor_model = model_create_debug_floor();
 	UIElement crosshair = ui_element_create(Vec2(0.0f, 0.0f), Vec2(0.1f, 0.1f),
-											"data/crosshair.png");
+                                            "data/crosshair.png");
+    crosshair.program = program_create_from_file(UI_VERTEX_FILENAME, UI_FRAG_FILENAME).id;
 	Cubemap skybox = cubemap_create_skybox();
-    GLuint skybox_program = program_create_from_file(SKYBOX_VERTEX_FILENAME, SKYBOX_FRAG_FILENAME);
+    GLuint skybox_program = program_create_from_file(SKYBOX_VERTEX_FILENAME, SKYBOX_FRAG_FILENAME).id;
+    NOT_USED(skybox_program);
     
-	Entity monkey = {};
+    Entity monkey = {};
 	monkey.position = Vec3(5.0f, 0.0f, 0.0f);
 	monkey.size = Vec3(1.0f, 1.0f, 1.0f);
 	monkey.model = &monkey_model;
@@ -247,21 +224,28 @@ int main()
 	floor.size = Vec3(10.0f, 1.0f, 10.0f);
 	floor.model = &floor_model;
 	
-	Camera camera = {};
-	camera.position = Vec3(0.0f, 0.0f, 3.0f);
-	camera.yaw = asinf(-1.0f); // Where we look
-	camera_calculate_vectors(&camera);
+    GLuint main_program = program_create_from_file(MAIN_VERTEX_FILENAME, MAIN_FRAG_FILENAME).id;
+    GLuint line_program = program_create_from_file(MAIN_VERTEX_FILENAME, LINE_FRAG_FILENAME).id;
+    GLuint simple_program = program_create_from_file(SIMPLE_VERTEX_FILENAME, SIMPLE_FRAG_FILENAME).id;
+    
+    RenderContext ctx_ = {};
+    RenderContext *ctx = &ctx_;
+    render_load_programs(ctx);
+    
+	ctx->cam.position = Vec3(0.0f, 0.0f, 3.0f);
+	ctx->cam.yaw = asinf(-1.0f); // Where we look
+	camera_calculate_vectors(&ctx->cam);
 	
-	// const Vec3 world_up = Vec3(0.0f, 1.0f, 0.0f); // Don't repeat yourself
-	Mat4 lookat = look_at(camera.front, camera.position, camera.up);
+    RenderQueue rqueue_ = render_create_queue();
+    RenderQueue *rqueue = &rqueue_;
+    
+    Mat4 model = Mat4(1.0f);
+    Mat4 lookat = look_at(ctx->cam.front, ctx->cam.position, ctx->cam.up);
 	f32 aspect_ratio = (f32)state.window.width/(f32)state.window.height;
 	Mat4 proj = create_perspective(aspect_ratio, 90.0f, 0.1f, 100.0f);
-	Mat4 model = Mat4(1.0f);
+    ctx->lookat = lookat;
+    ctx->proj = proj;
 	
-    BasicShaderProgram basic_program = basic_program_build();
-	GLuint line_program = program_create_from_file(MAIN_VERTEX_FILENAME, LINE_FRAG_FILENAME);
-    GLuint simple_program = program_create_from_file(SIMPLE_VERTEX_FILENAME, SIMPLE_FRAG_FILENAME);
-    
     glEnable(GL_DEPTH_TEST);
 	Line ray_line = {};
 	GLuint line_vao, line_vbo;
@@ -292,7 +276,7 @@ int main()
 		ymouseold = ymouse;
 		glfwGetCursorPos(state.window.ptr, &xmouse, &ymouse);
         if(!state.in_editor)
-            camera_mouse_moved(&camera, xmouse - xmouseold, ymouse - ymouseold);
+            camera_mouse_moved(&ctx->cam, xmouse - xmouseold, ymouse - ymouseold);
 		
 		buttons_update(state.kbuttons, ARRAY_LEN(state.kbuttons));
 		buttons_update(state.mbuttons, ARRAY_LEN(state.mbuttons));
@@ -315,8 +299,9 @@ int main()
             ImGui::End();
         }
         
-		lookat = look_at(add(camera.front, camera.position), camera.position, camera.up);
-		model = Mat4(1.0f);
+		lookat = look_at(add(ctx->cam.front, ctx->cam.position), ctx->cam.position, ctx->cam.up);
+        ctx->lookat = lookat;
+        model = Mat4(1.0f);
 		if(state.kbuttons[GLFW_KEY_P].pressed)
         {
             glfwSetInputMode(state.window.ptr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -325,12 +310,19 @@ int main()
         if(state.kbuttons[GLFW_KEY_E].pressed)
         {
             state.in_editor = !state.in_editor;
+            
+            if(state.in_editor) {
+                glfwSetInputMode(state.window.ptr, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            } else {
+                glfwSetInputMode(state.window.ptr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            }
         }
         
         if(state.kbuttons[GLFW_KEY_R].pressed)
         {
-            glDeleteProgram(basic_program.id);
-            basic_program = basic_program_build();
+            // TODO(mateusz): Shader reloading
+            glDeleteProgram(main_program);
+            //basic_program = basic_program_build();
         }
         
         if(state.kbuttons[GLFW_KEY_H].pressed)
@@ -350,29 +342,29 @@ int main()
 		
 		float movement_scalar = 0.1f;
 		if(state.kbuttons[GLFW_KEY_W].down) {
-			camera.position = add(camera.position, scale(camera.front, movement_scalar));
+			ctx->cam.position = add(ctx->cam.position, scale(ctx->cam.front, movement_scalar));
 		} if(state.kbuttons[GLFW_KEY_S].down) {
-			camera.position = sub(camera.position, scale(camera.front, movement_scalar));
+			ctx->cam.position = sub(ctx->cam.position, scale(ctx->cam.front, movement_scalar));
 		} if(state.kbuttons[GLFW_KEY_D].down) {
-			camera.position = add(camera.position, scale(camera.right, movement_scalar));
+			ctx->cam.position = add(ctx->cam.position, scale(ctx->cam.right, movement_scalar));
 		} if(state.kbuttons[GLFW_KEY_A].down) {
-			camera.position = sub(camera.position, scale(camera.right, movement_scalar));
+			ctx->cam.position = sub(ctx->cam.position, scale(ctx->cam.right, movement_scalar));
 		}
 		
 		if(state.kbuttons[GLFW_KEY_SPACE].pressed)
 		{
-			ray_line = line_from_direction(camera.position, camera.front, 10.0f);
+			ray_line = line_from_direction(ctx->cam.position, ctx->cam.front, 10.0f);
 			
 			u64 start = rdtsc();
-			bool entity_hit = ray_intersect_entity(camera.position, camera.front, &monkey);
+			bool entity_hit = ray_intersect_entity(ctx->cam.position, ctx->cam.front, &monkey);
 			u64 end = rdtsc();
 			
 			u64 hit_clocks = end - start;
 			printf("EntityHit = %d | %lu clocks/call\n", entity_hit, hit_clocks);
 		}
 		
-        //monkey.rotate = create_qrot(to_radians(glfwGetTime() * 14.0f) * 8.0f, Vec3(1.0f, 0.0f, 0.0f));
-        //backpack.rotate = create_qrot(to_radians(glfwGetTime() * 8.0f) * 13.0f, Vec3(1.0f, 0.4f, 0.2f));
+        monkey.rotate = create_qrot(to_radians(glfwGetTime() * 14.0f) * 8.0f, Vec3(1.0f, 0.0f, 0.0f));
+        backpack.rotate = create_qrot(to_radians(glfwGetTime() * 8.0f) * 13.0f, Vec3(1.0f, 0.4f, 0.2f));
         
         glBindVertexArray(line_vao);
 		glBindBuffer(GL_ARRAY_BUFFER, line_vbo);
@@ -387,7 +379,8 @@ int main()
 		opengl_set_uniform(line_program, "model", model);
 		glDrawArrays(GL_LINES, 0, 2);
 		glUseProgram(0);
-		
+        
+#if 0		
         glUseProgram(skybox_program);
         Mat4 view_no_translation = lookat;
         view_no_translation.columns[3] = Vec4(0.0f, 0.0f, 0.0f, 1.0f);
@@ -395,48 +388,52 @@ int main()
         opengl_set_uniform(skybox_program, "proj", proj);
         
         cubemap_draw_skybox(skybox);
+#else
+        render_push_skybox(rqueue, skybox);
+#endif
         
         glUseProgram(0);
         
-		glUseProgram(basic_program.id);
-		glUniformMatrix4fv(basic_program.view, 1, GL_FALSE, lookat.a1d);
-		glUniformMatrix4fv(basic_program.proj, 1, GL_FALSE, proj.a1d);
-		glUniformMatrix4fv(basic_program.model, 1, GL_FALSE, model.a1d);
-		
-		glUniform3fv(basic_program.view_pos, 1, camera.position.m);
-		
-		glUniform3fv(basic_program.spotlight_position, 1, camera.position.m);
-		glUniform3fv(basic_program.spotlight_direction, 1, camera.front.m);
-		glUniform1f(basic_program.spotlight_cutoff, cosf(to_radians(22.5f)));
-		glUniform1f(basic_program.spotlight_outer_cutoff, cosf(to_radians(27.5f)));
-		glUniform3fv(basic_program.spotlight_ambient_component, 1, Vec3(0.1f, 0.1f, 0.1f).m);
-		glUniform3fv(basic_program.spotlight_diffuse_component, 1, Vec3(1.8f, 1.8f,1.8f).m);
-		glUniform3fv(basic_program.spotlight_specular_component, 1, Vec3(1.0f, 1.0f, 1.0f).m);
-		glUniform1f(basic_program.spotlight_atten_const, 1.0f);
-		glUniform1f(basic_program.spotlight_atten_linear, 0.09f);
-		glUniform1f(basic_program.spotlight_atten_quad, 0.032f);
-		
-		glUniform3fv(basic_program.direct_light_direction, 1, Vec3(0.0f, -1.0f, 0.0f).m);
-		glUniform3fv(basic_program.direct_light_ambient_component, 1, Vec3(0.05f, 0.05f, 0.05f).m);
-		glUniform3fv(basic_program.direct_light_diffuse_component, 1, Vec3(0.2f, 0.2f, 0.2f).m);
-		glUniform3fv(basic_program.direct_light_specular_component, 1, Vec3(0.4f, 0.4f, 0.4f).m);
-		
-        glUniform1i(glGetUniformLocation(basic_program.id, "show_normal_map"), state.show_normal_map);
-        glUniform1i(glGetUniformLocation(basic_program.id, "use_mapped_normals"), state.use_mapped_normals);
+		glUseProgram(main_program);
         
-        entity_draw(backpack, basic_program);
-        entity_draw(crysis_guy, basic_program);
-        entity_draw(cyborg, basic_program);
+        opengl_set_uniform(main_program, "view", lookat);
+        opengl_set_uniform(main_program, "proj", proj);
+        opengl_set_uniform(main_program, "model", model);
+		
+        opengl_set_uniform(main_program, "view_pos", ctx->cam.position);
+        
+        opengl_set_uniform(main_program, "light_pos", ctx->cam.position);
+        opengl_set_uniform(main_program, "spotlight.direction", ctx->cam.front);
+        opengl_set_uniform(main_program, "spotlight.cutoff", cosf(to_radians(22.5f)));
+        opengl_set_uniform(main_program, "spotlight.outer_cutoff", cosf(to_radians(27.5f)));
+        opengl_set_uniform(main_program, "spotlight.ambient_component", Vec3(0.1f, 0.1f, 0.1f));
+        opengl_set_uniform(main_program, "spotlight.diffuse_component", Vec3(1.8f, 1.8f, 1.8f));
+        opengl_set_uniform(main_program, "spotlight.specular_component", Vec3(1.0f, 1.0f, 1.0f));
+        opengl_set_uniform(main_program, "spotlight.atten_const", 1.0f);
+        opengl_set_uniform(main_program, "spotlight.atten_linear", 0.09f);
+        opengl_set_uniform(main_program, "spotlight.atten_quad", 0.032f);
+        
+        opengl_set_uniform(main_program, "direct_light.direction", Vec3(0.0f, -1.0f, 0.0f));
+        opengl_set_uniform(main_program, "direct_light.ambient_component", Vec3(0.05f, 0.05f, 0.05f));
+        opengl_set_uniform(main_program, "direct_light.diffuse_component", Vec3(0.2f, 0.2f, 0.2f));
+        opengl_set_uniform(main_program, "direct_light.specular_component", Vec3(0.4f, 0.4f, 0.4f));
+		
+        glUniform1i(glGetUniformLocation(main_program, "show_normal_map"), state.show_normal_map);
+        glUniform1i(glGetUniformLocation(main_program, "use_mapped_normals"), state.use_mapped_normals);
+        
+        entity_draw(backpack, main_program);
+        entity_draw(crysis_guy, main_program);
+        entity_draw(cyborg, main_program);
         
         glUseProgram(simple_program);
         
         opengl_set_uniform(simple_program, "view", lookat);
         opengl_set_uniform(simple_program, "proj", proj);
 		
-        opengl_set_uniform(simple_program, "view_pos", camera.position);
+        opengl_set_uniform(simple_program, "view_pos", ctx->cam.position);
         
-        opengl_set_uniform(simple_program, "light_pos", camera.position);
-        opengl_set_uniform(simple_program, "spotlight.direction", camera.front);
+        opengl_set_uniform(simple_program, "light_pos", ctx->cam.position);
+        opengl_set_uniform(simple_program, "spotlight.direction", ctx->cam.front);
         opengl_set_uniform(simple_program, "spotlight.cutoff", cosf(to_radians(22.5f)));
         opengl_set_uniform(simple_program, "spotlight.outer_cutoff", cosf(to_radians(27.5f)));
         opengl_set_uniform(simple_program, "spotlight.ambient_component", Vec3(0.1f, 0.1f, 0.1f));
@@ -451,31 +448,9 @@ int main()
         opengl_set_uniform(simple_program, "direct_light.diffuse_component", Vec3(0.2f, 0.2f, 0.2f));
         opengl_set_uniform(simple_program, "direct_light.specular_component", Vec3(0.4f, 0.4f, 0.4f));
         
-        GLuint id = basic_program.id;
-        GLuint model_id = basic_program.model;
-        GLuint ambient = basic_program.material_ambient_component;
-        GLuint diffuse = basic_program.material_diffuse_component;
-        GLuint specular = basic_program.material_specular_component;
-        GLuint specular_exp = basic_program.material_specular_exponent;
-        
-        basic_program.id = simple_program;
-        basic_program.model = glGetUniformLocation(simple_program, "model");
-        basic_program.material_ambient_component = glGetUniformLocation(simple_program, "material.ambient_component");
-        basic_program.material_diffuse_component = glGetUniformLocation(simple_program, "material.diffuse_component");
-        basic_program.material_specular_component = glGetUniformLocation(simple_program, "material.specular_component");
-        basic_program.material_specular_exponent = glGetUniformLocation(simple_program, "material.specular_exponent");
-        
-        
-        entity_draw(monkey, basic_program);
-		entity_draw(floor, basic_program);
+        entity_draw(monkey, simple_program);
+		entity_draw(floor, simple_program);
 		
-        basic_program.id = id;
-        basic_program.model = model_id;
-        basic_program.material_ambient_component = ambient;
-        basic_program.material_diffuse_component = diffuse;
-        basic_program.material_specular_component = specular;
-        basic_program.material_specular_exponent = specular_exp;
-        
         if(state.draw_hitboxes)
         {
             glUseProgram(line_program);
@@ -487,6 +462,8 @@ int main()
 		
 		ui_element_draw(crosshair);
 		
+        render_flush(rqueue, ctx);
+        
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         

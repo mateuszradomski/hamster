@@ -5,16 +5,6 @@
 
 #define OBJ_MAX_MATERIALS 10
 
-#define MAIN_VERTEX_FILENAME "src/shaders/main_vertex.glsl"
-#define MAIN_FRAG_FILENAME "src/shaders/main_frag.glsl"
-#define SIMPLE_VERTEX_FILENAME "src/shaders/simple_vertex.glsl"
-#define SIMPLE_FRAG_FILENAME "src/shaders/simple_frag.glsl"
-#define LINE_FRAG_FILENAME "src/shaders/line_vertex.glsl"
-#define UI_VERTEX_FILENAME "src/shaders/ui_vertex.glsl"
-#define UI_FRAG_FILENAME "src/shaders/ui_frag.glsl"
-#define SKYBOX_VERTEX_FILENAME "src/shaders/skybox_vertex.glsl"
-#define SKYBOX_FRAG_FILENAME "src/shaders/skybox_frag.glsl"
-
 enum OBJParseFlags
 {
     OBJ_PARSE_FLAG_EMPTY = 0x0,
@@ -215,17 +205,6 @@ struct UIElement
 	GLuint texture;
 };
 
-struct Camera
-{
-	Vec3 position;
-	Vec3 front;
-	Vec3 up;
-	Vec3 right;
-	
-	f32 yaw;
-	f32 pitch;
-};
-
 static OBJVILengths obj_get_mesh_vilength(char *lines, u32 lines_left);
 static OBJModel obj_parse(const char *filename, OBJParseFlags flags = OBJ_PARSE_FLAG_EMPTY);
 static void obj_model_destory(OBJModel *model);
@@ -243,7 +222,7 @@ static Hitbox hitbox_create_from_mesh(Mesh *mesh);
 
 static Line line_from_direction(Vec3 origin, Vec3 direction, f32 line_length);
 
-static void entity_draw(Entity entity, BasicShaderProgram program);
+static void entity_draw(Entity entity, GLuint program_id);
 static void entity_draw_hitbox(Entity entity, GLuint program);
 
 static Cubemap cubemap_create_skybox();
@@ -258,23 +237,12 @@ static bool ray_intersect_mesh_transformed(Vec3 ray_origin, Vec3 ray_direction, 
 static bool ray_intersect_hitbox(Vec3 ray_origin, Vec3 ray_direction, Hitbox *hbox);
 static bool ray_intersect_entity(Vec3 ray_origin, Vec3 ray_direction, Entity *entity);
 
+static Vec3 triangle_normal(Vec3 v0, Vec3 v1, Vec3 v2);
+
+// NOTE(mateusz): This seems to not fit here, maybe rearange the way things are between
+// _render and _graphics.
 static GLuint texture_create_from_file(const char *filename);
 static GLuint texture_create_solid(f32 r, f32 g, f32 b, f32 a);
-
-static bool program_shader_check_error(GLuint shader);
-static bool program_check_error(GLuint program);
-static GLuint program_create(const char *vertex_shader_src, const char *fragment_shader_src);
-static GLuint program_create_from_file(const char *vertex_filename, const char *fragment_filename);
-static BasicShaderProgram basic_program_build();
-
-static void camera_calculate_vectors(Camera *cam);
-static void camera_mouse_moved(Camera *cam, f32 dx, f32 dy);
-
-static void opengl_set_uniform(GLuint program, const char *name, f32 val);
-static void opengl_set_uniform(GLuint program, const char *name, Vec3 vec);
-static void opengl_set_uniform(GLuint program, const char *name, Mat4 mat, GLboolean transpose = GL_FALSE);
-
-static Vec3 triangle_normal(Vec3 v0, Vec3 v1, Vec3 v2);
 
 #define HAMSTER_GRAPHICS_H
 #endif

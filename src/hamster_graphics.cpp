@@ -1,4 +1,6 @@
 #include "hamster_graphics.h"
+// TODO(mateusz): Remove it, it's only here for the transistion period!
+#include "hamster_render.h"
 
 static OBJVILengths
 obj_get_mesh_vilength(char *lines, u32 lines_left)
@@ -415,10 +417,8 @@ model_load_obj_materials(Model *model, OBJMaterial *materials, u32 count, const 
             strcpy(texture_filename + path_length, obj_mtl->diffuse_map_filename);
             new_material->diffuse_map = texture_create_from_file(texture_filename);
             
-            glBindTexture(GL_TEXTURE_2D, new_material->diffuse_map);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glBindTexture(GL_TEXTURE_2D, 0);
             
             FLAG_SET(new_material->flags, MATERIAL_FLAGS_HAS_DIFFUSE_MAP, MaterialFlags);
         }
@@ -428,10 +428,8 @@ model_load_obj_materials(Model *model, OBJMaterial *materials, u32 count, const 
             strcpy(texture_filename + path_length, obj_mtl->specular_map_filename);
             new_material->specular_map = texture_create_from_file(texture_filename);
             
-            glBindTexture(GL_TEXTURE_2D, new_material->specular_map);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glBindTexture(GL_TEXTURE_2D, 0);
             
             FLAG_SET(new_material->flags, MATERIAL_FLAGS_HAS_SPECULAR_MAP, MaterialFlags);
         }
@@ -441,10 +439,8 @@ model_load_obj_materials(Model *model, OBJMaterial *materials, u32 count, const 
             strcpy(texture_filename + path_length, obj_mtl->normal_map_filename);
             new_material->normal_map = texture_create_from_file(texture_filename);
             
-            glBindTexture(GL_TEXTURE_2D, new_material->specular_map);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glBindTexture(GL_TEXTURE_2D, 0);
             
             FLAG_SET(new_material->flags, MATERIAL_FLAGS_HAS_NORMAL_MAP, MaterialFlags);
         }
@@ -809,12 +805,13 @@ line_from_direction(Vec3 origin, Vec3 direction, f32 line_length)
 }
 
 static void
-entity_draw(Entity entity, BasicShaderProgram program)
+entity_draw(Entity entity, GLuint program_id)
 {
     Mat4 transform = scale(Mat4(1.0f), entity.size);
     transform = rotate_quat(transform, entity.rotate);
     transform = translate(transform, entity.position);
-    glUniformMatrix4fv(program.model, 1, GL_FALSE, transform.a1d);
+    // TODO(mateusz): Render does that!
+    opengl_set_uniform(program_id, "model", transform);
     
     Model *model = entity.model;
     for(u32 i = 0; i < model->meshes_len; i++)
@@ -838,43 +835,41 @@ entity_draw(Entity entity, BasicShaderProgram program)
         {
             if(material->flags & MATERIAL_FLAGS_HAS_DIFFUSE_MAP)
             {
-                glUniform1i(glGetUniformLocation(program.id, "diffuse_map"), 1);
+                glUniform1i(glGetUniformLocation(program_id, "diffuse_map"), 1);
                 glActiveTexture(GL_TEXTURE1);
                 glBindTexture(GL_TEXTURE_2D, material->diffuse_map);
             }
             if(material->flags & MATERIAL_FLAGS_HAS_SPECULAR_MAP)
             {
-                glUniform1i(glGetUniformLocation(program.id, "specular_map"), 2);
+                glUniform1i(glGetUniformLocation(program_id, "specular_map"), 2);
                 glActiveTexture(GL_TEXTURE2);
                 glBindTexture(GL_TEXTURE_2D, material->specular_map);
             }
             if(material->flags & MATERIAL_FLAGS_HAS_NORMAL_MAP)
             {
-                glUniform1i(glGetUniformLocation(program.id, "normal_map"), 3);
+                glUniform1i(glGetUniformLocation(program_id, "normal_map"), 3);
                 glActiveTexture(GL_TEXTURE3);
                 glBindTexture(GL_TEXTURE_2D, material->normal_map);
             }
             
-            glUniform3fv(program.material_ambient_component, 1, material->ambient_component.m);
-            glUniform3fv(program.material_diffuse_component, 1, material->diffuse_component.m);
-            glUniform3fv(program.material_specular_component, 1, material->specular_component.m);
-            glUniform1f(program.material_specular_exponent, material->specular_exponent);
+            opengl_set_uniform(program_id, "material.ambient_component", material->ambient_component);
+            opengl_set_uniform(program_id, "material.diffuse_component", material->diffuse_component);
+            opengl_set_uniform(program_id, "material.specular_component", material->specular_component);
+            opengl_set_uniform(program_id, "material.specular_exponent", material->specular_exponent);
         }
         else
         {
-            Vec3 one_vec = Vec3(1.0f, 1.0f, 1.0f);
-            glUniform3fv(program.material_ambient_component, 1, one_vec.m);
-            glUniform3fv(program.material_diffuse_component, 1, one_vec.m);
-            glUniform3fv(program.material_specular_component, 1, one_vec.m);
-            glUniform1f(program.material_specular_exponent, 1.0f);
+            Vec3 one = Vec3(1.0f, 1.0f, 1.0f);
+            opengl_set_uniform(program_id, "material.ambient_component", one);
+            opengl_set_uniform(program_id, "material.diffuse_component", one);
+            opengl_set_uniform(program_id, "material.specular_component", one);
+            opengl_set_uniform(program_id, "material.specular_exponent", 1.0f);
         }
         
         glDrawElements(GL_TRIANGLES, mesh->indices_len, GL_UNSIGNED_INT, NULL);
-        glUniform1i(glGetUniformLocation(program.id, "diffuse_map"), 0);
-        glUniform1i(glGetUniformLocation(program.id, "specular_map"), 0);
-        glUniform1i(glGetUniformLocation(program.id, "normal_map"), 0);
-        glBindVertexArray(0);
-        glBindTexture(GL_TEXTURE_2D, 0);
+        glUniform1i(glGetUniformLocation(program_id, "diffuse_map"), 0);
+        glUniform1i(glGetUniformLocation(program_id, "specular_map"), 0);
+        glUniform1i(glGetUniformLocation(program_id, "normal_map"), 0);
     }
 }
 
@@ -1043,11 +1038,6 @@ cubemap_create_skybox()
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(f32), nullptr);
     glEnableVertexAttribArray(0);
     
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
-    
     return map;
 }
 
@@ -1061,8 +1051,6 @@ cubemap_draw_skybox(Cubemap skybox)
     glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, NULL);
     
     glDepthFunc(GL_LESS);
-    glBindVertexArray(0);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 }
 
 static UIElement
@@ -1090,13 +1078,10 @@ ui_element_create(Vec2 position, Vec2 size, const char *texture_filename)
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(f32), nullptr);
     glEnableVertexAttribArray(0);
     
-    element.program = program_create_from_file(UI_VERTEX_FILENAME, UI_FRAG_FILENAME);
     element.texture = texture_create_from_file(texture_filename);
     
-    glBindTexture(GL_TEXTURE_2D, element.texture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glBindTexture(GL_TEXTURE_2D, 0);
     
     return element;
 }
@@ -1338,6 +1323,18 @@ ray_intersect_entity(Vec3 ray_origin, Vec3 ray_direction, Entity *entity)
     return false;
 }
 
+// NOTE(mateusz): This funictons returns normalized normal and takes a counter-clockwise
+// specified verticies of a triangle, otherwise it can give a opposite answer.
+static Vec3 
+triangle_normal(Vec3 v0, Vec3 v1, Vec3 v2)
+{
+    Vec3 result = {};
+    
+    result = noz(cross(sub(v1, v0), sub(v2, v0)));
+    
+    return result;
+}
+
 static GLuint
 texture_create_from_file(const char *filename)
 {
@@ -1380,6 +1377,7 @@ texture_create_from_file(const char *filename)
     return texture;
 }
 
+
 static GLuint
 texture_create_solid(f32 r, f32 g, f32 b, f32 a)
 {
@@ -1395,186 +1393,6 @@ texture_create_solid(f32 r, f32 g, f32 b, f32 a)
     glBindTexture(GL_TEXTURE_2D, texture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
     glGenerateMipmap(GL_TEXTURE_2D);
-    glBindTexture(GL_TEXTURE_2D, 0);
     
     return texture;
-}
-
-// Takes a compiled shader, checks if it produced an error
-// returns false if it did, true otherwise.
-static bool
-program_shader_check_error(GLuint shader)
-{
-    int  success;
-    char infoLog[512];
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-    if(!success)
-    {
-        glGetShaderInfoLog(shader, 512, NULL, infoLog);
-        printf("%s\n", infoLog);
-        return false;
-    }
-    
-    return true;
-}
-
-// Takes a linked program, checks if it produced an error
-// returns false if it did, true otherwise.
-static bool
-program_check_error(GLuint program)
-{
-    int  success;
-    char infoLog[512];
-    glGetProgramiv(program, GL_LINK_STATUS, &success);
-    if(!success) {
-        glGetProgramInfoLog(program, 512, NULL, infoLog);
-        printf("%s\n", infoLog);
-        return false;
-    }
-    
-    return true;
-}
-
-static GLuint
-program_create(const char *vertex_shader_src, const char *fragment_shader_src)
-{
-    GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex_shader, 1, &vertex_shader_src, NULL);
-    glCompileShader(vertex_shader);
-    bool vertex_compiled = program_shader_check_error(vertex_shader);
-    assert(vertex_compiled);
-    
-    GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment_shader, 1, &fragment_shader_src, NULL);
-    glCompileShader(fragment_shader);
-    bool fragment_compiled = program_shader_check_error(fragment_shader);
-    assert(fragment_compiled);
-    
-    GLuint program = glCreateProgram();
-    glAttachShader(program, vertex_shader);
-    glAttachShader(program, fragment_shader);
-    glLinkProgram(program);
-    bool program_ok = program_check_error(program);
-    assert(program_ok);
-    
-    return program;
-}
-
-static GLuint
-program_create_from_file(const char *vertex_filename, const char *fragment_filename)
-{
-    FILE *f = fopen(vertex_filename, "r");
-    assert(f);
-    char *vertex_src = read_file_to_string(f);
-    fclose(f);
-    
-    f = fopen(fragment_filename, "r");
-    assert(f);
-    char *fragment_src = read_file_to_string(f);
-    fclose(f);
-    
-    GLuint program = program_create(vertex_src, fragment_src);
-    
-    free(vertex_src);
-    free(fragment_src);
-    
-    return program;
-}
-
-static BasicShaderProgram
-basic_program_build()
-{
-    BasicShaderProgram result = {};
-    
-    result.id = program_create_from_file(MAIN_VERTEX_FILENAME, MAIN_FRAG_FILENAME);
-    result.model = glGetUniformLocation(result.id, "model");
-    result.view = glGetUniformLocation(result.id, "view");
-    result.proj = glGetUniformLocation(result.id, "proj");
-    result.view_pos = glGetUniformLocation(result.id, "view_pos");
-    //result.spotlight_position = glGetUniformLocation(result.id, "spotlight.position");
-    result.spotlight_position = glGetUniformLocation(result.id, "light_pos");
-    result.spotlight_direction = glGetUniformLocation(result.id, "spotlight.direction");
-    result.spotlight_cutoff = glGetUniformLocation(result.id, "spotlight.cutoff");
-    result.spotlight_outer_cutoff = glGetUniformLocation(result.id, "spotlight.outer_cutoff");
-    result.spotlight_ambient_component = glGetUniformLocation(result.id, "spotlight.ambient_component");
-    result.spotlight_diffuse_component = glGetUniformLocation(result.id, "spotlight.diffuse_component");
-    result.spotlight_specular_component = glGetUniformLocation(result.id, "spotlight.specular_component");
-    result.spotlight_atten_const = glGetUniformLocation(result.id, "spotlight.atten_const");
-    result.spotlight_atten_linear = glGetUniformLocation(result.id, "spotlight.atten_linear");
-    result.spotlight_atten_quad = glGetUniformLocation(result.id, "spotlight.atten_quad");
-    result.direct_light_direction = glGetUniformLocation(result.id, "direct_light.direction");
-    result.direct_light_ambient_component = glGetUniformLocation(result.id, "direct_light.ambient_component");
-    result.direct_light_diffuse_component = glGetUniformLocation(result.id, "direct_light.diffuse_component");
-    result.direct_light_specular_component = glGetUniformLocation(result.id, "direct_light.specular_component");
-    result.material_ambient_component = glGetUniformLocation(result.id, "material.ambient_component");
-    result.material_diffuse_component = glGetUniformLocation(result.id, "material.diffuse_component");
-    result.material_specular_component = glGetUniformLocation(result.id, "material.specular_component");
-    result.material_specular_exponent = glGetUniformLocation(result.id, "material.specular_exponent");
-    
-    return result;
-}
-
-static void
-camera_calculate_vectors(Camera *cam)
-{
-    const Vec3 world_up(0.0f, 1.0f, 0.0f);
-    cam->right = noz(cross(cam->front, world_up));
-    cam->up = noz(cross(cam->right, cam->front));
-}
-
-static void
-camera_mouse_moved(Camera *cam, f32 dx, f32 dy)
-{
-    f32 sensitivity = 0.2f; // TODO: move it outside
-    
-    cam->yaw += to_radians(dx * sensitivity);
-    cam->pitch += to_radians(-dy * sensitivity);
-    
-    if(cam->pitch > to_radians(89.0f)) {
-        cam->pitch = to_radians(89.0f);
-    } else if(cam->pitch < to_radians(-89.0f)) {
-        cam->pitch = to_radians(-89.0f);
-    }
-    
-    cam->front.x = cosf(cam->pitch) * cosf(cam->yaw);
-    cam->front.y = sinf(cam->pitch);
-    cam->front.z = cosf(cam->pitch) * sinf(cam->yaw);
-    cam->front = noz(cam->front);
-    camera_calculate_vectors(cam);
-}
-
-static void 
-opengl_set_uniform(GLuint program, const char *name, f32 val)
-{
-    GLint location = glGetUniformLocation(program, name);
-    glUniform1f(location, val);
-    assert(glGetError() == GL_NO_ERROR);
-}
-
-static void
-opengl_set_uniform(GLuint program, const char *name, Vec3 vec)
-{
-    GLint location = glGetUniformLocation(program, name);
-    glUniform3fv(location, 1, vec.m);
-    assert(glGetError() == GL_NO_ERROR);
-}
-
-static void
-opengl_set_uniform(GLuint program, const char *name, Mat4 mat, GLboolean transpose)
-{
-    GLint location = glGetUniformLocation(program, name);
-    glUniformMatrix4fv(location, 1, transpose, mat.a1d);
-    assert(glGetError() == GL_NO_ERROR);
-}
-
-// NOTE(mateusz): This funictons returns normalized normal and takes a counter-clockwise
-// specified verticies of a triangle, otherwise it can give a opposite answer.
-static Vec3 
-triangle_normal(Vec3 v0, Vec3 v1, Vec3 v2)
-{
-    Vec3 result = {};
-    
-    result = noz(cross(sub(v1, v0), sub(v2, v0)));
-    
-    return result;
 }

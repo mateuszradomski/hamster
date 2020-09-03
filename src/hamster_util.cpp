@@ -4,6 +4,10 @@
 #define FLAG_SET(flag, value, type) ((flag) = ((type)((flag) | (value))))
 #define FLAG_UNSET(flag, value, type) ((flag) = ((type)((flag) & ~(value))))
 
+#define KB(x) (1024 * (x))
+#define MB(x) (1024 * (KB(x)))
+#define GB(x) (1024 * (MB(x)))
+
 template <typename T, typename R>
 struct Map
 {
@@ -285,6 +289,16 @@ string_get_char_count(char *str, char c)
     }
     
     return result;
+}
+
+static time_t
+get_file_stamp(const char *filename)
+{
+    // NOTE(mateusz): Unix systems only!
+    struct stat s = {};
+    stat(filename, &s);
+    
+    return s.st_mtim.tv_sec;
 }
 
 #if 0
