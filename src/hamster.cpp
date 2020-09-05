@@ -5,9 +5,11 @@
 #include <ctime>
 
 // NOTE(mateusz): Unix systems only!
+#ifdef __linux__
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#endif
 
 #include <x86intrin.h>
 
@@ -225,7 +227,7 @@ int main()
 	floor.model = &floor_model;
 	
     GLuint main_program = program_create_from_file(MAIN_VERTEX_FILENAME, MAIN_FRAG_FILENAME).id;
-    GLuint line_program = program_create_from_file(MAIN_VERTEX_FILENAME, LINE_FRAG_FILENAME).id;
+    //GLuint line_program = program_create_from_file(MAIN_VERTEX_FILENAME, LINE_FRAG_FILENAME).id;
     GLuint simple_program = program_create_from_file(SIMPLE_VERTEX_FILENAME, SIMPLE_FRAG_FILENAME).id;
     
     RenderContext ctx_ = {};
@@ -239,20 +241,15 @@ int main()
     RenderQueue rqueue_ = render_create_queue();
     RenderQueue *rqueue = &rqueue_;
     
-    Mat4 model = Mat4(1.0f);
     Mat4 lookat = look_at(ctx->cam.front, ctx->cam.position, ctx->cam.up);
 	f32 aspect_ratio = (f32)state.window.width/(f32)state.window.height;
 	Mat4 proj = create_perspective(aspect_ratio, 90.0f, 0.1f, 100.0f);
     ctx->lookat = lookat;
     ctx->proj = proj;
-	
+    ctx->ortho = create_ortographic(aspect_ratio, 0.01f, 10.0f);
+    
     glEnable(GL_DEPTH_TEST);
 	Line ray_line = {};
-	GLuint line_vao, line_vbo;
-	glGenVertexArrays(1, &line_vao);
-	glBindVertexArray(line_vao);
-	glGenBuffers(1, &line_vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, line_vbo);
 	
 	glfwSwapInterval(1);
     
@@ -269,9 +266,11 @@ int main()
 	glfwGetCursorPos(state.window.ptr, &xmouse, &ymouse);
 	while(!glfwWindowShouldClose(state.window.ptr))
 	{
+		glfwPollEvents();
         state.timer.frame_start = glfwGetTime();
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		
+        // TODO(mateusz): REMOVE IT! Read note in render_flush()
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		xmouseold = xmouse;
 		ymouseold = ymouse;
 		glfwGetCursorPos(state.window.ptr, &xmouse, &ymouse);
@@ -301,7 +300,6 @@ int main()
         
 		lookat = look_at(add(ctx->cam.front, ctx->cam.position), ctx->cam.position, ctx->cam.up);
         ctx->lookat = lookat;
-        model = Mat4(1.0f);
 		if(state.kbuttons[GLFW_KEY_P].pressed)
         {
             glfwSetInputMode(state.window.ptr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -366,39 +364,14 @@ int main()
         monkey.rotate = create_qrot(to_radians(glfwGetTime() * 14.0f) * 8.0f, Vec3(1.0f, 0.0f, 0.0f));
         backpack.rotate = create_qrot(to_radians(glfwGetTime() * 8.0f) * 13.0f, Vec3(1.0f, 0.4f, 0.2f));
         
-        glBindVertexArray(line_vao);
-		glBindBuffer(GL_ARRAY_BUFFER, line_vbo);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(ray_line), &ray_line, GL_STATIC_DRAW);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_TRUE, 3 * sizeof(float), nullptr);
-		glEnableVertexAttribArray(0);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		
-		glUseProgram(line_program);
-		opengl_set_uniform(line_program, "view", lookat);
-		opengl_set_uniform(line_program, "proj", proj);
-		opengl_set_uniform(line_program, "model", model);
-		glDrawArrays(GL_LINES, 0, 2);
-		glUseProgram(0);
+        render_push_line(rqueue, ray_line);
         
-#if 0		
-        glUseProgram(skybox_program);
-        Mat4 view_no_translation = lookat;
-        view_no_translation.columns[3] = Vec4(0.0f, 0.0f, 0.0f, 1.0f);
-        opengl_set_uniform(skybox_program, "view", view_no_translation);
-        opengl_set_uniform(skybox_program, "proj", proj);
-        
-        cubemap_draw_skybox(skybox);
-#else
         render_push_skybox(rqueue, skybox);
-#endif
-        
-        glUseProgram(0);
         
 		glUseProgram(main_program);
         
         opengl_set_uniform(main_program, "view", lookat);
         opengl_set_uniform(main_program, "proj", proj);
-        opengl_set_uniform(main_program, "model", model);
 		
         opengl_set_uniform(main_program, "view_pos", ctx->cam.position);
         
@@ -453,14 +426,12 @@ int main()
 		
         if(state.draw_hitboxes)
         {
-            glUseProgram(line_program);
-            entity_draw_hitbox(monkey, line_program);
-            entity_draw_hitbox(backpack, line_program);
-            entity_draw_hitbox(crysis_guy, line_program);
-            entity_draw_hitbox(cyborg, line_program);
+            render_push_hitbox(rqueue, monkey);
+            render_push_hitbox(rqueue, backpack);
+            render_push_hitbox(rqueue, crysis_guy);
+            render_push_hitbox(rqueue, cyborg);
         }
-		
-		ui_element_draw(crosshair);
+        render_push_ui(rqueue, crosshair);
 		
         render_flush(rqueue, ctx);
         
@@ -468,7 +439,6 @@ int main()
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         
 		glfwSwapBuffers(state.window.ptr);
-		glfwPollEvents();
         
         state.timer.frame_end = glfwGetTime();
         state.timer.since_last_second += state.timer.frame_end - state.timer.frame_start;
@@ -481,6 +451,8 @@ int main()
         }
 	}
 	
+    render_destory_queue(rqueue);
+    
     model_destory(monkey_model);
     model_destory(backpack_model);
     model_destory(crysis_model);

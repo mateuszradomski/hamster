@@ -43,14 +43,12 @@ struct Camera
 	f32 pitch;
 };
 
-
 enum RenderHeader
 {
     RenderType_RenderEntrySkybox,
-	//enum_type_render_entry_rect,
-	//enum_type_render_entry_rect_space,
-	//enum_type_render_entry_rect_matrix,
-	//enum_type_render_entry_point,
+    RenderType_RenderEntryLine,
+    RenderType_RenderEntryHitbox,
+    RenderType_RenderEntryUI,
 };
 
 struct RenderEntrySkybox
@@ -59,42 +57,27 @@ struct RenderEntrySkybox
     Cubemap cube;
 };
 
-#if 0
-struct render_entry_rect
+struct RenderEntryLine
 {
-	render_header header;
-	V2 origin;
-	V2 dim;
-	V4 color;
+    RenderHeader header;
+    Line line;
 };
 
-struct render_entry_rect_space
+struct RenderEntryHitbox
 {
-	render_header header;
-	V2 origin;
-	V2 x_axis;
-	V2 y_axis;
-	loaded_image *texture;
-	V4 color;
+    RenderHeader header;
+    Vec3 position;
+    Vec3 size;
+    Quat orientation;
+    Hitbox *hbox;
+    u32 hbox_len;
 };
 
-struct render_entry_rect_matrix
+struct RenderEntryUI
 {
-	render_header header;
-	V2 origin;
-	Mat2 model;
-	loaded_image *texture;
-	V4 color;
+    RenderHeader header;
+    UIElement element;
 };
-
-struct render_entry_point
-{
-	render_header header;
-	V2 pos;
-	f32 size;
-	V4 color;
-};
-#endif
 
 struct RenderQueue
 {
@@ -110,14 +93,18 @@ struct RenderContext
     Camera cam;
     Mat4 lookat;
     Mat4 proj;
+    Mat4 ortho;
 };
 
 static RenderQueue render_create_queue(u32 size = KB(16));
-static void render_destory_queue(RenderQueue queue);
+static void render_destory_queue(RenderQueue *queue);
 
 #define render_push_entry(queue, type) (type *)_render_push_entry(queue, sizeof(type), RenderType_##type)
 static void *_render_push_entry(RenderQueue *queue, u32 struct_size, RenderHeader type);
 static void render_push_skybox(RenderQueue *queue, Cubemap skybox);
+static void render_push_line(RenderQueue *queue, Line line);
+static void render_push_hitbox(RenderQueue *queue, Entity entity);
+static void render_push_ui(RenderQueue *queue, UIElement element);
 static void render_flush(RenderQueue *queue, RenderContext *ctx);
 
 static void render_load_programs(RenderContext *ctx);

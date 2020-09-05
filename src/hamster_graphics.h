@@ -201,7 +201,7 @@ struct UIElement
 	
 	GLuint vao;
 	GLuint vbo;
-	GLuint program;
+	GLuint program; // TODO(mateusz): REMOVE IT
 	GLuint texture;
 };
 
@@ -223,13 +223,10 @@ static Hitbox hitbox_create_from_mesh(Mesh *mesh);
 static Line line_from_direction(Vec3 origin, Vec3 direction, f32 line_length);
 
 static void entity_draw(Entity entity, GLuint program_id);
-static void entity_draw_hitbox(Entity entity, GLuint program);
 
 static Cubemap cubemap_create_skybox();
-static void cubemap_draw_skybox(Cubemap skybox);
 
 static UIElement ui_element_create(Vec2 position, Vec2 size, const char *texture_filename);
-static void ui_element_draw(UIElement element);
 
 static bool ray_intersect_triangle(Vec3 ray_origin, Vec3 ray_direction, Vec3 v0, Vec3 v1, Vec3 v2, Vec3 normal);
 static bool ray_intersect_model(Vec3 ray_origin, Vec3 ray_direction, Model *model);

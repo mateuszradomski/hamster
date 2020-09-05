@@ -295,24 +295,15 @@ static time_t
 get_file_stamp(const char *filename)
 {
     // NOTE(mateusz): Unix systems only!
+#ifdef __linux__
     struct stat s = {};
     stat(filename, &s);
-    
     return s.st_mtim.tv_sec;
-}
-
-#if 0
-static void
-string_occur_count(char *str, char *substr)
-{
-    u32 count = 0;
-    
-    while(str)
-    {
-        
-    }
-    
-    return count;
+#else
+    (void)filename;
+    printf("get_file_stamp not implemeted for this platform [%s : %d]\n", __FILE__, __LINE__);
+    return 0;
+#endif
 }
 
 #if 0
@@ -415,6 +406,4 @@ bool Array<T>::contains(T val)
 	
 	return result;
 }
-#endif
-
 #endif

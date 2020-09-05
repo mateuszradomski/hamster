@@ -8,6 +8,8 @@ out vec2 pixel_texuv;
 
 void main()
 {
-    gl_Position = ortho * transform * vec4(vertex_pos, -1.0f, 1.0f);
+    vec4 pos = ortho * transform * vec4(vertex_pos, -1.0f, 1.0f);
+    pos.z = -1.0f;
+    gl_Position = pos;
     pixel_texuv = vec2((vertex_pos.x + 1.0) / 2.0, 1 - (vertex_pos.y + 1.0) / 2.0);
 }

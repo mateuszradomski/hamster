@@ -873,71 +873,6 @@ entity_draw(Entity entity, GLuint program_id)
     }
 }
 
-static void 
-entity_draw_hitbox(Entity entity, GLuint program)
-{
-    Model *model = entity.model;
-    for(u32 i = 0; i < model->meshes_len; i++)
-    {
-        assert(model->hitboxes_len == model->meshes_len);
-        
-        Hitbox *hbox = &model->hitboxes[i];
-        Vec3 vertices[VERTICES_PER_CUBE] = {
-            hbox->refpoint,
-            add(hbox->refpoint, Vec3(hbox->size.x, 0.0f, 0.0f)), // x
-            add(hbox->refpoint, Vec3(0.0f, hbox->size.y, 0.0f)), // y
-            add(hbox->refpoint, Vec3(0.0f, 0.0f, hbox->size.z)), // z
-            add(hbox->refpoint, Vec3(hbox->size.x, hbox->size.y, 0.0f)), // xy
-            add(hbox->refpoint, Vec3(0.0f, hbox->size.y, hbox->size.z)), // yz
-            add(hbox->refpoint, Vec3(hbox->size.x, 0.0f, hbox->size.z)), // xz
-            add(hbox->refpoint, hbox->size),
-        };
-        
-        u32 indicies[INDICES_PER_CUBE] = {
-            0, 1, // start to x
-            1, 4, // x to xy
-            4, 2, // xy to y
-            2, 0, // y to start
-            
-            0, 3, // start to z
-            1, 6, // x to xz
-            4, 7, // xy to xyz
-            2, 5, // y to yz
-            
-            3, 6, // z to xz
-            6, 7, // xz to xyz
-            7, 5, // xyz to yz
-            5, 3, // yz to 
-        };
-        
-        GLuint hbox_vao, hbox_vbo, hbox_ebo = 0;
-        
-        glGenVertexArrays(1, &hbox_vao);
-        glGenBuffers(1, &hbox_vbo);
-        glGenBuffers(1, &hbox_ebo);
-        
-        glBindVertexArray(hbox_vao);
-        glBindBuffer(GL_ARRAY_BUFFER, hbox_vbo);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, hbox_ebo);
-        
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indicies), indicies, GL_STATIC_DRAW);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(f32), nullptr);
-        glEnableVertexAttribArray(0);
-        
-        Mat4 transform = scale(Mat4(1.0f), entity.size);
-        transform = rotate_quat(transform, entity.rotate);
-        transform = translate(transform, entity.position);
-        opengl_set_uniform(program, "model", transform);
-        
-        glDrawElements(GL_LINES, ARRAY_LEN(indicies), GL_UNSIGNED_INT, NULL);
-        
-        glDeleteVertexArrays(1, &hbox_vao);
-        glDeleteBuffers(1, &hbox_vbo);
-        glDeleteBuffers(1, &hbox_ebo);
-    }
-}
-
 static Cubemap
 cubemap_create_skybox()
 {
@@ -1041,18 +976,6 @@ cubemap_create_skybox()
     return map;
 }
 
-static void
-cubemap_draw_skybox(Cubemap skybox)
-{
-    glBindVertexArray(skybox.vao);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.texture);
-    
-    glDepthFunc(GL_LEQUAL);
-    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, NULL);
-    
-    glDepthFunc(GL_LESS);
-}
-
 static UIElement
 ui_element_create(Vec2 position, Vec2 size, const char *texture_filename)
 {
@@ -1084,35 +1007,6 @@ ui_element_create(Vec2 position, Vec2 size, const char *texture_filename)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     
     return element;
-}
-
-static void
-ui_element_draw(UIElement element)
-{
-    // NOTE: We could bunch up all of the UI elements together and bind the shader program
-    // once. That would be more efficient
-    glUseProgram(element.program);
-    Mat4 transform = translate(Mat4(1.0f), Vec3(element.position.x, element.position.y, 0.0f));
-    transform = scale(transform, Vec3(element.size.x, element.size.y, 1.0f));
-    opengl_set_uniform(element.program, "transform", transform);
-    
-    Mat4 ortho = create_ortographic(1280.0f/720.0f, 0.01f, 10.0f);
-    opengl_set_uniform(element.program, "ortho", ortho);
-    
-    glEnable(GL_BLEND);
-    glDisable(GL_DEPTH_TEST);
-    
-    glBindVertexArray(element.vao);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, element.texture);
-    glUniform1i(glGetUniformLocation(element.program, "tex_sampler"), 0);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    
-    glEnable(GL_DEPTH_TEST);
-    glDisable(GL_BLEND);
-    
-    glUseProgram(0);
-    glBindVertexArray(0);
 }
 
 // Based on:
