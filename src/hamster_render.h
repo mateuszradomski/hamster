@@ -32,23 +32,14 @@ struct ShaderProgram
     time_t fragment_stamp;
 };
 
-struct Camera
-{
-	Vec3 position;
-	Vec3 front;
-	Vec3 up;
-	Vec3 right;
-	
-	f32 yaw;
-	f32 pitch;
-};
-
 enum RenderHeader
 {
     RenderType_RenderEntrySkybox,
     RenderType_RenderEntryLine,
     RenderType_RenderEntryHitbox,
     RenderType_RenderEntryUI,
+    RenderType_RenderEntryModelNewest,
+    RenderType_RenderEntryModel,
 };
 
 struct RenderEntrySkybox
@@ -79,6 +70,24 @@ struct RenderEntryUI
     UIElement element;
 };
 
+struct RenderEntryModelNewest
+{
+    RenderHeader header;
+    Vec3 position;
+    Vec3 size;
+    Quat orientation;
+    Model *model;
+};
+
+struct RenderEntryModel
+{
+    RenderHeader header;
+    Vec3 position;
+    Vec3 size;
+    Quat orientation;
+    Model *model;
+};
+
 struct RenderQueue
 {
 	void *entries;
@@ -90,7 +99,14 @@ struct RenderQueue
 struct RenderContext
 {
     ShaderProgram programs[ShaderProgram_LastElement];
+    
+    Spotlight spot;
     Camera cam;
+    
+    bool draw_hitboxes;
+    bool show_normal_map;
+    bool use_mapped_normals;
+    
     Mat4 lookat;
     Mat4 proj;
     Mat4 ortho;
@@ -105,6 +121,8 @@ static void render_push_skybox(RenderQueue *queue, Cubemap skybox);
 static void render_push_line(RenderQueue *queue, Line line);
 static void render_push_hitbox(RenderQueue *queue, Entity entity);
 static void render_push_ui(RenderQueue *queue, UIElement element);
+static void render_push_model_newest(RenderQueue *queue, Entity entity);
+static void render_push_model(RenderQueue *queue, Entity entity);
 static void render_flush(RenderQueue *queue, RenderContext *ctx);
 
 static void render_load_programs(RenderContext *ctx);

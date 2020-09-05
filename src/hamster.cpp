@@ -26,11 +26,18 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "includes/stb_image.h"
 
+#include "hamster_math.h"
+#include "hamster_util.h"
+#include "hamster_graphics.h"
+#include "hamster_scene.h"
+#include "hamster_render.h"
+#include "hamster.h"
+
 #include "hamster_math.cpp"
 #include "hamster_util.cpp"
 #include "hamster_graphics.cpp"
+#include "hamster_scene.cpp"
 #include "hamster_render.cpp"
-#include "hamster.h"
 
 void
 opengl_error_callback(GLenum source, GLenum type, GLuint id, GLenum severity,
@@ -196,10 +203,7 @@ int main()
 	Model floor_model = model_create_debug_floor();
 	UIElement crosshair = ui_element_create(Vec2(0.0f, 0.0f), Vec2(0.1f, 0.1f),
                                             "data/crosshair.png");
-    crosshair.program = program_create_from_file(UI_VERTEX_FILENAME, UI_FRAG_FILENAME).id;
 	Cubemap skybox = cubemap_create_skybox();
-    GLuint skybox_program = program_create_from_file(SKYBOX_VERTEX_FILENAME, SKYBOX_FRAG_FILENAME).id;
-    NOT_USED(skybox_program);
     
     Entity monkey = {};
 	monkey.position = Vec3(5.0f, 0.0f, 0.0f);
@@ -226,10 +230,6 @@ int main()
 	floor.size = Vec3(10.0f, 1.0f, 10.0f);
 	floor.model = &floor_model;
 	
-    GLuint main_program = program_create_from_file(MAIN_VERTEX_FILENAME, MAIN_FRAG_FILENAME).id;
-    //GLuint line_program = program_create_from_file(MAIN_VERTEX_FILENAME, LINE_FRAG_FILENAME).id;
-    GLuint simple_program = program_create_from_file(SIMPLE_VERTEX_FILENAME, SIMPLE_FRAG_FILENAME).id;
-    
     RenderContext ctx_ = {};
     RenderContext *ctx = &ctx_;
     render_load_programs(ctx);
@@ -238,6 +238,18 @@ int main()
 	ctx->cam.yaw = asinf(-1.0f); // Where we look
 	camera_calculate_vectors(&ctx->cam);
 	
+    ctx->spot = spotlight_at_camera(ctx->cam);
+    ctx->spot.cutoff = 20.0f;
+    ctx->spot.outer_cutoff = 25.0f;
+    
+    ctx->spot.ambient_part = Vec3(0.1f, 0.1f, 0.1f);
+    ctx->spot.diffuse_part = Vec3(0.8f, 0.8f, 0.8f);
+    ctx->spot.specular_part = Vec3(1.0f, 1.0f, 1.0f);
+    
+    ctx->spot.atten_const = 1.0f;
+    ctx->spot.atten_linear = 0.09f;
+    ctx->spot.atten_quad = 0.032f;
+    
     RenderQueue rqueue_ = render_create_queue();
     RenderQueue *rqueue = &rqueue_;
     
@@ -276,6 +288,9 @@ int main()
 		glfwGetCursorPos(state.window.ptr, &xmouse, &ymouse);
         if(!state.in_editor)
             camera_mouse_moved(&ctx->cam, xmouse - xmouseold, ymouse - ymouseold);
+        
+        ctx->spot.position = ctx->cam.position;
+        ctx->spot.direction = ctx->cam.front;
 		
 		buttons_update(state.kbuttons, ARRAY_LEN(state.kbuttons));
 		buttons_update(state.mbuttons, ARRAY_LEN(state.mbuttons));
@@ -287,11 +302,19 @@ int main()
         {
             ImGui::Begin("Editor");
             
-            ImGui::Checkbox("Use mapped normals", &state.use_mapped_normals);
-            ImGui::Checkbox("Shade with normal map", &state.show_normal_map);
-            ImGui::SliderFloat("backpack.position.x", &monkey.size.x, 0.0f, 1.0f);
-            ImGui::SliderFloat("backpack.position.y", &monkey.size.y, 0.0f, 1.0f);
-            ImGui::SliderFloat("backpack.position.z", &monkey.size.z, 0.0f, 1.0f);
+            ImGui::Checkbox("Use mapped normals", &ctx->use_mapped_normals);
+            ImGui::Checkbox("Shade with normal map", &ctx->show_normal_map);
+            ImGui::SliderFloat("spot.cutoff", &ctx->spot.cutoff, 0.0f, 90.0f);
+            ImGui::SliderFloat("spot.outer_cutoff", &ctx->spot.outer_cutoff, 0.0f, 90.0f);
+            ImGui::SliderFloat("spot.ambient", &ctx->spot.ambient_part.x, 0.0f, 1.0f);
+            ctx->spot.ambient_part.y = ctx->spot.ambient_part.z = ctx->spot.ambient_part.x;
+            ImGui::SliderFloat("spot.diffuse", &ctx->spot.diffuse_part.x, 0.0f, 1.0f);
+            ctx->spot.diffuse_part.y = ctx->spot.diffuse_part.z = ctx->spot.diffuse_part.x;
+            ImGui::SliderFloat("spot.specular", &ctx->spot.specular_part.x, 0.0f, 1.0f);
+            ctx->spot.specular_part.y = ctx->spot.specular_part.z = ctx->spot.specular_part.x;
+            ImGui::SliderFloat("spot.atten_const", &ctx->spot.atten_const, 0.0f, 1.0f);
+            ImGui::SliderFloat("spot.atten_linear", &ctx->spot.atten_linear, 0.0f, 1.0f);
+            ImGui::SliderFloat("spot.atten_quad", &ctx->spot.atten_quad, 0.0f, 1.0f);
             
             ImGui::SameLine();
             
@@ -319,13 +342,11 @@ int main()
         if(state.kbuttons[GLFW_KEY_R].pressed)
         {
             // TODO(mateusz): Shader reloading
-            glDeleteProgram(main_program);
-            //basic_program = basic_program_build();
         }
         
         if(state.kbuttons[GLFW_KEY_H].pressed)
         {
-            state.draw_hitboxes = !state.draw_hitboxes;
+            ctx->draw_hitboxes = !ctx->draw_hitboxes;
         }
         
 		if(state.kbuttons[GLFW_KEY_M].pressed && (monkey_model.flags & MODEL_FLAGS_GOURAUD_SHADED))
@@ -360,7 +381,7 @@ int main()
 			u64 hit_clocks = end - start;
 			printf("EntityHit = %d | %lu clocks/call\n", entity_hit, hit_clocks);
 		}
-		
+        
         monkey.rotate = create_qrot(to_radians(glfwGetTime() * 14.0f) * 8.0f, Vec3(1.0f, 0.0f, 0.0f));
         backpack.rotate = create_qrot(to_radians(glfwGetTime() * 8.0f) * 13.0f, Vec3(1.0f, 0.4f, 0.2f));
         
@@ -368,63 +389,14 @@ int main()
         
         render_push_skybox(rqueue, skybox);
         
-		glUseProgram(main_program);
+        render_push_model_newest(rqueue, backpack);
+        render_push_model_newest(rqueue, crysis_guy);
+        render_push_model_newest(rqueue, cyborg);
         
-        opengl_set_uniform(main_program, "view", lookat);
-        opengl_set_uniform(main_program, "proj", proj);
-		
-        opengl_set_uniform(main_program, "view_pos", ctx->cam.position);
+        render_push_model(rqueue, monkey);
+        render_push_model(rqueue, floor);
         
-        opengl_set_uniform(main_program, "light_pos", ctx->cam.position);
-        opengl_set_uniform(main_program, "spotlight.direction", ctx->cam.front);
-        opengl_set_uniform(main_program, "spotlight.cutoff", cosf(to_radians(22.5f)));
-        opengl_set_uniform(main_program, "spotlight.outer_cutoff", cosf(to_radians(27.5f)));
-        opengl_set_uniform(main_program, "spotlight.ambient_component", Vec3(0.1f, 0.1f, 0.1f));
-        opengl_set_uniform(main_program, "spotlight.diffuse_component", Vec3(1.8f, 1.8f, 1.8f));
-        opengl_set_uniform(main_program, "spotlight.specular_component", Vec3(1.0f, 1.0f, 1.0f));
-        opengl_set_uniform(main_program, "spotlight.atten_const", 1.0f);
-        opengl_set_uniform(main_program, "spotlight.atten_linear", 0.09f);
-        opengl_set_uniform(main_program, "spotlight.atten_quad", 0.032f);
-        
-        opengl_set_uniform(main_program, "direct_light.direction", Vec3(0.0f, -1.0f, 0.0f));
-        opengl_set_uniform(main_program, "direct_light.ambient_component", Vec3(0.05f, 0.05f, 0.05f));
-        opengl_set_uniform(main_program, "direct_light.diffuse_component", Vec3(0.2f, 0.2f, 0.2f));
-        opengl_set_uniform(main_program, "direct_light.specular_component", Vec3(0.4f, 0.4f, 0.4f));
-		
-        glUniform1i(glGetUniformLocation(main_program, "show_normal_map"), state.show_normal_map);
-        glUniform1i(glGetUniformLocation(main_program, "use_mapped_normals"), state.use_mapped_normals);
-        
-        entity_draw(backpack, main_program);
-        entity_draw(crysis_guy, main_program);
-        entity_draw(cyborg, main_program);
-        
-        glUseProgram(simple_program);
-        
-        opengl_set_uniform(simple_program, "view", lookat);
-        opengl_set_uniform(simple_program, "proj", proj);
-		
-        opengl_set_uniform(simple_program, "view_pos", ctx->cam.position);
-        
-        opengl_set_uniform(simple_program, "light_pos", ctx->cam.position);
-        opengl_set_uniform(simple_program, "spotlight.direction", ctx->cam.front);
-        opengl_set_uniform(simple_program, "spotlight.cutoff", cosf(to_radians(22.5f)));
-        opengl_set_uniform(simple_program, "spotlight.outer_cutoff", cosf(to_radians(27.5f)));
-        opengl_set_uniform(simple_program, "spotlight.ambient_component", Vec3(0.1f, 0.1f, 0.1f));
-        opengl_set_uniform(simple_program, "spotlight.diffuse_component", Vec3(1.8f, 1.8f, 1.8f));
-        opengl_set_uniform(simple_program, "spotlight.specular_component", Vec3(1.0f, 1.0f, 1.0f));
-        opengl_set_uniform(simple_program, "spotlight.atten_const", 1.0f);
-        opengl_set_uniform(simple_program, "spotlight.atten_linear", 0.09f);
-        opengl_set_uniform(simple_program, "spotlight.atten_quad", 0.032f);
-        
-        opengl_set_uniform(simple_program, "direct_light.direction", Vec3(0.0f, -1.0f, 0.0f));
-        opengl_set_uniform(simple_program, "direct_light.ambient_component", Vec3(0.05f, 0.05f, 0.05f));
-        opengl_set_uniform(simple_program, "direct_light.diffuse_component", Vec3(0.2f, 0.2f, 0.2f));
-        opengl_set_uniform(simple_program, "direct_light.specular_component", Vec3(0.4f, 0.4f, 0.4f));
-        
-        entity_draw(monkey, simple_program);
-		entity_draw(floor, simple_program);
-		
-        if(state.draw_hitboxes)
+        if(ctx->draw_hitboxes)
         {
             render_push_hitbox(rqueue, monkey);
             render_push_hitbox(rqueue, backpack);

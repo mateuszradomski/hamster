@@ -28,10 +28,7 @@ struct ProgramState
 	Window window;
 	Timer timer;
     
-    bool draw_hitboxes;
     bool in_editor;
-    bool show_normal_map;
-    bool use_mapped_normals;
 	Button kbuttons[GLFW_KEY_LAST];
 	Button mbuttons[GLFW_MOUSE_BUTTON_LAST];
 };

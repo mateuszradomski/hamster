@@ -1,5 +1,3 @@
-#include "hamster_render.h"
-
 static RenderQueue
 render_create_queue(u32 size)
 {
@@ -67,6 +65,28 @@ render_push_ui(RenderQueue *queue, UIElement element)
     RenderEntryUI *entry = render_push_entry(queue, RenderEntryUI);
     
     entry->element = element;
+}
+
+static void
+render_push_model_newest(RenderQueue *queue, Entity entity)
+{
+    RenderEntryModelNewest *entry = render_push_entry(queue, RenderEntryModelNewest);
+    
+    entry->position = entity.position;
+    entry->size = entity.size;
+    entry->orientation = entity.rotate;
+    entry->model = entity.model;
+}
+
+static void
+render_push_model(RenderQueue *queue, Entity entity)
+{
+    RenderEntryModel *entry = render_push_entry(queue, RenderEntryModel);
+    
+    entry->position = entity.position;
+    entry->size = entity.size;
+    entry->orientation = entity.rotate;
+    entry->model = entity.model;
 }
 
 static void 
@@ -239,6 +259,178 @@ render_flush(RenderQueue *queue, RenderContext *ctx)
                 // I broke the rendering of UI elements on top of the skybox, now it works.
                 //glDisable(GL_DEPTH_TEST);
                 //glEnable(GL_DEPTH_TEST);
+                
+                header = (RenderHeader *)(++entry);
+            }break;
+            case RenderType_RenderEntryModelNewest:
+            {
+                GLuint program_id = ctx->programs[ShaderProgram_Basic].id;
+                glUseProgram(program_id);
+                
+                opengl_set_uniform(program_id, "view", ctx->lookat);
+                opengl_set_uniform(program_id, "proj", ctx->proj);
+                
+                opengl_set_uniform(program_id, "view_pos", ctx->cam.position);
+                
+                opengl_set_uniform(program_id, "light_pos", ctx->spot.position);
+                opengl_set_uniform(program_id, "spotlight.direction", ctx->spot.direction);
+                opengl_set_uniform(program_id, "spotlight.cutoff", cosf(to_radians(ctx->spot.cutoff)));
+                opengl_set_uniform(program_id, "spotlight.outer_cutoff", cosf(to_radians(ctx->spot.outer_cutoff)));
+                opengl_set_uniform(program_id, "spotlight.ambient_component", ctx->spot.ambient_part);
+                opengl_set_uniform(program_id, "spotlight.diffuse_component", ctx->spot.diffuse_part);
+                opengl_set_uniform(program_id, "spotlight.specular_component", ctx->spot.specular_part);
+                opengl_set_uniform(program_id, "spotlight.atten_const", ctx->spot.atten_const);
+                opengl_set_uniform(program_id, "spotlight.atten_linear", ctx->spot.atten_linear);
+                opengl_set_uniform(program_id, "spotlight.atten_quad", ctx->spot.atten_quad);
+                
+                opengl_set_uniform(program_id, "direct_light.direction", Vec3(0.0f, -1.0f, 0.0f));
+                opengl_set_uniform(program_id, "direct_light.ambient_component", Vec3(0.05f, 0.05f, 0.05f));
+                opengl_set_uniform(program_id, "direct_light.diffuse_component", Vec3(0.2f, 0.2f, 0.2f));
+                opengl_set_uniform(program_id, "direct_light.specular_component", Vec3(0.4f, 0.4f, 0.4f));
+                
+                opengl_set_uniform(program_id, "show_normal_map", ctx->show_normal_map);
+                opengl_set_uniform(program_id, "use_mapped_normals", ctx->use_mapped_normals);
+                
+                RenderEntryModelNewest *entry = (RenderEntryModelNewest *)header;
+                
+                Mat4 transform = scale(Mat4(1.0f), entry->size);
+                transform = rotate_quat(transform, entry->orientation);
+                transform = translate(transform, entry->position);
+                opengl_set_uniform(program_id, "model", transform);
+                
+                Model *model = entry->model;
+                for(u32 i = 0; i < model->meshes_len; i++)
+                {
+                    glBindVertexArray(model->meshes[i].vao);
+                    glActiveTexture(GL_TEXTURE0);
+                    glBindTexture(GL_TEXTURE_2D, model->texture);
+                    
+                    Mesh *mesh = &model->meshes[i];
+                    Material *material = NULL;
+                    for(u32 i = 0; i < model->materials_len; i++)
+                    {
+                        if(strings_match(mesh->material_name, model->materials[i].name))
+                        {
+                            material = &model->materials[i];
+                            break;
+                        }
+                    }
+                    
+                    if(material)
+                    {
+                        if(material->flags & MATERIAL_FLAGS_HAS_DIFFUSE_MAP)
+                        {
+                            glUniform1i(glGetUniformLocation(program_id, "diffuse_map"), 1);
+                            glActiveTexture(GL_TEXTURE1);
+                            glBindTexture(GL_TEXTURE_2D, material->diffuse_map);
+                        }
+                        if(material->flags & MATERIAL_FLAGS_HAS_SPECULAR_MAP)
+                        {
+                            glUniform1i(glGetUniformLocation(program_id, "specular_map"), 2);
+                            glActiveTexture(GL_TEXTURE2);
+                            glBindTexture(GL_TEXTURE_2D, material->specular_map);
+                        }
+                        if(material->flags & MATERIAL_FLAGS_HAS_NORMAL_MAP)
+                        {
+                            glUniform1i(glGetUniformLocation(program_id, "normal_map"), 3);
+                            glActiveTexture(GL_TEXTURE3);
+                            glBindTexture(GL_TEXTURE_2D, material->normal_map);
+                        }
+                        
+                        opengl_set_uniform(program_id, "material.ambient_component", material->ambient_component);
+                        opengl_set_uniform(program_id, "material.diffuse_component", material->diffuse_component);
+                        opengl_set_uniform(program_id, "material.specular_component", material->specular_component);
+                        opengl_set_uniform(program_id, "material.specular_exponent", material->specular_exponent);
+                    }
+                    else
+                    {
+                        Vec3 one = Vec3(1.0f, 1.0f, 1.0f);
+                        opengl_set_uniform(program_id, "material.ambient_component", one);
+                        opengl_set_uniform(program_id, "material.diffuse_component", one);
+                        opengl_set_uniform(program_id, "material.specular_component", one);
+                        opengl_set_uniform(program_id, "material.specular_exponent", 1.0f);
+                    }
+                    
+                    glDrawElements(GL_TRIANGLES, mesh->indices_len, GL_UNSIGNED_INT, NULL);
+                    
+                }
+                
+                header = (RenderHeader *)(++entry);
+            }break;
+            case RenderType_RenderEntryModel:
+            {
+                GLuint program_id = ctx->programs[ShaderProgram_Simple].id;
+                glUseProgram(program_id);
+                
+                opengl_set_uniform(program_id, "view", ctx->lookat);
+                opengl_set_uniform(program_id, "proj", ctx->proj);
+                
+                opengl_set_uniform(program_id, "view_pos", ctx->cam.position);
+                
+                opengl_set_uniform(program_id, "light_pos", ctx->spot.position);
+                opengl_set_uniform(program_id, "spotlight.direction", ctx->spot.direction);
+                opengl_set_uniform(program_id, "spotlight.cutoff", cosf(to_radians(ctx->spot.cutoff)));
+                opengl_set_uniform(program_id, "spotlight.outer_cutoff", cosf(to_radians(ctx->spot.outer_cutoff)));
+                opengl_set_uniform(program_id, "spotlight.ambient_component", ctx->spot.ambient_part);
+                opengl_set_uniform(program_id, "spotlight.diffuse_component", ctx->spot.diffuse_part);
+                opengl_set_uniform(program_id, "spotlight.specular_component", ctx->spot.specular_part);
+                opengl_set_uniform(program_id, "spotlight.atten_const", ctx->spot.atten_const);
+                opengl_set_uniform(program_id, "spotlight.atten_linear", ctx->spot.atten_linear);
+                opengl_set_uniform(program_id, "spotlight.atten_quad", ctx->spot.atten_quad);
+                
+                opengl_set_uniform(program_id, "direct_light.direction", Vec3(0.0f, -1.0f, 0.0f));
+                opengl_set_uniform(program_id, "direct_light.ambient_component", Vec3(0.05f, 0.05f, 0.05f));
+                opengl_set_uniform(program_id, "direct_light.diffuse_component", Vec3(0.2f, 0.2f, 0.2f));
+                opengl_set_uniform(program_id, "direct_light.specular_component", Vec3(0.4f, 0.4f, 0.4f));
+                
+                opengl_set_uniform(program_id, "show_normal_map", ctx->show_normal_map);
+                opengl_set_uniform(program_id, "use_mapped_normals", ctx->use_mapped_normals);
+                
+                RenderEntryModel *entry = (RenderEntryModel *)header;
+                
+                Mat4 transform = scale(Mat4(1.0f), entry->size);
+                transform = rotate_quat(transform, entry->orientation);
+                transform = translate(transform, entry->position);
+                opengl_set_uniform(program_id, "model", transform);
+                
+                Model *model = entry->model;
+                for(u32 i = 0; i < model->meshes_len; i++)
+                {
+                    glBindVertexArray(model->meshes[i].vao);
+                    glActiveTexture(GL_TEXTURE0);
+                    glBindTexture(GL_TEXTURE_2D, model->texture);
+                    
+                    Mesh *mesh = &model->meshes[i];
+                    Material *material = NULL;
+                    for(u32 i = 0; i < model->materials_len; i++)
+                    {
+                        if(strings_match(mesh->material_name, model->materials[i].name))
+                        {
+                            material = &model->materials[i];
+                            break;
+                        }
+                    }
+                    
+                    if(material)
+                    {
+                        opengl_set_uniform(program_id, "material.ambient_component", material->ambient_component);
+                        opengl_set_uniform(program_id, "material.diffuse_component", material->diffuse_component);
+                        opengl_set_uniform(program_id, "material.specular_component", material->specular_component);
+                        opengl_set_uniform(program_id, "material.specular_exponent", material->specular_exponent);
+                    }
+                    else
+                    {
+                        Vec3 one = Vec3(1.0f, 1.0f, 1.0f);
+                        opengl_set_uniform(program_id, "material.ambient_component", one);
+                        opengl_set_uniform(program_id, "material.diffuse_component", one);
+                        opengl_set_uniform(program_id, "material.specular_component", one);
+                        opengl_set_uniform(program_id, "material.specular_exponent", 1.0f);
+                    }
+                    
+                    glDrawElements(GL_TRIANGLES, mesh->indices_len, GL_UNSIGNED_INT, NULL);
+                }
+                
+                header = (RenderHeader *)(++entry);
             }break;
         }
     }

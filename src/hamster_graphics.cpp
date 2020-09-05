@@ -1,7 +1,3 @@
-#include "hamster_graphics.h"
-// TODO(mateusz): Remove it, it's only here for the transistion period!
-#include "hamster_render.h"
-
 static OBJVILengths
 obj_get_mesh_vilength(char *lines, u32 lines_left)
 {
@@ -802,75 +798,6 @@ line_from_direction(Vec3 origin, Vec3 direction, f32 line_length)
     result.point1 = add(origin, scale(direction, line_length));
     
     return result;
-}
-
-static void
-entity_draw(Entity entity, GLuint program_id)
-{
-    Mat4 transform = scale(Mat4(1.0f), entity.size);
-    transform = rotate_quat(transform, entity.rotate);
-    transform = translate(transform, entity.position);
-    // TODO(mateusz): Render does that!
-    opengl_set_uniform(program_id, "model", transform);
-    
-    Model *model = entity.model;
-    for(u32 i = 0; i < model->meshes_len; i++)
-    {
-        glBindVertexArray(model->meshes[i].vao);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, model->texture);
-        
-        Mesh *mesh = &model->meshes[i];
-        Material *material = NULL;
-        for(u32 i = 0; i < model->materials_len; i++)
-        {
-            if(strings_match(mesh->material_name, model->materials[i].name))
-            {
-                material = &model->materials[i];
-                break;
-            }
-        }
-        
-        if(material)
-        {
-            if(material->flags & MATERIAL_FLAGS_HAS_DIFFUSE_MAP)
-            {
-                glUniform1i(glGetUniformLocation(program_id, "diffuse_map"), 1);
-                glActiveTexture(GL_TEXTURE1);
-                glBindTexture(GL_TEXTURE_2D, material->diffuse_map);
-            }
-            if(material->flags & MATERIAL_FLAGS_HAS_SPECULAR_MAP)
-            {
-                glUniform1i(glGetUniformLocation(program_id, "specular_map"), 2);
-                glActiveTexture(GL_TEXTURE2);
-                glBindTexture(GL_TEXTURE_2D, material->specular_map);
-            }
-            if(material->flags & MATERIAL_FLAGS_HAS_NORMAL_MAP)
-            {
-                glUniform1i(glGetUniformLocation(program_id, "normal_map"), 3);
-                glActiveTexture(GL_TEXTURE3);
-                glBindTexture(GL_TEXTURE_2D, material->normal_map);
-            }
-            
-            opengl_set_uniform(program_id, "material.ambient_component", material->ambient_component);
-            opengl_set_uniform(program_id, "material.diffuse_component", material->diffuse_component);
-            opengl_set_uniform(program_id, "material.specular_component", material->specular_component);
-            opengl_set_uniform(program_id, "material.specular_exponent", material->specular_exponent);
-        }
-        else
-        {
-            Vec3 one = Vec3(1.0f, 1.0f, 1.0f);
-            opengl_set_uniform(program_id, "material.ambient_component", one);
-            opengl_set_uniform(program_id, "material.diffuse_component", one);
-            opengl_set_uniform(program_id, "material.specular_component", one);
-            opengl_set_uniform(program_id, "material.specular_exponent", 1.0f);
-        }
-        
-        glDrawElements(GL_TRIANGLES, mesh->indices_len, GL_UNSIGNED_INT, NULL);
-        glUniform1i(glGetUniformLocation(program_id, "diffuse_map"), 0);
-        glUniform1i(glGetUniformLocation(program_id, "specular_map"), 0);
-        glUniform1i(glGetUniformLocation(program_id, "normal_map"), 0);
-    }
 }
 
 static Cubemap

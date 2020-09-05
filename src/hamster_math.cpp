@@ -1,5 +1,3 @@
-#include "hamster_math.h"
-
 static u32
 find_first_set_bit(u32 a) // least significant bit / lsb
 {

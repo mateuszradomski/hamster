@@ -201,7 +201,6 @@ struct UIElement
 	
 	GLuint vao;
 	GLuint vbo;
-	GLuint program; // TODO(mateusz): REMOVE IT
 	GLuint texture;
 };
 
