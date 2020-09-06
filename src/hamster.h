@@ -3,8 +3,6 @@
 #ifndef HAMSTER_H
 #define HAMSTER_H
 
-#define NOT_USED(v) ((void)(v))
-
 struct Window
 {
 	GLFWwindow *ptr;

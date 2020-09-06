@@ -80,6 +80,13 @@ window_debug_title(Window *window, Timer timer)
     glfwSetWindowTitle(window->ptr, title);
 }
 
+static void
+set_vsync(bool on)
+{
+    u32 value = on ? 1 : 0;
+    glfwSwapInterval(value);
+}
+
 // TODO: I don't know if this keyboard button callback is going to stay because
 // it's really unresponsive. There is a delay that you can definitley feel from
 // pressing a button and it registering as being down. Might switch to polling
@@ -134,6 +141,8 @@ int main()
 	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 	glDebugMessageCallback(opengl_error_callback, 0);
 	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
+    
+    NOT_USED(tpoints);
     
     OBJParseFlags flags = OBJ_PARSE_FLAG_EMPTY;
     FLAG_SET(flags, OBJ_PARSE_FLAG_GEN_TANGENTS, OBJParseFlags);
@@ -250,6 +259,8 @@ int main()
     ctx->spot.atten_linear = 0.09f;
     ctx->spot.atten_quad = 0.032f;
     
+    ctx->sun = create_sun(Vec3(0.0f, -1.0f, 0.0f), 0.1f, 0.4f, 0.7f);
+    
     RenderQueue rqueue_ = render_create_queue();
     RenderQueue *rqueue = &rqueue_;
     
@@ -263,8 +274,6 @@ int main()
     glEnable(GL_DEPTH_TEST);
 	Line ray_line = {};
 	
-	glfwSwapInterval(1);
-    
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
@@ -273,7 +282,13 @@ int main()
     ImGui_ImplGlfw_InitForOpenGL(state.window.ptr, true);
     ImGui_ImplOpenGL3_Init("#version 130");
     
-	f64 xmouse, ymouse;
+    set_vsync(false);
+    
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    glFrontFace(GL_CCW);
+    
+    f64 xmouse, ymouse;
 	f64 xmouseold, ymouseold;
 	glfwGetCursorPos(state.window.ptr, &xmouse, &ymouse);
 	while(!glfwWindowShouldClose(state.window.ptr))
@@ -281,8 +296,6 @@ int main()
 		glfwPollEvents();
         state.timer.frame_start = glfwGetTime();
 		
-        // TODO(mateusz): REMOVE IT! Read note in render_flush()
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		xmouseold = xmouse;
 		ymouseold = ymouse;
 		glfwGetCursorPos(state.window.ptr, &xmouse, &ymouse);
@@ -295,32 +308,6 @@ int main()
 		buttons_update(state.kbuttons, ARRAY_LEN(state.kbuttons));
 		buttons_update(state.mbuttons, ARRAY_LEN(state.mbuttons));
 		
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-        if(state.in_editor)
-        {
-            ImGui::Begin("Editor");
-            
-            ImGui::Checkbox("Use mapped normals", &ctx->use_mapped_normals);
-            ImGui::Checkbox("Shade with normal map", &ctx->show_normal_map);
-            ImGui::SliderFloat("spot.cutoff", &ctx->spot.cutoff, 0.0f, 90.0f);
-            ImGui::SliderFloat("spot.outer_cutoff", &ctx->spot.outer_cutoff, 0.0f, 90.0f);
-            ImGui::SliderFloat("spot.ambient", &ctx->spot.ambient_part.x, 0.0f, 1.0f);
-            ctx->spot.ambient_part.y = ctx->spot.ambient_part.z = ctx->spot.ambient_part.x;
-            ImGui::SliderFloat("spot.diffuse", &ctx->spot.diffuse_part.x, 0.0f, 1.0f);
-            ctx->spot.diffuse_part.y = ctx->spot.diffuse_part.z = ctx->spot.diffuse_part.x;
-            ImGui::SliderFloat("spot.specular", &ctx->spot.specular_part.x, 0.0f, 1.0f);
-            ctx->spot.specular_part.y = ctx->spot.specular_part.z = ctx->spot.specular_part.x;
-            ImGui::SliderFloat("spot.atten_const", &ctx->spot.atten_const, 0.0f, 1.0f);
-            ImGui::SliderFloat("spot.atten_linear", &ctx->spot.atten_linear, 0.0f, 1.0f);
-            ImGui::SliderFloat("spot.atten_quad", &ctx->spot.atten_quad, 0.0f, 1.0f);
-            
-            ImGui::SameLine();
-            
-            ImGui::End();
-        }
-        
 		lookat = look_at(add(ctx->cam.front, ctx->cam.position), ctx->cam.position, ctx->cam.up);
         ctx->lookat = lookat;
 		if(state.kbuttons[GLFW_KEY_P].pressed)
@@ -382,6 +369,33 @@ int main()
 			printf("EntityHit = %d | %lu clocks/call\n", entity_hit, hit_clocks);
 		}
         
+        if(state.in_editor)
+        {
+            ImGui_ImplOpenGL3_NewFrame();
+            ImGui_ImplGlfw_NewFrame();
+            ImGui::NewFrame();
+            
+            ImGui::Begin("Editor");
+            
+            ImGui::Checkbox("Use mapped normals", &ctx->use_mapped_normals);
+            ImGui::Checkbox("Shade with normal map", &ctx->show_normal_map);
+            ImGui::SliderFloat("spot.cutoff", &ctx->spot.cutoff, 0.0f, 90.0f);
+            ImGui::SliderFloat("spot.outer_cutoff", &ctx->spot.outer_cutoff, 0.0f, 90.0f);
+            ImGui::SliderFloat("spot.ambient", &ctx->spot.ambient_part.x, 0.0f, 1.0f);
+            ctx->spot.ambient_part.y = ctx->spot.ambient_part.z = ctx->spot.ambient_part.x;
+            ImGui::SliderFloat("spot.diffuse", &ctx->spot.diffuse_part.x, 0.0f, 1.0f);
+            ctx->spot.diffuse_part.y = ctx->spot.diffuse_part.z = ctx->spot.diffuse_part.x;
+            ImGui::SliderFloat("spot.specular", &ctx->spot.specular_part.x, 0.0f, 1.0f);
+            ctx->spot.specular_part.y = ctx->spot.specular_part.z = ctx->spot.specular_part.x;
+            ImGui::SliderFloat("spot.atten_const", &ctx->spot.atten_const, 0.0f, 1.0f);
+            ImGui::SliderFloat("spot.atten_linear", &ctx->spot.atten_linear, 0.0f, 1.0f);
+            ImGui::SliderFloat("spot.atten_quad", &ctx->spot.atten_quad, 0.0f, 1.0f);
+            
+            ImGui::SameLine();
+            
+            ImGui::End();
+        }
+        
         monkey.rotate = create_qrot(to_radians(glfwGetTime() * 14.0f) * 8.0f, Vec3(1.0f, 0.0f, 0.0f));
         backpack.rotate = create_qrot(to_radians(glfwGetTime() * 8.0f) * 13.0f, Vec3(1.0f, 0.4f, 0.2f));
         
@@ -407,8 +421,11 @@ int main()
 		
         render_flush(rqueue, ctx);
         
-        ImGui::Render();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        if(state.in_editor)
+        {
+            ImGui::Render();
+            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        }
         
 		glfwSwapBuffers(state.window.ptr);
         

@@ -7,10 +7,22 @@
 #define ARRAY_LEN(a) ((sizeof((a)))/(sizeof((a[0]))))
 #define FLAG_SET(flag, value, type) ((flag) = ((type)((flag) | (value))))
 #define FLAG_UNSET(flag, value, type) ((flag) = ((type)((flag) & ~(value))))
+#define NOT_USED(v) ((void)(v))
 
 #define KB(x) (1024 * (x))
 #define MB(x) (1024 * (KB(x)))
 #define GB(x) (1024 * (MB(x)))
+
+#define TIMER_START(id) clock_gettime(CLOCK_REALTIME, &tpoints[(id)].start);
+#define TIMER_END(id) clock_gettime(CLOCK_REALTIME, &tpoints[(id)].end); printf("Timer %d finished in %ld us\n", (id), (tpoints[(id)].end.tv_nsec - tpoints[(id)].start.tv_nsec) / 1000);
+
+struct TimePoints
+{
+    struct timespec start;
+    struct timespec end;
+};
+
+static TimePoints tpoints[32] = {};
 
 template <typename T, typename R>
 struct Map

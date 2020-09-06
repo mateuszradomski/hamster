@@ -101,6 +101,7 @@ struct RenderContext
     ShaderProgram programs[ShaderProgram_LastElement];
     
     Spotlight spot;
+    DirectLight sun;
     Camera cam;
     
     bool draw_hitboxes;
@@ -123,6 +124,8 @@ static void render_push_hitbox(RenderQueue *queue, Entity entity);
 static void render_push_ui(RenderQueue *queue, UIElement element);
 static void render_push_model_newest(RenderQueue *queue, Entity entity);
 static void render_push_model(RenderQueue *queue, Entity entity);
+
+static void render_prepass(RenderContext *ctx);
 static void render_flush(RenderQueue *queue, RenderContext *ctx);
 
 static void render_load_programs(RenderContext *ctx);

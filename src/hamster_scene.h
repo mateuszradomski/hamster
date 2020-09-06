@@ -30,6 +30,16 @@ struct Spotlight
     f32 atten_quad;
 };
 
+struct DirectLight
+{
+    Vec3 direction;
+    
+    Vec3 ambient_part;
+    Vec3 diffuse_part;
+    Vec3 specular_part;
+};
+
 static Spotlight spotlight_at_camera(Camera cam);
+static DirectLight create_sun(Vec3 direction, f32 ambient_factor, f32 diffuse_factor, f32 specular_factor);
 
 #endif //HAMSTER_SCENE_H

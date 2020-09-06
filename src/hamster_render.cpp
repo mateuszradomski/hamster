@@ -89,14 +89,42 @@ render_push_model(RenderQueue *queue, Entity entity)
     entry->model = entity.model;
 }
 
+static void
+render_prepass(RenderContext *ctx)
+{
+    for(u32 i = 0; i < (u32)ShaderProgram_LastElement; i++)
+    {
+        ShaderProgram *prog = &ctx->programs[i];
+        
+        time_t vstamp = get_file_stamp(prog->vertex_filename);
+        time_t fstamp = get_file_stamp(prog->fragment_filename);
+        
+        if(vstamp > prog->vertex_stamp || fstamp > prog->fragment_stamp)
+        {
+            ShaderProgram new_program = program_create_from_file(prog->vertex_filename, prog->fragment_filename);
+            
+            if(new_program.id != 0)
+            {
+                glDeleteProgram(prog->id);
+                
+                printf("Reloaded program from [%s] and [%s]\n", prog->vertex_filename, prog->fragment_filename);
+                *prog = new_program;
+            }
+            else
+            {
+                prog->vertex_stamp = vstamp;
+                prog->fragment_stamp = fstamp;
+            }
+        }
+    }
+}
+
 static void 
 render_flush(RenderQueue *queue, RenderContext *ctx)
 {
-    // NOTE(mateusz): Once everything that is drawn is being
-    // drawn in here we can enable this and remove the same
-    // call from the beginning of the main loop
-    //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    render_prepass(ctx);
     
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     RenderHeader *header = (RenderHeader *)queue->entries;
     
     for(u32 i = 0; i < queue->len; i++)
@@ -283,10 +311,10 @@ render_flush(RenderQueue *queue, RenderContext *ctx)
                 opengl_set_uniform(program_id, "spotlight.atten_linear", ctx->spot.atten_linear);
                 opengl_set_uniform(program_id, "spotlight.atten_quad", ctx->spot.atten_quad);
                 
-                opengl_set_uniform(program_id, "direct_light.direction", Vec3(0.0f, -1.0f, 0.0f));
-                opengl_set_uniform(program_id, "direct_light.ambient_component", Vec3(0.05f, 0.05f, 0.05f));
-                opengl_set_uniform(program_id, "direct_light.diffuse_component", Vec3(0.2f, 0.2f, 0.2f));
-                opengl_set_uniform(program_id, "direct_light.specular_component", Vec3(0.4f, 0.4f, 0.4f));
+                opengl_set_uniform(program_id, "direct_light.direction", ctx->sun.direction);
+                opengl_set_uniform(program_id, "direct_light.ambient_component", ctx->sun.ambient_part);
+                opengl_set_uniform(program_id, "direct_light.diffuse_component", ctx->sun.diffuse_part);
+                opengl_set_uniform(program_id, "direct_light.specular_component", ctx->sun.specular_part);
                 
                 opengl_set_uniform(program_id, "show_normal_map", ctx->show_normal_map);
                 opengl_set_uniform(program_id, "use_mapped_normals", ctx->use_mapped_normals);
@@ -352,9 +380,7 @@ render_flush(RenderQueue *queue, RenderContext *ctx)
                     }
                     
                     glDrawElements(GL_TRIANGLES, mesh->indices_len, GL_UNSIGNED_INT, NULL);
-                    
                 }
-                
                 header = (RenderHeader *)(++entry);
             }break;
             case RenderType_RenderEntryModel:
@@ -511,6 +537,8 @@ program_create_from_file(const char *vertex_filename, const char *fragment_filen
     if(!program_shader_ok(vertex_shader))
     {
         printf("Error in file [%s]\n", vertex_filename);
+        program.id = 0;
+        return program;
     }
     
     GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
@@ -519,6 +547,8 @@ program_create_from_file(const char *vertex_filename, const char *fragment_filen
     if(!program_shader_ok(fragment_shader))
     {
         printf("Error in file [%s]\n", fragment_filename);
+        program.id = 0;
+        return program;
     }
     
     program.id = glCreateProgram();

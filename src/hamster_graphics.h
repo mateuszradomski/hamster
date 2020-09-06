@@ -121,6 +121,11 @@ struct Mesh
 	GLuint ebo;
 };
 
+// TODO(mateusz): Creating a model for a hitbox each frame is expensive,
+// do it just once and store the pointer to it somewhere I GUESS. Maybe even
+// inline it for each Hitbox, it's just 12 bytes more to store, so it's not that
+// bad.
+
 // NOTE: refpoint represents the bottom-back-left point in a box, this
 // allows us to always add size to the point, instead of subtracting some
 // times and adding other.

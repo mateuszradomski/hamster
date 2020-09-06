@@ -91,27 +91,39 @@ uniform bool use_mapped_normals;
 
 void main()
 {
-    vec2 _uv = pixel_texuv;
-    vec3 view_dir = normalize(tangent_view_pos - pixel_pos);
-    vec3 diffuse_map_factor = texture(diffuse_map, _uv).xyz;
-    vec3 specular_map_factor = texture(specular_map, _uv).xyz;
-    vec3 mapped_normal = normalize(texture(normal_map, _uv).rgb);
-    mapped_normal = (mapped_normal * 2.0f) - 1.0f;
-    
-    mapped_normal = normalize(mapped_normal * in_tbn);
-    
-    vec3 _normal;
-    if(use_mapped_normals)
-        _normal = normalize(mapped_normal);
-    else
-        _normal = normalize(pixel_normal);
-    
-    vec3 spot_shade = calculate_spotlight(spotlight, tangent_light_pos, material, diffuse_map_factor, specular_map_factor, _normal, pixel_pos, view_dir);
-    vec3 direct_shade = calculate_direct_light(direct_light, material, diffuse_map_factor, specular_map_factor, _normal, view_dir);
-    vec3 result = spot_shade + direct_shade;
-    
     if(show_normal_map)
+    {
+        vec3 mapped_normal = normalize(texture(normal_map, pixel_texuv).rgb);
+        mapped_normal = (mapped_normal * 2.0f) - 1.0f;
+        
+        mapped_normal = normalize(mapped_normal * in_tbn);
+        
         pixel_color = vec4(mapped_normal, 1.0f);
+    }
     else
-        pixel_color = texture(tex_sampler, _uv) * vec4(result, 1.0);
+    {
+        vec3 view_dir = normalize(tangent_view_pos - pixel_pos);
+        vec3 diffuse_map_factor = texture(diffuse_map, pixel_texuv).xyz;
+        vec3 specular_map_factor = texture(specular_map, pixel_texuv).xyz;
+        
+        vec3 _normal;
+        if(use_mapped_normals)
+        {
+            vec3 mapped_normal = normalize(texture(normal_map, pixel_texuv).rgb);
+            mapped_normal = (mapped_normal * 2.0f) - 1.0f;
+            mapped_normal = normalize(mapped_normal * in_tbn);
+            
+            _normal = normalize(mapped_normal);
+        }
+        else
+        {
+            _normal = normalize(pixel_normal);
+        }
+        
+        vec3 spot_shade = calculate_spotlight(spotlight, tangent_light_pos, material, diffuse_map_factor, specular_map_factor, _normal, pixel_pos, view_dir);
+        vec3 direct_shade = calculate_direct_light(direct_light, material, diffuse_map_factor, specular_map_factor, _normal, view_dir);
+        vec3 result = spot_shade + direct_shade;
+        
+        pixel_color = texture(tex_sampler, pixel_texuv) * vec4(result, 1.0);
+    }
 }
