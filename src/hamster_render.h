@@ -12,6 +12,8 @@
 #define UI_FRAG_FILENAME "src/shaders/ui_frag.glsl"
 #define SKYBOX_VERTEX_FILENAME "src/shaders/skybox_vertex.glsl"
 #define SKYBOX_FRAG_FILENAME "src/shaders/skybox_frag.glsl"
+#define HDR_VERTEX_FILENAME "src/shaders/hdr_vertex.glsl"
+#define HDR_FRAG_FILENAME "src/shaders/hdr_frag.glsl"
 
 enum ShaderProgram_Id
 {
@@ -20,6 +22,7 @@ enum ShaderProgram_Id
     ShaderProgram_Skybox,
     ShaderProgram_UI,
     ShaderProgram_Line,
+    ShaderProgram_HDR,
     ShaderProgram_LastElement,
 };
 
@@ -100,8 +103,13 @@ struct RenderContext
 {
     ShaderProgram programs[ShaderProgram_LastElement];
     
+    GLuint hdr_fbo;
+    GLuint color_buffer;
+    GLuint rbo_depth;
+    
     Spotlight spot;
     DirectLight sun;
+    PointLight point_light;
     Camera cam;
     
     bool draw_hitboxes;

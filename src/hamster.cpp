@@ -261,6 +261,14 @@ int main()
     
     ctx->sun = create_sun(Vec3(0.0f, -1.0f, 0.0f), 0.1f, 0.4f, 0.7f);
     
+    ctx->point_light.ambient_part = Vec3(0.2f, 0.2f, 0.2f);
+    ctx->point_light.diffuse_part = Vec3(0.9f, 0.9f, 0.9f);
+    ctx->point_light.specular_part = Vec3(1.0f, 1.0f, 1.0f);
+    
+    ctx->point_light.atten_const = 1.0;
+    ctx->point_light.atten_linear = 0.022;
+    ctx->point_light.atten_quad = 0.0019;
+    
     RenderQueue rqueue_ = render_create_queue();
     RenderQueue *rqueue = &rqueue_;
     
@@ -271,8 +279,27 @@ int main()
     ctx->proj = proj;
     ctx->ortho = create_ortographic(aspect_ratio, 0.01f, 10.0f);
     
+    glGenFramebuffers(1, &ctx->hdr_fbo);
+    
+    glGenTextures(1, &ctx->color_buffer);
+    glBindTexture(GL_TEXTURE_2D, ctx->color_buffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, (f32)state.window.width, (f32)state.window.height, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    
+    glGenRenderbuffers(1, &ctx->rbo_depth);
+    glBindRenderbuffer(GL_RENDERBUFFER, ctx->rbo_depth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, (f32)state.window.width, (f32)state.window.height);
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, ctx->hdr_fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ctx->color_buffer, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, ctx->rbo_depth);
+    assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    
     glEnable(GL_DEPTH_TEST);
 	Line ray_line = {};
+    Line to_point_light = {};
 	
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -282,7 +309,7 @@ int main()
     ImGui_ImplGlfw_InitForOpenGL(state.window.ptr, true);
     ImGui_ImplOpenGL3_Init("#version 130");
     
-    set_vsync(false);
+    set_vsync(true);
     
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
@@ -326,26 +353,11 @@ int main()
             }
         }
         
-        if(state.kbuttons[GLFW_KEY_R].pressed)
-        {
-            // TODO(mateusz): Shader reloading
-        }
-        
         if(state.kbuttons[GLFW_KEY_H].pressed)
         {
             ctx->draw_hitboxes = !ctx->draw_hitboxes;
         }
         
-		if(state.kbuttons[GLFW_KEY_M].pressed && (monkey_model.flags & MODEL_FLAGS_GOURAUD_SHADED))
-		{
-			model_mesh_normals_shade(&monkey_model);
-		}
-		
-		if(state.kbuttons[GLFW_KEY_N].pressed && monkey_model.flags & MODEL_FLAGS_MESH_NORMALS_SHADED)
-		{
-			model_gouraud_shade(&monkey_model);
-		}
-		
 		float movement_scalar = 0.1f;
 		if(state.kbuttons[GLFW_KEY_W].down) {
 			ctx->cam.position = add(ctx->cam.position, scale(ctx->cam.front, movement_scalar));
@@ -379,17 +391,49 @@ int main()
             
             ImGui::Checkbox("Use mapped normals", &ctx->use_mapped_normals);
             ImGui::Checkbox("Shade with normal map", &ctx->show_normal_map);
-            ImGui::SliderFloat("spot.cutoff", &ctx->spot.cutoff, 0.0f, 90.0f);
-            ImGui::SliderFloat("spot.outer_cutoff", &ctx->spot.outer_cutoff, 0.0f, 90.0f);
-            ImGui::SliderFloat("spot.ambient", &ctx->spot.ambient_part.x, 0.0f, 1.0f);
-            ctx->spot.ambient_part.y = ctx->spot.ambient_part.z = ctx->spot.ambient_part.x;
-            ImGui::SliderFloat("spot.diffuse", &ctx->spot.diffuse_part.x, 0.0f, 1.0f);
-            ctx->spot.diffuse_part.y = ctx->spot.diffuse_part.z = ctx->spot.diffuse_part.x;
-            ImGui::SliderFloat("spot.specular", &ctx->spot.specular_part.x, 0.0f, 1.0f);
-            ctx->spot.specular_part.y = ctx->spot.specular_part.z = ctx->spot.specular_part.x;
-            ImGui::SliderFloat("spot.atten_const", &ctx->spot.atten_const, 0.0f, 1.0f);
-            ImGui::SliderFloat("spot.atten_linear", &ctx->spot.atten_linear, 0.0f, 1.0f);
-            ImGui::SliderFloat("spot.atten_quad", &ctx->spot.atten_quad, 0.0f, 1.0f);
+            if(ImGui::TreeNode("Spotlight"))
+            {
+                ImGui::SliderFloat("spot.cutoff", &ctx->spot.cutoff, 0.0f, 90.0f);
+                ImGui::SliderFloat("spot.outer_cutoff", &ctx->spot.outer_cutoff, 0.0f, 90.0f);
+                ImGui::SliderFloat("spot.ambient", &ctx->spot.ambient_part.x, 0.0f, 1.0f);
+                ctx->spot.ambient_part.y = ctx->spot.ambient_part.z = ctx->spot.ambient_part.x;
+                ImGui::SliderFloat("spot.diffuse", &ctx->spot.diffuse_part.x, 0.0f, 1.0f);
+                ctx->spot.diffuse_part.y = ctx->spot.diffuse_part.z = ctx->spot.diffuse_part.x;
+                ImGui::SliderFloat("spot.specular", &ctx->spot.specular_part.x, 0.0f, 1.0f);
+                ctx->spot.specular_part.y = ctx->spot.specular_part.z = ctx->spot.specular_part.x;
+                ImGui::SliderFloat("spot.atten_const", &ctx->spot.atten_const, 0.0f, 1.0f);
+                ImGui::SliderFloat("spot.atten_linear", &ctx->spot.atten_linear, 0.0f, 1.0f);
+                ImGui::SliderFloat("spot.atten_quad", &ctx->spot.atten_quad, 0.0f, 1.0f);
+                ImGui::TreePop();
+            }
+            if(ImGui::TreeNode("Pointlight"))
+            {
+                ImGui::SliderFloat3("point.position", ctx->point_light.position.m, -10.0f, 10.0f);
+                
+                ImGui::SliderFloat("point.ambient", &ctx->point_light.ambient_part.x, 0.0f, 1.0f);
+                ctx->point_light.ambient_part.y = ctx->point_light.ambient_part.z = ctx->point_light.ambient_part.x;
+                ImGui::SliderFloat("point.diffuse", &ctx->point_light.diffuse_part.x, 0.0f, 1.0f);
+                ctx->point_light.diffuse_part.y = ctx->point_light.diffuse_part.z = ctx->point_light.diffuse_part.x;
+                ImGui::SliderFloat("point.specular", &ctx->point_light.specular_part.x, 0.0f, 1.0f);
+                ctx->point_light.specular_part.y = ctx->point_light.specular_part.z = ctx->point_light.specular_part.x;
+                ImGui::SliderFloat("point.atten_const", &ctx->point_light.atten_const, 0.0f, 1.0f);
+                ImGui::SliderFloat("point.atten_linear", &ctx->point_light.atten_linear, 0.0f, 1.0f);
+                ImGui::SliderFloat("point.atten_quad", &ctx->point_light.atten_quad, 0.0f, 1.0f);
+                ImGui::TreePop();
+            }
+            
+            if(ImGui::TreeNode("Directional light / Sun"))
+            {
+                ImGui::SliderFloat3("sun.direction", ctx->sun.direction.m, -1.0f, 1.0f);
+                
+                ImGui::SliderFloat("sun.ambient", &ctx->sun.ambient_part.x, 0.0f, 1.0f);
+                ctx->sun.ambient_part.y = ctx->sun.ambient_part.z = ctx->sun.ambient_part.x;
+                ImGui::SliderFloat("sun.diffuse", &ctx->sun.diffuse_part.x, 0.0f, 1.0f);
+                ctx->sun.diffuse_part.y = ctx->sun.diffuse_part.z = ctx->sun.diffuse_part.x;
+                ImGui::SliderFloat("sun.specular", &ctx->sun.specular_part.x, 0.0f, 1.0f);
+                
+                ImGui::TreePop();
+            }
             
             ImGui::SameLine();
             
@@ -399,7 +443,13 @@ int main()
         monkey.rotate = create_qrot(to_radians(glfwGetTime() * 14.0f) * 8.0f, Vec3(1.0f, 0.0f, 0.0f));
         backpack.rotate = create_qrot(to_radians(glfwGetTime() * 8.0f) * 13.0f, Vec3(1.0f, 0.4f, 0.2f));
         
+        ctx->point_light.position = Vec3(5.0f * cosf(glfwGetTime()), 0.0f, 5.0f * sinf(glfwGetTime()));
+        
+        to_point_light.point0 = sub(ctx->cam.position, Vec3(0.1f, 0.1f, 0.1f));
+        to_point_light.point1 = ctx->point_light.position;
+        
         render_push_line(rqueue, ray_line);
+        render_push_line(rqueue, to_point_light);
         
         render_push_skybox(rqueue, skybox);
         

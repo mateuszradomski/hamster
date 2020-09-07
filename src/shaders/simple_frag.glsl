@@ -89,11 +89,12 @@ uniform sampler2D tex_sampler;
 void main()
 {
     vec2 _uv = pixel_texuv;
+    vec3 _normal = normalize(pixel_normal);
     vec3 view_dir = normalize(view_pos - pixel_pos);
     
     vec3 spot_shade = calculate_spotlight(spotlight, light_pos, material,
-                                          pixel_normal, pixel_pos, view_dir);
-    vec3 direct_shade = calculate_direct_light(direct_light, material, pixel_normal, view_dir);
+                                          _normal, pixel_pos, view_dir);
+    vec3 direct_shade = calculate_direct_light(direct_light, material, _normal, view_dir);
     vec3 result = spot_shade + direct_shade;
     
     pixel_color = texture(tex_sampler, pixel_texuv) * vec4(result, 1.0);

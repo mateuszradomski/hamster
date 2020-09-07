@@ -124,6 +124,7 @@ render_flush(RenderQueue *queue, RenderContext *ctx)
 {
     render_prepass(ctx);
     
+    glBindFramebuffer(GL_FRAMEBUFFER, ctx->hdr_fbo);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     RenderHeader *header = (RenderHeader *)queue->entries;
     
@@ -316,6 +317,16 @@ render_flush(RenderQueue *queue, RenderContext *ctx)
                 opengl_set_uniform(program_id, "direct_light.diffuse_component", ctx->sun.diffuse_part);
                 opengl_set_uniform(program_id, "direct_light.specular_component", ctx->sun.specular_part);
                 
+                opengl_set_uniform(program_id, "point_light.position", ctx->point_light.position);
+                
+                opengl_set_uniform(program_id, "point_light.ambient_part", ctx->point_light.ambient_part);
+                opengl_set_uniform(program_id, "point_light.diffuse_part", ctx->point_light.diffuse_part);
+                opengl_set_uniform(program_id, "point_light.specular_part", ctx->point_light.specular_part);
+                
+                opengl_set_uniform(program_id, "point_light.atten_const", ctx->point_light.atten_const);
+                opengl_set_uniform(program_id, "point_light.atten_linear", ctx->point_light.atten_linear);
+                opengl_set_uniform(program_id, "point_light.atten_quad", ctx->point_light.atten_quad);
+                
                 opengl_set_uniform(program_id, "show_normal_map", ctx->show_normal_map);
                 opengl_set_uniform(program_id, "use_mapped_normals", ctx->use_mapped_normals);
                 
@@ -381,6 +392,7 @@ render_flush(RenderQueue *queue, RenderContext *ctx)
                     
                     glDrawElements(GL_TRIANGLES, mesh->indices_len, GL_UNSIGNED_INT, NULL);
                 }
+                
                 header = (RenderHeader *)(++entry);
             }break;
             case RenderType_RenderEntryModel:
@@ -461,6 +473,41 @@ render_flush(RenderQueue *queue, RenderContext *ctx)
         }
     }
     
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    
+    // TODO: Each element stores the same infomation in it's own vao and vbo,
+    // it would be faster and cheaper if each of them used the same one.
+    f32 vertices[] = {
+        -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+        -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+        1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+        1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+    };
+    
+    GLuint vao = 0;
+    GLuint vbo = 0;
+    
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+    glGenBuffers(1, &vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), nullptr);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void *)(3 * sizeof(f32)));
+    glEnableVertexAttribArray(1);
+    
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glUseProgram(ctx->programs[ShaderProgram_HDR].id);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, ctx->color_buffer);
+    
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    
+    glDeleteBuffers(1, &vbo);
+    glDeleteVertexArrays(1, &vao);
+    
     queue->len = 0;
     queue->size = 0;
     memset(queue->entries, 0, queue->max_size);
@@ -474,6 +521,7 @@ render_load_programs(RenderContext *ctx)
     ctx->programs[ShaderProgram_Skybox] = program_create_from_file(SKYBOX_VERTEX_FILENAME, SKYBOX_FRAG_FILENAME);
     ctx->programs[ShaderProgram_UI] = program_create_from_file(UI_VERTEX_FILENAME, UI_FRAG_FILENAME);
     ctx->programs[ShaderProgram_Line] = program_create_from_file(MAIN_VERTEX_FILENAME, LINE_FRAG_FILENAME);
+    ctx->programs[ShaderProgram_HDR] = program_create_from_file(HDR_VERTEX_FILENAME, HDR_FRAG_FILENAME);
 }
 
 // Takes a compiled shader, checks if it produced an error

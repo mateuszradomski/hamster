@@ -39,6 +39,19 @@ struct DirectLight
     Vec3 specular_part;
 };
 
+struct PointLight
+{
+    Vec3 position;
+    
+    Vec3 ambient_part;
+    Vec3 diffuse_part;
+    Vec3 specular_part;
+    
+    f32 atten_const;
+    f32 atten_linear;
+    f32 atten_quad;
+};
+
 static Spotlight spotlight_at_camera(Camera cam);
 static DirectLight create_sun(Vec3 direction, f32 ambient_factor, f32 diffuse_factor, f32 specular_factor);
 
