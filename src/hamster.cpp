@@ -251,7 +251,7 @@ int main()
     ctx->spot.cutoff = 20.0f;
     ctx->spot.outer_cutoff = 25.0f;
     
-    ctx->spot.ambient_part = Vec3(0.1f, 0.1f, 0.1f);
+    ctx->spot.ambient_part = Vec3(0.0f, 0.0f, 0.0f);
     ctx->spot.diffuse_part = Vec3(0.8f, 0.8f, 0.8f);
     ctx->spot.specular_part = Vec3(1.0f, 1.0f, 1.0f);
     
@@ -259,9 +259,9 @@ int main()
     ctx->spot.atten_linear = 0.09f;
     ctx->spot.atten_quad = 0.032f;
     
-    ctx->sun = create_sun(Vec3(0.0f, -1.0f, 0.0f), 0.1f, 0.4f, 0.7f);
+    ctx->sun = create_sun(Vec3(0.0f, -1.0f, 0.0f), 0.01f, 0.4f, 0.7f);
     
-    ctx->point_light.ambient_part = Vec3(0.2f, 0.2f, 0.2f);
+    ctx->point_light.ambient_part = Vec3(0.05f, 0.05f, 0.05f);
     ctx->point_light.diffuse_part = Vec3(0.9f, 0.9f, 0.9f);
     ctx->point_light.specular_part = Vec3(1.0f, 1.0f, 1.0f);
     
