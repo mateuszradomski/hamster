@@ -223,10 +223,9 @@ static void model_gouraud_shade(Model *model);
 static void model_mesh_normals_shade(Model *model);
 
 static Hitbox hitbox_create_from_mesh(Mesh *mesh);
+static bool hitbox_in_frustum(Hitbox *hbox, Plane *planes, Mat4 transform);
 
 static Line line_from_direction(Vec3 origin, Vec3 direction, f32 line_length);
-
-static void entity_draw(Entity entity, GLuint program_id);
 
 static Cubemap cubemap_create_skybox();
 

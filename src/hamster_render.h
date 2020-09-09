@@ -99,6 +99,17 @@ struct RenderQueue
 	u32 len;
 };
 
+enum FrustumPlane
+{
+    FrustumPlane_Left,
+    FrustumPlane_Right,
+    FrustumPlane_Bottom,
+    FrustumPlane_Top,
+    FrustumPlane_Near,
+    FrustumPlane_Far,
+    FrustumPlane_ElementCount,
+};
+
 struct RenderContext
 {
     ShaderProgram programs[ShaderProgram_LastElement];
@@ -111,6 +122,7 @@ struct RenderContext
     DirectLight sun;
     PointLight point_light;
     Camera cam;
+    Plane frustum_planes[FrustumPlane_ElementCount];
     
     bool draw_hitboxes;
     bool show_normal_map;
@@ -134,6 +146,7 @@ static void render_push_model_newest(RenderQueue *queue, Entity entity);
 static void render_push_model(RenderQueue *queue, Entity entity);
 
 static void render_prepass(RenderContext *ctx);
+static void get_frustum_planes(RenderContext *ctx);
 static void render_flush(RenderQueue *queue, RenderContext *ctx);
 
 static void render_load_programs(RenderContext *ctx);

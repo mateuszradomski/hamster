@@ -789,6 +789,25 @@ hitbox_create_from_mesh(Mesh *mesh)
     return result;
 }
 
+static bool
+hitbox_in_frustum(Hitbox *hbox, Plane *planes, Mat4 transform)
+{
+    Vec4 s4 = mul(transform, Vec4(hbox->size, 0.0f));
+    Vec3 halfsize = scale(Vec3(s4.x, s4.y, s4.z), 0.5f);
+    f32 r = sqrtf(square(halfsize.x) + square(halfsize.y) + square(halfsize.z));
+    Vec3 point = add(mul(transform, hbox->refpoint), halfsize);
+    
+    for(u32 i = 0; i < FrustumPlane_ElementCount; i++)
+    {
+        if(inner(point, planes[i].normal) + planes[i].d + r <= 0)
+        {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
 static Line
 line_from_direction(Vec3 origin, Vec3 direction, f32 line_length)
 {

@@ -274,7 +274,7 @@ int main()
     
     Mat4 lookat = look_at(ctx->cam.front, ctx->cam.position, ctx->cam.up);
 	f32 aspect_ratio = (f32)state.window.width/(f32)state.window.height;
-	Mat4 proj = create_perspective(aspect_ratio, 90.0f, 0.1f, 100.0f);
+    Mat4 proj = create_perspective(aspect_ratio, 90.0f, 0.1f, 100.0f);
     ctx->lookat = lookat;
     ctx->proj = proj;
     ctx->ortho = create_ortographic(aspect_ratio, 0.01f, 10.0f);

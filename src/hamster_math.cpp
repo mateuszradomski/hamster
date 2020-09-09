@@ -134,6 +134,16 @@ lerp(f32 a, f32 t, f32 b)
 	return result;
 }
 
+inline static f32
+square(f32 a)
+{
+    f32 result = 0.0f;
+    
+    result = a * a;
+    
+    return result;
+}
+
 inline static f32 
 to_radians(f32 a)
 {
@@ -183,65 +193,6 @@ clamp01(f32 a)
 	
 	result =	MAX(0.0f, result);
 	result =	MIN(1.0f, result);
-	
-	return result;
-}
-
-inline static f32
-len(Vec2 a)
-{
-	f32 result = 0.0f;
-	
-	result = a.x * a.x + a.y * a.y;
-	
-	result = sqrtf(result);
-	
-	return result;
-}
-
-inline static f32
-inverse_len(Vec2 a)
-{
-	f32 result = 0.0f;
-	
-	result = a.x * a.x + a.y * a.y;
-	
-	result = fast_inverse_sqrtf(result);
-	
-	return result;
-}
-
-inline static Vec2
-noz(Vec2 a)
-{
-	Vec2 result;
-	f32 vec_len = 0.0f;
-	
-	vec_len = inverse_len(a);
-	
-	result = scale(a, vec_len);
-	
-	return result;
-}
-
-inline static Vec2 
-negate(Vec2 a)
-{
-	Vec2 result;
-	
-	result.x = -a.x;
-	result.y = -a.y;
-	
-	return result;
-}
-
-inline static Vec2
-abs(Vec2 a)
-{
-	Vec2 result = {};
-	
-	result.x = fabsf(a.x);
-	result.y = fabsf(a.y);
 	
 	return result;
 }
@@ -334,6 +285,65 @@ scale(Vec2 a, f32 scalar)
 	return result;
 }
 
+inline static f32
+len(Vec2 a)
+{
+	f32 result = 0.0f;
+	
+	result = a.x * a.x + a.y * a.y;
+	
+	result = sqrtf(result);
+	
+	return result;
+}
+
+inline static f32
+inverse_len(Vec2 a)
+{
+	f32 result = 0.0f;
+	
+	result = a.x * a.x + a.y * a.y;
+	
+	result = fast_inverse_sqrtf(result);
+	
+	return result;
+}
+
+inline static Vec2
+noz(Vec2 a)
+{
+	Vec2 result;
+	f32 vec_len = 0.0f;
+	
+	vec_len = inverse_len(a);
+	
+	result = scale(a, vec_len);
+	
+	return result;
+}
+
+inline static Vec2 
+negate(Vec2 a)
+{
+	Vec2 result;
+	
+	result.x = -a.x;
+	result.y = -a.y;
+	
+	return result;
+}
+
+inline static Vec2
+abs(Vec2 a)
+{
+	Vec2 result = {};
+	
+	result.x = fabsf(a.x);
+	result.y = fabsf(a.y);
+	
+	return result;
+}
+
 inline static Vec2 
 lerp(Vec2 a, f32 t, Vec2 b)
 {
@@ -359,67 +369,6 @@ inner(Vec2 a, Vec2 b)
 	f32 result = 0.0f;
 	
 	result = a.x * b.x + a.y * b.y;
-	
-	return result;
-}
-
-inline static f32 
-len(Vec3 a)
-{
-	f32 result = 0.0f;
-	
-	result = a.x * a.x + a.y * a.y + a.z * a.z;
-	
-	result = sqrtf(result);
-	
-	return result;
-}
-
-inline static f32
-inverse_len(Vec3 a)
-{
-	f32 result = 0.0f;
-	
-	result = a.x * a.x + a.y * a.y + a.z * a.z;
-	
-	result = fast_inverse_sqrtf(result);
-	
-	return result;
-}
-
-inline static Vec3 
-noz(Vec3 a)
-{
-	Vec3 result = { 0 };
-	f32 vec_len = 0.0f;
-	
-	vec_len = inverse_len(a);
-	
-	result = scale(a, vec_len);
-	
-	return result;
-}
-
-inline static Vec3 
-negate(Vec3 a)
-{
-	Vec3 result = { 0 };
-	
-	result.x = -a.x;
-	result.y = -a.y;
-	result.z = -a.z;
-	
-	return result;
-}
-
-inline static Vec3
-abs(Vec3 a)
-{
-	Vec3 result = {};
-	
-	result.x = fabsf(a.x);
-	result.y = fabsf(a.y);
-	result.z = fabsf(a.z);
 	
 	return result;
 }
@@ -532,6 +481,67 @@ cross(Vec3 a, Vec3 b)
 	return result;
 }
 
+inline static f32 
+len(Vec3 a)
+{
+	f32 result = 0.0f;
+	
+	result = a.x * a.x + a.y * a.y + a.z * a.z;
+	
+	result = sqrtf(result);
+	
+	return result;
+}
+
+inline static f32
+inverse_len(Vec3 a)
+{
+	f32 result = 0.0f;
+	
+	result = a.x * a.x + a.y * a.y + a.z * a.z;
+	
+	result = fast_inverse_sqrtf(result);
+	
+	return result;
+}
+
+inline static Vec3 
+noz(Vec3 a)
+{
+	Vec3 result = { 0 };
+	f32 vec_len = 0.0f;
+	
+	vec_len = inverse_len(a);
+	
+	result = scale(a, vec_len);
+	
+	return result;
+}
+
+inline static Vec3 
+negate(Vec3 a)
+{
+	Vec3 result = { 0 };
+	
+	result.x = -a.x;
+	result.y = -a.y;
+	result.z = -a.z;
+	
+	return result;
+}
+
+inline static Vec3
+abs(Vec3 a)
+{
+	Vec3 result = {};
+	
+	result.x = fabsf(a.x);
+	result.y = fabsf(a.y);
+	result.z = fabsf(a.z);
+	
+	return result;
+}
+
 inline static Vec3
 lerp(Vec3 a, f32 t, Vec3 b)
 {
@@ -550,69 +560,6 @@ inner(Vec3 a, Vec3 b)
 	f32 result = 0;
 	
 	result = a.x * b.x + a.y * b.y + a.z * b.z;
-	
-	return result;
-}
-
-inline static f32 
-len(Vec4 a)
-{
-	f32 result = 0.0f;
-	
-	result = a.x * a.x + a.y * a.y + a.z * a.z * a.w * a.w;
-	
-	result = sqrtf(result);
-	
-	return result;
-}
-
-inline static f32
-inverse_len(Vec4 a)
-{
-	f32 result = 0.0f;
-	
-	result = a.x * a.x + a.y * a.y + a.z * a.z * a.w * a.w;
-	
-	result = fast_inverse_sqrtf(result);
-	
-	return result;
-}
-
-inline static Vec4
-noz(Vec4 a)
-{
-	Vec4 result = { 0 };
-	f32 vec_len = 0.0f;
-	
-	vec_len = inverse_len(a);
-	
-	result = scale(a, vec_len);
-	
-	return result;
-}
-
-inline static Vec4
-negate(Vec4 a)
-{
-	Vec4 result = { 0 };
-	
-	result.x = -a.x;
-	result.y = -a.y;
-	result.z = -a.z;
-	result.w = -a.w;
-	
-	return result;
-}
-
-inline static Vec4
-abs(Vec4 a)
-{
-	Vec4 result = {};
-	
-	result.x = fabsf(a.x);
-	result.y = fabsf(a.y);
-	result.z = fabsf(a.z);
-	result.w = fabsf(a.w);
 	
 	return result;
 }
@@ -721,6 +668,69 @@ scale(Vec4 a, f32 scalar)
 	return result;
 }
 
+inline static f32 
+len(Vec4 a)
+{
+	f32 result = 0.0f;
+	
+	result = a.x * a.x + a.y * a.y + a.z * a.z * a.w * a.w;
+	
+	result = sqrtf(result);
+	
+	return result;
+}
+
+inline static f32
+inverse_len(Vec4 a)
+{
+	f32 result = 0.0f;
+	
+	result = a.x * a.x + a.y * a.y + a.z * a.z * a.w * a.w;
+	
+	result = fast_inverse_sqrtf(result);
+	
+	return result;
+}
+
+inline static Vec4
+noz(Vec4 a)
+{
+	Vec4 result = { 0 };
+	f32 vec_len = 0.0f;
+	
+	vec_len = inverse_len(a);
+	
+	result = scale(a, vec_len);
+	
+	return result;
+}
+
+inline static Vec4
+negate(Vec4 a)
+{
+	Vec4 result = { 0 };
+	
+	result.x = -a.x;
+	result.y = -a.y;
+	result.z = -a.z;
+	result.w = -a.w;
+	
+	return result;
+}
+
+inline static Vec4
+abs(Vec4 a)
+{
+	Vec4 result = {};
+	
+	result.x = fabsf(a.x);
+	result.y = fabsf(a.y);
+	result.z = fabsf(a.z);
+	result.w = fabsf(a.w);
+	
+	return result;
+}
+
 inline static Vec4
 cross(Vec4 a, Vec4 b)
 {
@@ -815,15 +825,6 @@ add(Mat2 a, Mat2 b)
 }
 
 inline static Quat
-qrot(Quat a, f32 angle, Vec3 dir)
-{
-    Quat b = create_qrot(angle, dir);
-    Quat result = mul(b, a);
-    
-    return result;
-}
-
-inline static Quat
 create_qrot(f32 theta, Vec3 dir)
 {
     dir = noz(dir);
@@ -834,6 +835,15 @@ create_qrot(f32 theta, Vec3 dir)
     Quat result = Quat(cos_theta, Vec3(dir.x * sin_theta, dir.y * sin_theta, dir.z * sin_theta));
     
     return noz(result);
+}
+
+inline static Quat
+qrot(Quat a, f32 angle, Vec3 dir)
+{
+    Quat b = create_qrot(angle, dir);
+    Quat result = mul(b, a);
+    
+    return result;
 }
 
 inline static Mat2 
@@ -1098,17 +1108,6 @@ look_at(Vec3 cam_target, Vec3 cam_pos, Vec3 cam_up)
 	return result;
 }
 
-inline static Mat4
-translate(Mat4 a, Vec3 trans)
-{
-	Mat4 result = { 0 };
-	
-	result = create_translate(Mat4(1.0f), trans);
-	result = mul(result, a);
-	
-	return result;
-}
-
 inline static Mat4 
 create_translate(Mat4 a, Vec3 trans)
 {
@@ -1126,6 +1125,17 @@ create_translate(Mat4 a, Vec3 trans)
 	result.columns[3] = add(colum0, result.columns[3]);
 	result.columns[3] = add(colum1, result.columns[3]);
 	result.columns[3] = add(colum2, result.columns[3]);
+	
+	return result;
+}
+
+inline static Mat4
+translate(Mat4 a, Vec3 trans)
+{
+	Mat4 result = { 0 };
+	
+	result = create_translate(Mat4(1.0f), trans);
+	result = mul(result, a);
 	
 	return result;
 }
