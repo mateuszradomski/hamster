@@ -43,13 +43,18 @@ struct Material
     float specular_exponent;
 };
 
+vec4 when_gt(vec4 x, vec4 y) {
+    return max(sign(x - y), 0.0);
+}
+
 vec3 calculate_spotlight(SpotLight light, vec3 light_position, Material material, vec3 diffuse_map, vec3 specular_map, vec3 normal, vec3 pix_pos, vec3 view_dir)
 {
     vec3 lightdir = normalize(light_position - pix_pos);
     float diffuse_mul = max(dot(normal, lightdir), 0.0);
     
-    vec3 reflection = reflect(-lightdir, normal);
-    float specular_mul = pow(max(dot(view_dir, reflection), 0.0f), material.specular_exponent);
+    //vec3 reflection = reflect(-lightdir, normal);
+    vec3 halfway_dir = normalize(lightdir + view_dir);
+    float specular_mul = pow(max(dot(normal, halfway_dir), 0.0f), material.specular_exponent);
     
     float dpix = length(pix_pos - light_position);
     float attenuation = 1.0 / (light.atten_const + light.atten_linear * dpix + light.atten_quad * (dpix * dpix));
@@ -76,8 +81,10 @@ vec3 calculate_direct_light(DirectionalLight light, Material material, vec3 diff
     vec3 lightdir = normalize(-light.direction);
     float diffuse_mul = max(dot(normal, lightdir), 0.0);
     
-    vec3 reflection = reflect(-lightdir, normal);
-    float specular_mul = pow(max(dot(view_dir, reflection), 0.0f), material.specular_exponent);
+    //vec3 reflection = reflect(-lightdir, normal);
+    vec3 halfway_dir = normalize(lightdir + view_dir);
+    float specular_mul = pow(max(dot(normal, halfway_dir), 0.0f), material.specular_exponent);
+    
     vec3 ambient = light.ambient_component * material.ambient_component;
     vec3 diffuse = light.diffuse_component * diffuse_map * (diffuse_mul * material.diffuse_component);
     vec3 specular = light.specular_component * specular_map * (specular_mul * material.specular_component);
@@ -87,10 +94,18 @@ vec3 calculate_direct_light(DirectionalLight light, Material material, vec3 diff
 vec3 eval_point_light(PointLight light, Material material, vec3 diffmap, vec3 specmap, vec3 normal, vec3 pix_pos, vec3 view_dir)
 {
     vec3 lightdir = normalize(light.position - pix_pos);
-    float diffuse_mul = max(dot(normal, lightdir), 0.0);
+    float contribution = dot(normal, lightdir);
+    float diffuse_mul = max(contribution, 0.0);
     
-    vec3 reflection = reflect(-lightdir, normal);
-    float specular_mul = pow(max(dot(view_dir, reflection), 0.0f), material.specular_exponent);
+    float mask = 0.0f;
+    if(contribution > 0.0f)
+    {
+        mask = 1.0f;
+    }
+    
+    //vec3 reflection = reflect(-lightdir, normal);
+    vec3 halfway_dir = normalize(lightdir + view_dir);
+    float specular_mul = pow(max(dot(normal, halfway_dir), 0.0f), material.specular_exponent) * mask;
     
     float dpix = length(pix_pos - light.position);
     float attenuation = 1.0 / (light.atten_const + light.atten_linear * dpix + light.atten_quad * (dpix * dpix));

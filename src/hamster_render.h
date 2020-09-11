@@ -35,6 +35,44 @@ struct ShaderProgram
     time_t fragment_stamp;
 };
 
+struct ShaderProgramUniforms
+{
+    GLuint model;
+    GLuint view;
+    GLuint proj;
+    GLuint transform;
+    GLuint ortho;
+    GLuint tex_sampler;
+    GLuint view_pos;
+    GLuint light_pos;
+    GLuint spotlight_direction;
+    GLuint spotlight_cutoff;
+    GLuint spotlight_outer_cutoff;
+    GLuint spotlight_ambient_component;
+    GLuint spotlight_diffuse_component;
+    GLuint spotlight_specular_component;
+    GLuint spotlight_atten_const;
+    GLuint spotlight_atten_linear;
+    GLuint spotlight_atten_quad;
+    GLuint direct_light_direction;
+    GLuint direct_light_ambient_component;
+    GLuint direct_light_diffuse_component;
+    GLuint direct_light_specular_component;
+    GLuint point_light_position;
+    GLuint point_light_ambient_part;
+    GLuint point_light_diffuse_part;
+    GLuint point_light_specular_part;
+    GLuint point_light_atten_const;
+    GLuint point_light_atten_linear;
+    GLuint point_light_atten_quad;
+    GLuint show_normal_map;
+    GLuint use_mapped_normals;
+    GLuint material_ambient_component;
+    GLuint material_diffuse_component;
+    GLuint material_specular_component;
+    GLuint material_specular_exponent;
+};
+
 enum RenderHeader
 {
     RenderType_RenderEntrySkybox,
@@ -113,7 +151,7 @@ enum FrustumPlane
 struct RenderContext
 {
     ShaderProgram programs[ShaderProgram_LastElement];
-    
+    ShaderProgramUniforms program_uniforms[ShaderProgram_LastElement];
     GLuint hdr_fbo;
     GLuint color_buffer;
     GLuint rbo_depth;
@@ -157,6 +195,12 @@ static ShaderProgram program_create_from_file(const char *vertex_filename, const
 
 static void camera_calculate_vectors(Camera *cam);
 static void camera_mouse_moved(Camera *cam, f32 dx, f32 dy);
+
+
+static void opengl_set_uniform(GLuint location, i32 v);
+static void opengl_set_uniform(GLuint location, f32 val);
+static void opengl_set_uniform(GLuint location, Vec3 vec);
+static void opengl_set_uniform(GLuint location, Mat4 mat, GLboolean transpose = GL_FALSE);
 
 static void opengl_set_uniform(GLuint program, const char *name, i32 v);
 static void opengl_set_uniform(GLuint program, const char *name, f32 val);

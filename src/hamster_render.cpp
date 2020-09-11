@@ -90,6 +90,64 @@ render_push_model(RenderQueue *queue, Entity entity)
 }
 
 static void
+render_load_uniforms(RenderContext *ctx, i32 index)
+{
+    GLuint pid = ctx->programs[index].id;
+    
+    ctx->program_uniforms[index].model = glGetUniformLocation(pid, "model");
+    ctx->program_uniforms[index].view = glGetUniformLocation(pid, "view");
+    ctx->program_uniforms[index].proj = glGetUniformLocation(pid, "proj");
+    ctx->program_uniforms[index].transform = glGetUniformLocation(pid, "transform");
+    ctx->program_uniforms[index].ortho = glGetUniformLocation(pid, "ortho");
+    ctx->program_uniforms[index].tex_sampler = glGetUniformLocation(pid, "tex_sampler");
+    ctx->program_uniforms[index].view_pos = glGetUniformLocation(pid, "view_pos");
+    ctx->program_uniforms[index].light_pos = glGetUniformLocation(pid, "light_pos");
+    ctx->program_uniforms[index].spotlight_direction = glGetUniformLocation(pid, "spotlight.direction");
+    ctx->program_uniforms[index].spotlight_cutoff = glGetUniformLocation(pid, "spotlight.cutoff");
+    ctx->program_uniforms[index].spotlight_outer_cutoff = glGetUniformLocation(pid, "spotlight.outer_cutoff");
+    ctx->program_uniforms[index].spotlight_ambient_component = glGetUniformLocation(pid, "spotlight.ambient_component");
+    ctx->program_uniforms[index].spotlight_diffuse_component = glGetUniformLocation(pid, "spotlight.diffuse_component");
+    ctx->program_uniforms[index].spotlight_specular_component = glGetUniformLocation(pid, "spotlight.specular_component");
+    ctx->program_uniforms[index].spotlight_atten_const = glGetUniformLocation(pid, "spotlight.atten_const");
+    ctx->program_uniforms[index].spotlight_atten_linear = glGetUniformLocation(pid, "spotlight.atten_linear");
+    ctx->program_uniforms[index].spotlight_atten_quad = glGetUniformLocation(pid, "spotlight.atten_quad");
+    ctx->program_uniforms[index].direct_light_direction = glGetUniformLocation(pid, "direct_light.direction");
+    ctx->program_uniforms[index].direct_light_ambient_component = glGetUniformLocation(pid, "direct_light.ambient_component");
+    ctx->program_uniforms[index].direct_light_diffuse_component = glGetUniformLocation(pid, "direct_light.diffuse_component");
+    ctx->program_uniforms[index].direct_light_specular_component = glGetUniformLocation(pid, "direct_light.specular_component");
+    ctx->program_uniforms[index].point_light_position = glGetUniformLocation(pid, "point_light.position");
+    ctx->program_uniforms[index].point_light_ambient_part = glGetUniformLocation(pid, "point_light.ambient_part");
+    ctx->program_uniforms[index].point_light_diffuse_part = glGetUniformLocation(pid, "point_light.diffuse_part");
+    ctx->program_uniforms[index].point_light_specular_part = glGetUniformLocation(pid, "point_light.specular_part");
+    ctx->program_uniforms[index].point_light_atten_const = glGetUniformLocation(pid, "point_light.atten_const");
+    ctx->program_uniforms[index].point_light_atten_linear = glGetUniformLocation(pid, "point_light.atten_linear");
+    ctx->program_uniforms[index].point_light_atten_quad = glGetUniformLocation(pid, "point_light.atten_quad");
+    ctx->program_uniforms[index].show_normal_map = glGetUniformLocation(pid, "show_normal_map");
+    ctx->program_uniforms[index].use_mapped_normals = glGetUniformLocation(pid, "use_mapped_normals");
+    ctx->program_uniforms[index].material_ambient_component = glGetUniformLocation(pid, "material.ambient_component");
+    ctx->program_uniforms[index].material_diffuse_component = glGetUniformLocation(pid, "material.diffuse_component");
+    ctx->program_uniforms[index].material_specular_component = glGetUniformLocation(pid, "material.specular_component");
+    ctx->program_uniforms[index].material_specular_exponent = glGetUniformLocation(pid, "material.specular_exponent");
+}
+
+static void
+render_load_programs(RenderContext *ctx)
+{
+    ctx->programs[ShaderProgram_Basic] = program_create_from_file(MAIN_VERTEX_FILENAME, MAIN_FRAG_FILENAME);
+    ctx->programs[ShaderProgram_Simple] = program_create_from_file(SIMPLE_VERTEX_FILENAME, SIMPLE_FRAG_FILENAME);
+    ctx->programs[ShaderProgram_Skybox] = program_create_from_file(SKYBOX_VERTEX_FILENAME, SKYBOX_FRAG_FILENAME);
+    ctx->programs[ShaderProgram_UI] = program_create_from_file(UI_VERTEX_FILENAME, UI_FRAG_FILENAME);
+    ctx->programs[ShaderProgram_Line] = program_create_from_file(MAIN_VERTEX_FILENAME, LINE_FRAG_FILENAME);
+    ctx->programs[ShaderProgram_HDR] = 
+        program_create_from_file(HDR_VERTEX_FILENAME, HDR_FRAG_FILENAME);
+    
+    for(u32 i = 0; i < (u32)ShaderProgram_LastElement; i++)
+    {
+        render_load_uniforms(ctx, i);
+    }
+}
+
+static void
 render_prepass(RenderContext *ctx)
 {
     for(u32 i = 0; i < (u32)ShaderProgram_LastElement; i++)
@@ -109,6 +167,7 @@ render_prepass(RenderContext *ctx)
                 
                 printf("Reloaded program from [%s] and [%s]\n", prog->vertex_filename, prog->fragment_filename);
                 *prog = new_program;
+                render_load_uniforms(ctx, i);
             }
             else
             {
@@ -154,36 +213,12 @@ get_frustum_planes(RenderContext *ctx)
     ctx->frustum_planes[FrustumPlane_Far].normal.z = vp.a[2][3] - vp.a[2][2];
     ctx->frustum_planes[FrustumPlane_Far].d = vp.a[3][3] - vp.a[3][2];
     
-    f32 nozf = 0.0f;
-    assert(len(ctx->frustum_planes[FrustumPlane_Left].normal) != 0.0f);
-    nozf = 1.0f / len(ctx->frustum_planes[FrustumPlane_Left].normal);
-    ctx->frustum_planes[FrustumPlane_Left].normal = scale(ctx->frustum_planes[FrustumPlane_Left].normal, nozf);
-    ctx->frustum_planes[FrustumPlane_Left].d *= nozf;
-    
-    assert(len(ctx->frustum_planes[FrustumPlane_Right].normal) != 0.0f);
-    nozf = 1.0f / len(ctx->frustum_planes[FrustumPlane_Right].normal);
-    ctx->frustum_planes[FrustumPlane_Right].normal = scale(ctx->frustum_planes[FrustumPlane_Right].normal, nozf);
-    ctx->frustum_planes[FrustumPlane_Right].d *= nozf;
-    
-    assert(len(ctx->frustum_planes[FrustumPlane_Bottom].normal) != 0.0f);
-    nozf = 1.0f / len(ctx->frustum_planes[FrustumPlane_Bottom].normal);
-    ctx->frustum_planes[FrustumPlane_Bottom].normal = scale(ctx->frustum_planes[FrustumPlane_Bottom].normal, nozf);
-    ctx->frustum_planes[FrustumPlane_Bottom].d *= nozf;
-    
-    assert(len(ctx->frustum_planes[FrustumPlane_Top].normal) != 0.0f);
-    nozf = 1.0f / len(ctx->frustum_planes[FrustumPlane_Top].normal);
-    ctx->frustum_planes[FrustumPlane_Top].normal = scale(ctx->frustum_planes[FrustumPlane_Top].normal, nozf);
-    ctx->frustum_planes[FrustumPlane_Top].d *= nozf;
-    
-    assert(len(ctx->frustum_planes[FrustumPlane_Near].normal) != 0.0f);
-    nozf = 1.0f / len(ctx->frustum_planes[FrustumPlane_Near].normal);
-    ctx->frustum_planes[FrustumPlane_Near].normal = scale(ctx->frustum_planes[FrustumPlane_Near].normal, nozf);
-    ctx->frustum_planes[FrustumPlane_Near].d *= nozf;
-    
-    assert(len(ctx->frustum_planes[FrustumPlane_Far].normal) != 0.0f);
-    nozf = 1.0f / len(ctx->frustum_planes[FrustumPlane_Far].normal);
-    ctx->frustum_planes[FrustumPlane_Far].normal = scale(ctx->frustum_planes[FrustumPlane_Far].normal, nozf);
-    ctx->frustum_planes[FrustumPlane_Far].d *= nozf;
+    for(u32 i = 0; i < FrustumPlane_ElementCount; i++)
+    {
+        f32 nozf = inverse_len(ctx->frustum_planes[i].normal);
+        ctx->frustum_planes[i].normal = scale(ctx->frustum_planes[i].normal, nozf);
+        ctx->frustum_planes[i].d *= nozf;
+    }
 }
 
 static void 
@@ -204,12 +239,13 @@ render_flush(RenderQueue *queue, RenderContext *ctx)
             case RenderType_RenderEntrySkybox:
             {
                 GLuint program_id = ctx->programs[ShaderProgram_Skybox].id;
+                auto uniloc = &ctx->program_uniforms[ShaderProgram_Skybox];
                 
                 glUseProgram(program_id);
                 Mat4 view_no_translation = ctx->lookat;
                 view_no_translation.columns[3] = Vec4(0.0f, 0.0f, 0.0f, 1.0f);
-                opengl_set_uniform(program_id, "view", view_no_translation);
-                opengl_set_uniform(program_id, "proj", ctx->proj);
+                opengl_set_uniform(uniloc->view, view_no_translation);
+                opengl_set_uniform(uniloc->proj, ctx->proj);
                 
                 RenderEntrySkybox *entry = (RenderEntrySkybox *)header;
                 glBindVertexArray(entry->cube.vao);
@@ -228,6 +264,7 @@ render_flush(RenderQueue *queue, RenderContext *ctx)
                 // We maybe could use some transient gpu memory that's passed around with
                 // the RenderContext??
                 GLuint program_id = ctx->programs[ShaderProgram_Line].id;
+                auto uniloc = &ctx->program_uniforms[ShaderProgram_Line];
                 glUseProgram(program_id);
                 
                 GLuint vao = 0;
@@ -244,11 +281,11 @@ render_flush(RenderQueue *queue, RenderContext *ctx)
                 glVertexAttribPointer(0, 3, GL_FLOAT, GL_TRUE, 3 * sizeof(float), nullptr);
                 glEnableVertexAttribArray(0);
                 
-                opengl_set_uniform(program_id, "view", ctx->lookat);
-                opengl_set_uniform(program_id, "proj", ctx->proj);
+                opengl_set_uniform(uniloc->view, ctx->lookat);
+                opengl_set_uniform(uniloc->proj, ctx->proj);
                 // TODO(mateusz): Write a diffrent line shader so we don't have to
                 // cover ourselvs with setting the model to identify.
-                opengl_set_uniform(program_id, "model", Mat4(1.0f));
+                opengl_set_uniform(uniloc->model, Mat4(1.0f));
                 
                 glDrawArrays(GL_LINES, 0, 2);
                 
@@ -260,10 +297,11 @@ render_flush(RenderQueue *queue, RenderContext *ctx)
             case RenderType_RenderEntryHitbox:
             {
                 GLuint program_id = ctx->programs[ShaderProgram_Line].id;
+                auto uniloc = &ctx->program_uniforms[ShaderProgram_Line];
                 glUseProgram(program_id);
                 
-                opengl_set_uniform(program_id, "view", ctx->lookat);
-                opengl_set_uniform(program_id, "proj", ctx->proj);
+                opengl_set_uniform(uniloc->view, ctx->lookat);
+                opengl_set_uniform(uniloc->proj, ctx->proj);
                 
                 RenderEntryHitbox *entry = (RenderEntryHitbox *)header;
                 for(u32 i = 0; i < entry->hbox_len; i++)
@@ -315,7 +353,7 @@ render_flush(RenderQueue *queue, RenderContext *ctx)
                     Mat4 transform = scale(Mat4(1.0f), entry->size);
                     transform = rotate_quat(transform, entry->orientation);
                     transform = translate(transform, entry->position);
-                    opengl_set_uniform(program_id, "model", transform);
+                    opengl_set_uniform(uniloc->model, transform);
                     
                     glDrawElements(GL_LINES, ARRAY_LEN(indicies), GL_UNSIGNED_INT, NULL);
                     
@@ -329,6 +367,7 @@ render_flush(RenderQueue *queue, RenderContext *ctx)
             case RenderType_RenderEntryUI:
             {
                 GLuint program_id = ctx->programs[ShaderProgram_UI].id;
+                auto uniloc = &ctx->program_uniforms[ShaderProgram_UI];
                 glUseProgram(program_id);
                 
                 RenderEntryUI *entry = (RenderEntryUI *)header;
@@ -339,16 +378,15 @@ render_flush(RenderQueue *queue, RenderContext *ctx)
                 Mat4 transform = translate(Mat4(1.0f), pos);
                 transform = scale(transform, size);
                 
-                opengl_set_uniform(program_id, "transform", transform);
-                
-                opengl_set_uniform(program_id, "ortho", ctx->ortho);
+                opengl_set_uniform(uniloc->transform, transform);
+                opengl_set_uniform(uniloc->ortho, ctx->ortho);
                 
                 glEnable(GL_BLEND);
                 
                 glBindVertexArray(entry->element.vao);
                 glActiveTexture(GL_TEXTURE0);
                 glBindTexture(GL_TEXTURE_2D, entry->element.texture);
-                opengl_set_uniform(program_id, "tex_sampler", 0);
+                opengl_set_uniform(uniloc->tex_sampler, 0);
                 
                 glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
                 
@@ -363,48 +401,49 @@ render_flush(RenderQueue *queue, RenderContext *ctx)
             case RenderType_RenderEntryModelNewest:
             {
                 GLuint program_id = ctx->programs[ShaderProgram_Basic].id;
+                auto uniloc = &ctx->program_uniforms[ShaderProgram_Basic];
                 glUseProgram(program_id);
                 
-                opengl_set_uniform(program_id, "view", ctx->lookat);
-                opengl_set_uniform(program_id, "proj", ctx->proj);
+                opengl_set_uniform(uniloc->view, ctx->lookat);
+                opengl_set_uniform(uniloc->proj, ctx->proj);
                 
-                opengl_set_uniform(program_id, "view_pos", ctx->cam.position);
+                opengl_set_uniform(uniloc->view_pos, ctx->cam.position);
                 
-                opengl_set_uniform(program_id, "light_pos", ctx->spot.position);
-                opengl_set_uniform(program_id, "spotlight.direction", ctx->spot.direction);
-                opengl_set_uniform(program_id, "spotlight.cutoff", cosf(to_radians(ctx->spot.cutoff)));
-                opengl_set_uniform(program_id, "spotlight.outer_cutoff", cosf(to_radians(ctx->spot.outer_cutoff)));
-                opengl_set_uniform(program_id, "spotlight.ambient_component", ctx->spot.ambient_part);
-                opengl_set_uniform(program_id, "spotlight.diffuse_component", ctx->spot.diffuse_part);
-                opengl_set_uniform(program_id, "spotlight.specular_component", ctx->spot.specular_part);
-                opengl_set_uniform(program_id, "spotlight.atten_const", ctx->spot.atten_const);
-                opengl_set_uniform(program_id, "spotlight.atten_linear", ctx->spot.atten_linear);
-                opengl_set_uniform(program_id, "spotlight.atten_quad", ctx->spot.atten_quad);
+                opengl_set_uniform(uniloc->light_pos, ctx->spot.position);
+                opengl_set_uniform(uniloc->spotlight_direction, ctx->spot.direction);
+                opengl_set_uniform(uniloc->spotlight_cutoff, cosf(to_radians(ctx->spot.cutoff)));
+                opengl_set_uniform(uniloc->spotlight_outer_cutoff, cosf(to_radians(ctx->spot.outer_cutoff)));
+                opengl_set_uniform(uniloc->spotlight_ambient_component, ctx->spot.ambient_part);
+                opengl_set_uniform(uniloc->spotlight_diffuse_component, ctx->spot.diffuse_part);
+                opengl_set_uniform(uniloc->spotlight_specular_component, ctx->spot.specular_part);
+                opengl_set_uniform(uniloc->spotlight_atten_const, ctx->spot.atten_const);
+                opengl_set_uniform(uniloc->spotlight_atten_linear, ctx->spot.atten_linear);
+                opengl_set_uniform(uniloc->spotlight_atten_quad, ctx->spot.atten_quad);
                 
-                opengl_set_uniform(program_id, "direct_light.direction", ctx->sun.direction);
-                opengl_set_uniform(program_id, "direct_light.ambient_component", ctx->sun.ambient_part);
-                opengl_set_uniform(program_id, "direct_light.diffuse_component", ctx->sun.diffuse_part);
-                opengl_set_uniform(program_id, "direct_light.specular_component", ctx->sun.specular_part);
+                opengl_set_uniform(uniloc->direct_light_direction, ctx->sun.direction);
+                opengl_set_uniform(uniloc->direct_light_ambient_component, ctx->sun.ambient_part);
+                opengl_set_uniform(uniloc->direct_light_diffuse_component, ctx->sun.diffuse_part);
+                opengl_set_uniform(uniloc->direct_light_specular_component, ctx->sun.specular_part);
                 
-                opengl_set_uniform(program_id, "point_light.position", ctx->point_light.position);
+                opengl_set_uniform(uniloc->point_light_position, ctx->point_light.position);
                 
-                opengl_set_uniform(program_id, "point_light.ambient_part", ctx->point_light.ambient_part);
-                opengl_set_uniform(program_id, "point_light.diffuse_part", ctx->point_light.diffuse_part);
-                opengl_set_uniform(program_id, "point_light.specular_part", ctx->point_light.specular_part);
+                opengl_set_uniform(uniloc->point_light_ambient_part, ctx->point_light.ambient_part);
+                opengl_set_uniform(uniloc->point_light_diffuse_part, ctx->point_light.diffuse_part);
+                opengl_set_uniform(uniloc->point_light_specular_part, ctx->point_light.specular_part);
                 
-                opengl_set_uniform(program_id, "point_light.atten_const", ctx->point_light.atten_const);
-                opengl_set_uniform(program_id, "point_light.atten_linear", ctx->point_light.atten_linear);
-                opengl_set_uniform(program_id, "point_light.atten_quad", ctx->point_light.atten_quad);
+                opengl_set_uniform(uniloc->point_light_atten_const, ctx->point_light.atten_const);
+                opengl_set_uniform(uniloc->point_light_atten_linear, ctx->point_light.atten_linear);
+                opengl_set_uniform(uniloc->point_light_atten_quad, ctx->point_light.atten_quad);
                 
-                opengl_set_uniform(program_id, "show_normal_map", ctx->show_normal_map);
-                opengl_set_uniform(program_id, "use_mapped_normals", ctx->use_mapped_normals);
+                opengl_set_uniform(uniloc->show_normal_map, ctx->show_normal_map);
+                opengl_set_uniform(uniloc->use_mapped_normals, ctx->use_mapped_normals);
                 
                 RenderEntryModelNewest *entry = (RenderEntryModelNewest *)header;
                 
                 Mat4 transform = scale(Mat4(1.0f), entry->size);
                 transform = rotate_quat(transform, entry->orientation);
                 transform = translate(transform, entry->position);
-                opengl_set_uniform(program_id, "model", transform);
+                opengl_set_uniform(uniloc->model, transform);
                 
                 Model *model = entry->model;
                 for(u32 i = 0; i < model->meshes_len; i++)
@@ -449,18 +488,18 @@ render_flush(RenderQueue *queue, RenderContext *ctx)
                             glBindTexture(GL_TEXTURE_2D, material->normal_map);
                         }
                         
-                        opengl_set_uniform(program_id, "material.ambient_component", material->ambient_component);
-                        opengl_set_uniform(program_id, "material.diffuse_component", material->diffuse_component);
-                        opengl_set_uniform(program_id, "material.specular_component", material->specular_component);
-                        opengl_set_uniform(program_id, "material.specular_exponent", material->specular_exponent);
+                        opengl_set_uniform(uniloc->material_ambient_component, material->ambient_component);
+                        opengl_set_uniform(uniloc->material_diffuse_component, material->diffuse_component);
+                        opengl_set_uniform(uniloc->material_specular_component, material->specular_component);
+                        opengl_set_uniform(uniloc->material_specular_exponent, material->specular_exponent);
                     }
                     else
                     {
                         Vec3 one = Vec3(1.0f, 1.0f, 1.0f);
-                        opengl_set_uniform(program_id, "material.ambient_component", one);
-                        opengl_set_uniform(program_id, "material.diffuse_component", one);
-                        opengl_set_uniform(program_id, "material.specular_component", one);
-                        opengl_set_uniform(program_id, "material.specular_exponent", 1.0f);
+                        opengl_set_uniform(uniloc->material_ambient_component, one);
+                        opengl_set_uniform(uniloc->material_diffuse_component, one);
+                        opengl_set_uniform(uniloc->material_specular_component, one);
+                        opengl_set_uniform(uniloc->material_specular_exponent, 1.0f);
                     }
                     
                     glDrawElements(GL_TRIANGLES, mesh->indices_len, GL_UNSIGNED_INT, NULL);
@@ -581,21 +620,10 @@ render_flush(RenderQueue *queue, RenderContext *ctx)
     glDeleteBuffers(1, &vbo);
     glDeleteVertexArrays(1, &vao);
     
-    printf("drawn = %d\n", drawn);
+    //printf("drawn = %d\n", drawn);
     queue->len = 0;
     queue->size = 0;
     memset(queue->entries, 0, queue->max_size);
-}
-
-static void
-render_load_programs(RenderContext *ctx)
-{
-    ctx->programs[ShaderProgram_Basic] = program_create_from_file(MAIN_VERTEX_FILENAME, MAIN_FRAG_FILENAME);
-    ctx->programs[ShaderProgram_Simple] = program_create_from_file(SIMPLE_VERTEX_FILENAME, SIMPLE_FRAG_FILENAME);
-    ctx->programs[ShaderProgram_Skybox] = program_create_from_file(SKYBOX_VERTEX_FILENAME, SKYBOX_FRAG_FILENAME);
-    ctx->programs[ShaderProgram_UI] = program_create_from_file(UI_VERTEX_FILENAME, UI_FRAG_FILENAME);
-    ctx->programs[ShaderProgram_Line] = program_create_from_file(MAIN_VERTEX_FILENAME, LINE_FRAG_FILENAME);
-    ctx->programs[ShaderProgram_HDR] = program_create_from_file(HDR_VERTEX_FILENAME, HDR_FRAG_FILENAME);
 }
 
 // Takes a compiled shader, checks if it produced an error
@@ -715,10 +743,23 @@ camera_mouse_moved(Camera *cam, f32 dx, f32 dy)
 }
 
 static void
+opengl_set_uniform(GLuint location, i32 v)
+{
+    glUniform1i(location, v);
+    assert(glGetError() == GL_NO_ERROR);
+}
+
+static void
 opengl_set_uniform(GLuint program, const char *name, i32 v)
 {
     GLint location = glGetUniformLocation(program, name);
-    glUniform1i(location, v);
+    opengl_set_uniform(location, v);
+}
+
+static void 
+opengl_set_uniform(GLuint location, f32 val)
+{
+    glUniform1f(location, val);
     assert(glGetError() == GL_NO_ERROR);
 }
 
@@ -726,7 +767,13 @@ static void
 opengl_set_uniform(GLuint program, const char *name, f32 val)
 {
     GLint location = glGetUniformLocation(program, name);
-    glUniform1f(location, val);
+    opengl_set_uniform(location, val);
+}
+
+static void
+opengl_set_uniform(GLuint location, Vec3 vec)
+{
+    glUniform3fv(location, 1, vec.m);
     assert(glGetError() == GL_NO_ERROR);
 }
 
@@ -734,7 +781,13 @@ static void
 opengl_set_uniform(GLuint program, const char *name, Vec3 vec)
 {
     GLint location = glGetUniformLocation(program, name);
-    glUniform3fv(location, 1, vec.m);
+    opengl_set_uniform(location, vec);
+}
+
+static void
+opengl_set_uniform(GLuint location, Mat4 mat, GLboolean transpose)
+{
+    glUniformMatrix4fv(location, 1, transpose, mat.a1d);
     assert(glGetError() == GL_NO_ERROR);
 }
 
@@ -742,6 +795,5 @@ static void
 opengl_set_uniform(GLuint program, const char *name, Mat4 mat, GLboolean transpose)
 {
     GLint location = glGetUniformLocation(program, name);
-    glUniformMatrix4fv(location, 1, transpose, mat.a1d);
-    assert(glGetError() == GL_NO_ERROR);
+    opengl_set_uniform(location, mat, transpose);
 }
