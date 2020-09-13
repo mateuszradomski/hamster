@@ -10,12 +10,14 @@ uniform mat4 view;
 uniform mat4 model;
 uniform vec3 view_pos;
 uniform vec3 light_pos;
+uniform mat4 light_proj_view;
 
 out vec3 pixel_pos;
 out vec3 pixel_normal;
 out vec2 pixel_texuv;
 out vec3 tangent_view_pos;
 out vec3 tangent_light_pos;
+out vec4 light_moved_pixel_pos;
 out mat3 in_tbn;
 
 void main()
@@ -29,6 +31,7 @@ void main()
     
     vec3 frag_pos = vec3(model * vec4(vertex_pos, 1.0));
     pixel_pos = frag_pos;
+    light_moved_pixel_pos = light_proj_view * vec4(frag_pos, 1.0);
     tangent_view_pos = view_pos;
     tangent_light_pos = light_pos;
     

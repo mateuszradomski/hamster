@@ -14,6 +14,8 @@
 #define SKYBOX_FRAG_FILENAME "src/shaders/skybox_frag.glsl"
 #define HDR_VERTEX_FILENAME "src/shaders/hdr_vertex.glsl"
 #define HDR_FRAG_FILENAME "src/shaders/hdr_frag.glsl"
+#define SUN_DEPTH_VERTEX_FILENAME "src/shaders/sun_depth_vertex.glsl"
+#define SUN_DEPTH_FRAG_FILENAME "src/shaders/sun_depth_frag.glsl"
 
 enum ShaderProgram_Id
 {
@@ -23,6 +25,7 @@ enum ShaderProgram_Id
     ShaderProgram_UI,
     ShaderProgram_Line,
     ShaderProgram_HDR,
+    ShaderProgram_SunDepth,
     ShaderProgram_LastElement,
 };
 
@@ -71,9 +74,11 @@ struct ShaderProgramUniforms
     GLuint material_diffuse_component;
     GLuint material_specular_component;
     GLuint material_specular_exponent;
+    GLuint light_proj_view;
+    GLuint shadow_map;
 };
 
-enum RenderHeader
+enum RenderType
 {
     RenderType_RenderEntrySkybox,
     RenderType_RenderEntryLine,
@@ -81,6 +86,12 @@ enum RenderHeader
     RenderType_RenderEntryUI,
     RenderType_RenderEntryModelNewest,
     RenderType_RenderEntryModel,
+};
+
+struct RenderHeader
+{
+    RenderType type;
+    u32 size;
 };
 
 struct RenderEntrySkybox
@@ -156,10 +167,16 @@ struct RenderContext
     GLuint color_buffer;
     GLuint rbo_depth;
     
+    GLuint sun_fbo;
+    GLuint sun_depth_map;
+    u32 shadow_map_height;
+    Mat4 light_proj_view;
+    
     Spotlight spot;
     DirectLight sun;
     PointLight point_light;
     Camera cam;
+    f32 aspect_ratio;
     Plane frustum_planes[FrustumPlane_ElementCount];
     
     bool draw_hitboxes;
@@ -175,7 +192,7 @@ static RenderQueue render_create_queue(u32 size = KB(16));
 static void render_destory_queue(RenderQueue *queue);
 
 #define render_push_entry(queue, type) (type *)_render_push_entry(queue, sizeof(type), RenderType_##type)
-static void *_render_push_entry(RenderQueue *queue, u32 struct_size, RenderHeader type);
+static void *_render_push_entry(RenderQueue *queue, u32 struct_size, RenderType type);
 static void render_push_skybox(RenderQueue *queue, Cubemap skybox);
 static void render_push_line(RenderQueue *queue, Line line);
 static void render_push_hitbox(RenderQueue *queue, Entity entity);
@@ -185,7 +202,8 @@ static void render_push_model(RenderQueue *queue, Entity entity);
 
 static void render_prepass(RenderContext *ctx);
 static void get_frustum_planes(RenderContext *ctx);
-static void render_flush(RenderQueue *queue, RenderContext *ctx);
+static void render_draw_queue(RenderQueue *queue, RenderContext *ctx);
+static void render_end(RenderQueue *queue, RenderContext *ctx);
 
 static void render_load_programs(RenderContext *ctx);
 

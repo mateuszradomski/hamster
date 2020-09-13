@@ -43,6 +43,27 @@ struct Material
     float specular_exponent;
 };
 
+in vec3 pixel_pos;
+in vec4 light_moved_pixel_pos;
+in vec3 pixel_normal;
+in vec2 pixel_texuv;
+in vec3 tangent_view_pos;
+in vec3 tangent_light_pos;
+in mat3 in_tbn;
+out vec4 pixel_color;
+
+uniform SpotLight spotlight;
+uniform DirectionalLight direct_light;
+uniform PointLight point_light;
+uniform Material material;
+uniform sampler2D tex_sampler;
+uniform sampler2D diffuse_map;
+uniform sampler2D specular_map;
+uniform sampler2D normal_map;
+uniform sampler2D shadow_map;
+uniform bool show_normal_map;
+uniform bool use_mapped_normals;
+
 vec4 when_gt(vec4 x, vec4 y) {
     return max(sign(x - y), 0.0);
 }
@@ -122,24 +143,22 @@ vec3 eval_point_light(PointLight light, Material material, vec3 diffmap, vec3 sp
     return result;
 }
 
-in vec3 pixel_pos;
-in vec3 pixel_normal;
-in vec2 pixel_texuv;
-in vec3 tangent_view_pos;
-in vec3 tangent_light_pos;
-in mat3 in_tbn;
-out vec4 pixel_color;
-
-uniform SpotLight spotlight;
-uniform DirectionalLight direct_light;
-uniform PointLight point_light;
-uniform Material material;
-uniform sampler2D tex_sampler;
-uniform sampler2D diffuse_map;
-uniform sampler2D specular_map;
-uniform sampler2D normal_map;
-uniform bool show_normal_map;
-uniform bool use_mapped_normals;
+float eval_shadow(vec4 light_moved_pixel_pos)
+{
+    vec3 projected_uv = light_moved_pixel_pos.xyz / light_moved_pixel_pos.w;
+    projected_uv = projected_uv * 0.5 + 0.5;
+    
+    float closest = texture(shadow_map, projected_uv.xy).r;
+    float current = projected_uv.z;
+    
+    float bias = 0.005;
+    float result = current - bias > closest ? 1.0 : 0.0;
+    
+    if(projected_uv.z > 1.0)
+        return 0.0;
+    
+    return result;
+}
 
 void main()
 {
@@ -175,7 +194,8 @@ void main()
         vec3 spot_shade = calculate_spotlight(spotlight, tangent_light_pos, material, diffuse_map_factor, specular_map_factor, _normal, pixel_pos, view_dir);
         vec3 direct_shade = calculate_direct_light(direct_light, material, diffuse_map_factor, specular_map_factor, _normal, view_dir);
         vec3 point_shade = eval_point_light(point_light, material, diffuse_map_factor, specular_map_factor, _normal, pixel_pos, view_dir);
-        vec3 result = spot_shade + direct_shade + point_shade;
+        float shadow = eval_shadow(light_moved_pixel_pos);
+        vec3 result = spot_shade + ((1.0 - shadow) * direct_shade) + point_shade;
         result = clamp(result, 0.0, 1.0);
         
         pixel_color = texture(tex_sampler, pixel_texuv) * vec4(result, 1.0);

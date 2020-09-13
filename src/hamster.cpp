@@ -230,7 +230,7 @@ int main()
     crysis_guy.model = &crysis_model;
     
     Entity cyborg = {};
-    cyborg.position = Vec3(-7.5f, -1.0f, 2.0f);
+    cyborg.position = Vec3(-5.0f, 1.0f, 2.0f);
     cyborg.size = Vec3(1.0f, 1.0f, 1.0f);
     cyborg.model = &cyborg_model;
     
@@ -259,7 +259,8 @@ int main()
     ctx->spot.atten_linear = 0.09f;
     ctx->spot.atten_quad = 0.032f;
     
-    ctx->sun = create_sun(Vec3(0.0f, -1.0f, 0.0f), 0.01f, 0.4f, 0.7f);
+    Vec3 sun_direction = noz(Vec3(2.0f, -4.0f, 1.0f));
+    ctx->sun = create_sun(sun_direction, 0.01f, 0.4f, 0.7f);
     
     ctx->point_light.ambient_part = Vec3(0.05f, 0.05f, 0.05f);
     ctx->point_light.diffuse_part = Vec3(0.9f, 0.9f, 0.9f);
@@ -277,7 +278,7 @@ int main()
     Mat4 proj = create_perspective(aspect_ratio, 90.0f, 0.1f, 100.0f);
     ctx->lookat = lookat;
     ctx->proj = proj;
-    ctx->ortho = create_ortographic(aspect_ratio, 0.01f, 10.0f);
+    ctx->ortho = create_orthographic(aspect_ratio, 0.01f, 100.0f);
     
     glGenFramebuffers(1, &ctx->hdr_fbo);
     
@@ -295,6 +296,27 @@ int main()
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ctx->color_buffer, 0);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, ctx->rbo_depth);
     assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    
+    ctx->shadow_map_height = 1024;
+    ctx->aspect_ratio = aspect_ratio;
+    glGenFramebuffers(1, &ctx->sun_fbo);
+    glGenTextures(1, &ctx->sun_depth_map);
+    glBindTexture(GL_TEXTURE_2D, ctx->sun_depth_map);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
+                 ctx->shadow_map_height * aspect_ratio, ctx->shadow_map_height,
+                 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER); 
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER); 
+    float border_color[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border_color);
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, ctx->sun_fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, ctx->sun_depth_map, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     
     glEnable(GL_DEPTH_TEST);
@@ -469,7 +491,7 @@ int main()
         }
         render_push_ui(rqueue, crosshair);
 		
-        render_flush(rqueue, ctx);
+        render_end(rqueue, ctx);
         
         if(state.in_editor)
         {

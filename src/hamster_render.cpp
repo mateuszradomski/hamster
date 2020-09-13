@@ -16,7 +16,7 @@ render_destory_queue(RenderQueue *queue)
 }
 
 static void
-*_render_push_entry(RenderQueue *queue, u32 struct_size, RenderHeader type)
+*_render_push_entry(RenderQueue *queue, u32 struct_size, RenderType type)
 {
     void *result = 0;
     
@@ -26,7 +26,8 @@ static void
     queue->size += struct_size;
     queue->len += 1;
     
-    *(RenderHeader *)result = type;
+    ((RenderHeader *)result)->type = type;
+    ((RenderHeader *)result)->size = struct_size;
     
     return result;
 }
@@ -128,6 +129,8 @@ render_load_uniforms(RenderContext *ctx, i32 index)
     ctx->program_uniforms[index].material_diffuse_component = glGetUniformLocation(pid, "material.diffuse_component");
     ctx->program_uniforms[index].material_specular_component = glGetUniformLocation(pid, "material.specular_component");
     ctx->program_uniforms[index].material_specular_exponent = glGetUniformLocation(pid, "material.specular_exponent");
+    ctx->program_uniforms[index].light_proj_view = glGetUniformLocation(pid, "light_proj_view");
+    ctx->program_uniforms[index].shadow_map = glGetUniformLocation(pid, "shadow_map");
 }
 
 static void
@@ -140,6 +143,7 @@ render_load_programs(RenderContext *ctx)
     ctx->programs[ShaderProgram_Line] = program_create_from_file(MAIN_VERTEX_FILENAME, LINE_FRAG_FILENAME);
     ctx->programs[ShaderProgram_HDR] = 
         program_create_from_file(HDR_VERTEX_FILENAME, HDR_FRAG_FILENAME);
+    ctx->programs[ShaderProgram_SunDepth] = program_create_from_file(SUN_DEPTH_VERTEX_FILENAME, SUN_DEPTH_FRAG_FILENAME);
     
     for(u32 i = 0; i < (u32)ShaderProgram_LastElement; i++)
     {
@@ -221,20 +225,15 @@ get_frustum_planes(RenderContext *ctx)
     }
 }
 
-static void 
-render_flush(RenderQueue *queue, RenderContext *ctx)
+static void
+render_draw_queue(RenderQueue *queue, RenderContext *ctx)
 {
-    render_prepass(ctx);
-    get_frustum_planes(ctx);
-    
-    glBindFramebuffer(GL_FRAMEBUFFER, ctx->hdr_fbo);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     RenderHeader *header = (RenderHeader *)queue->entries;
     int drawn = 0;
     
     for(u32 i = 0; i < queue->len; i++)
     {
-        switch(*header)
+        switch(header->type)
         {
             case RenderType_RenderEntrySkybox:
             {
@@ -435,6 +434,11 @@ render_flush(RenderQueue *queue, RenderContext *ctx)
                 opengl_set_uniform(uniloc->point_light_atten_linear, ctx->point_light.atten_linear);
                 opengl_set_uniform(uniloc->point_light_atten_quad, ctx->point_light.atten_quad);
                 
+                opengl_set_uniform(uniloc->light_proj_view, ctx->light_proj_view);
+                glUniform1i(uniloc->shadow_map, 4);
+                glActiveTexture(GL_TEXTURE4);
+                glBindTexture(GL_TEXTURE_2D, ctx->sun_depth_map);
+                
                 opengl_set_uniform(uniloc->show_normal_map, ctx->show_normal_map);
                 opengl_set_uniform(uniloc->use_mapped_normals, ctx->use_mapped_normals);
                 
@@ -510,6 +514,7 @@ render_flush(RenderQueue *queue, RenderContext *ctx)
             case RenderType_RenderEntryModel:
             {
                 GLuint program_id = ctx->programs[ShaderProgram_Simple].id;
+                auto uniloc = &ctx->program_uniforms[ShaderProgram_Simple];
                 glUseProgram(program_id);
                 
                 opengl_set_uniform(program_id, "view", ctx->lookat);
@@ -532,6 +537,11 @@ render_flush(RenderQueue *queue, RenderContext *ctx)
                 opengl_set_uniform(program_id, "direct_light.ambient_component", Vec3(0.05f, 0.05f, 0.05f));
                 opengl_set_uniform(program_id, "direct_light.diffuse_component", Vec3(0.2f, 0.2f, 0.2f));
                 opengl_set_uniform(program_id, "direct_light.specular_component", Vec3(0.4f, 0.4f, 0.4f));
+                
+                opengl_set_uniform(uniloc->light_proj_view, ctx->light_proj_view);
+                glUniform1i(uniloc->shadow_map, 2);
+                glActiveTexture(GL_TEXTURE2);
+                glBindTexture(GL_TEXTURE_2D, ctx->sun_depth_map);
                 
                 opengl_set_uniform(program_id, "show_normal_map", ctx->show_normal_map);
                 opengl_set_uniform(program_id, "use_mapped_normals", ctx->use_mapped_normals);
@@ -584,7 +594,93 @@ render_flush(RenderQueue *queue, RenderContext *ctx)
             }break;
         }
     }
+}
+
+static void
+render_draw_sun_depth(RenderQueue *queue, RenderContext *ctx)
+{
+    glViewport(0, 0, ctx->shadow_map_height * ctx->aspect_ratio, ctx->shadow_map_height);
+    glBindFramebuffer(GL_FRAMEBUFFER, ctx->sun_fbo);
+    glClear(GL_DEPTH_BUFFER_BIT);
     
+    glCullFace(GL_FRONT);
+    
+    GLuint program_id = ctx->programs[ShaderProgram_SunDepth].id;
+    auto uniloc = &ctx->program_uniforms[ShaderProgram_SunDepth];
+    glUseProgram(program_id);
+    
+    f32 sun_away = 2.0f;
+    Vec3 sun_pos = scale(negate(ctx->sun.direction), sun_away);
+    Mat4 sun_view = look_at(add(noz(negate(sun_pos)), sun_pos), sun_pos, Vec3(0.0f, 1.0f, 0.0f));
+    Mat4 ort = create_orthographic(-10.0f, 10.0f, -10.0f, 10.0f, -10.0f, 10.0f);
+    Mat4 light_proj_view = mul(ort, sun_view);
+    ctx->light_proj_view = light_proj_view;
+    opengl_set_uniform(uniloc->light_proj_view, light_proj_view);
+    
+    RenderHeader *header = (RenderHeader *)queue->entries;
+    for(u32 i = 0; i < queue->len; i++)
+    {
+        switch(header->type)
+        {
+            case RenderType_RenderEntryModel:
+            {
+                RenderEntryModel *entry = (RenderEntryModel *)header;
+                
+                Mat4 transform = scale(Mat4(1.0f), entry->size);
+                transform = rotate_quat(transform, entry->orientation);
+                transform = translate(transform, entry->position);
+                opengl_set_uniform(uniloc->model, transform);
+                for(u32 i = 0; i < entry->model->meshes_len; i++)
+                {
+                    Mesh *mesh = entry->model->meshes + i;
+                    glBindVertexArray(mesh->vao);
+                    glDrawElements(GL_TRIANGLES, mesh->indices_len, GL_UNSIGNED_INT, NULL);
+                }
+                
+                header = (RenderHeader *)(++entry);
+            }break;
+            case RenderType_RenderEntryModelNewest:
+            {
+                RenderEntryModelNewest *entry = (RenderEntryModelNewest *)header;
+                
+                Mat4 transform = scale(Mat4(1.0f), entry->size);
+                transform = rotate_quat(transform, entry->orientation);
+                transform = translate(transform, entry->position);
+                assert(glGetError() == GL_NO_ERROR);
+                opengl_set_uniform(uniloc->model, transform);
+                
+                for(u32 i = 0; i < entry->model->meshes_len; i++)
+                {
+                    Mesh *mesh = entry->model->meshes + i;
+                    glBindVertexArray(mesh->vao);
+                    glDrawElements(GL_TRIANGLES, mesh->indices_len, GL_UNSIGNED_INT, NULL);
+                }
+                
+                header = (RenderHeader *)(++entry);
+            }break;
+            default:
+            {
+                header = (RenderHeader *)((u8 *)header + header->size);
+            }break;
+        }
+    }
+    
+    glCullFace(GL_BACK);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+static void 
+render_end(RenderQueue *queue, RenderContext *ctx)
+{
+    render_prepass(ctx);
+    get_frustum_planes(ctx);
+    
+    render_draw_sun_depth(queue, ctx);
+    
+    glViewport(0, 0, 1280, 720);
+    glBindFramebuffer(GL_FRAMEBUFFER, ctx->hdr_fbo);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    render_draw_queue(queue, ctx);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     
     // TODO: Each element stores the same infomation in it's own vao and vbo,
@@ -788,7 +884,8 @@ static void
 opengl_set_uniform(GLuint location, Mat4 mat, GLboolean transpose)
 {
     glUniformMatrix4fv(location, 1, transpose, mat.a1d);
-    assert(glGetError() == GL_NO_ERROR);
+    GLenum error = glGetError();
+    assert(error == GL_NO_ERROR);
 }
 
 static void

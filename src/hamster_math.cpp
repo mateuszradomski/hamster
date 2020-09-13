@@ -1065,7 +1065,24 @@ create_perspective(f32 aspect_ratio, f32 fov, f32 near_z, f32 far_z)
 }
 
 static Mat4
-create_ortographic(f32 aspect_ratio, f32 near_z, f32 far_z)
+create_orthographic(f32 left, f32 right, f32 bottom, f32 top, f32 near, f32 far)
+{
+    Mat4 result = {};
+    
+    result.a[0][0] = 2.0f / (right - left);
+    result.a[1][1] = 2.0f / (top - bottom);
+    result.a[2][2] = -2.0f / (far - near);
+    
+    result.a[3][0] = -(right + left) / (right - left);
+    result.a[3][1] = -(top + bottom) / (top - bottom);
+    result.a[3][2] = -(far + near) / (far - near);
+    result.a[3][3] = 1.0f;
+    
+    return result;
+}
+
+static Mat4
+create_orthographic(f32 aspect_ratio, f32 near_z, f32 far_z)
 {
     Mat4 result = {};
     
