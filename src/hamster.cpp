@@ -132,11 +132,11 @@ buttons_update(Button *buttons, u32 length)
 
 int main()
 {
-	ProgramState state = {};
-	state.window = create_opengl_window();
-	glfwSetWindowUserPointer(state.window.ptr, &state);
-	glfwSetKeyCallback(state.window.ptr, keyboard_button_callback);
-	glfwSetMouseButtonCallback(state.window.ptr, mouse_button_callback);
+    ProgramState *state = (ProgramState *)malloc(sizeof(ProgramState)); *state = {};
+	state->window = create_opengl_window();
+	glfwSetWindowUserPointer(state->window.ptr, state);
+	glfwSetKeyCallback(state->window.ptr, keyboard_button_callback);
+	glfwSetMouseButtonCallback(state->window.ptr, mouse_button_callback);
 	
 	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 	glDebugMessageCallback(opengl_error_callback, 0);
@@ -214,30 +214,30 @@ int main()
                                             "data/crosshair.png");
 	Cubemap skybox = cubemap_create_skybox();
     
-    Entity monkey = {};
-	monkey.position = Vec3(5.0f, 0.0f, 0.0f);
-	monkey.size = Vec3(1.0f, 1.0f, 1.0f);
-	monkey.model = &monkey_model;
+    Entity *monkey = &state->entities[state->entities_len++];
+    monkey->position = Vec3(5.0f, 0.0f, 0.0f);
+	monkey->size = Vec3(1.0f, 1.0f, 1.0f);
+	monkey->model = &monkey_model;
     
-    Entity backpack = {};
-    backpack.position = Vec3(0.0f, 1.0f, -1.0f);
-    backpack.size = Vec3(1.0f, 1.0f, 1.0f);
-    backpack.model = &backpack_model;
+    Entity *backpack = &state->entities[state->entities_len++];
+    backpack->position = Vec3(0.0f, 1.0f, -1.0f);
+    backpack->size = Vec3(1.0f, 1.0f, 1.0f);
+    backpack->model = &backpack_model;
     
-    Entity crysis_guy = {};
-    crysis_guy.position = Vec3(-5.0f, -1.0f, 0.0f);
-    crysis_guy.size = Vec3(0.25f, 0.25f, 0.25f);
-    crysis_guy.model = &crysis_model;
+    Entity *crysis_guy = &state->entities[state->entities_len++];
+    crysis_guy->position = Vec3(-5.0f, -1.0f, 0.0f);
+    crysis_guy->size = Vec3(0.25f, 0.25f, 0.25f);
+    crysis_guy->model = &crysis_model;
     
-    Entity cyborg = {};
-    cyborg.position = Vec3(-5.0f, 1.0f, 2.0f);
-    cyborg.size = Vec3(1.0f, 1.0f, 1.0f);
-    cyborg.model = &cyborg_model;
+    Entity *cyborg = &state->entities[state->entities_len++];
+    cyborg->position = Vec3(-5.0f, 1.0f, 2.0f);
+    cyborg->size = Vec3(1.0f, 1.0f, 1.0f);
+    cyborg->model = &cyborg_model;
     
-    Entity floor = {};
-	floor.position = Vec3(0.0f, -2.0f, 0.0f);
-	floor.size = Vec3(10.0f, 1.0f, 10.0f);
-	floor.model = &floor_model;
+    Entity *floor = &state->entities[state->entities_len++];
+	floor->position = Vec3(0.0f, -2.0f, 0.0f);
+	floor->size = Vec3(10.0f, 1.0f, 10.0f);
+	floor->model = &floor_model;
 	
     RenderContext ctx_ = {};
     RenderContext *ctx = &ctx_;
@@ -274,7 +274,7 @@ int main()
     RenderQueue *rqueue = &rqueue_;
     
     Mat4 lookat = look_at(ctx->cam.front, ctx->cam.position, ctx->cam.up);
-	f32 aspect_ratio = (f32)state.window.width/(f32)state.window.height;
+	f32 aspect_ratio = (f32)state->window.width/(f32)state->window.height;
     Mat4 proj = create_perspective(aspect_ratio, 90.0f, 0.1f, 100.0f);
     ctx->lookat = lookat;
     ctx->proj = proj;
@@ -284,13 +284,13 @@ int main()
     
     glGenTextures(1, &ctx->color_buffer);
     glBindTexture(GL_TEXTURE_2D, ctx->color_buffer);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, (f32)state.window.width, (f32)state.window.height, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, (f32)state->window.width, (f32)state->window.height, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     
     glGenRenderbuffers(1, &ctx->rbo_depth);
     glBindRenderbuffer(GL_RENDERBUFFER, ctx->rbo_depth);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, (f32)state.window.width, (f32)state.window.height);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, (f32)state->window.width, (f32)state->window.height);
     
     glBindFramebuffer(GL_FRAMEBUFFER, ctx->hdr_fbo);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ctx->color_buffer, 0);
@@ -328,7 +328,7 @@ int main()
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     ImGui::StyleColorsDark();
     
-    ImGui_ImplGlfw_InitForOpenGL(state.window.ptr, true);
+    ImGui_ImplGlfw_InitForOpenGL(state->window.ptr, true);
     ImGui_ImplOpenGL3_Init("#version 130");
     
     set_vsync(true);
@@ -339,71 +339,95 @@ int main()
     
     f64 xmouse, ymouse;
 	f64 xmouseold, ymouseold;
-	glfwGetCursorPos(state.window.ptr, &xmouse, &ymouse);
-	while(!glfwWindowShouldClose(state.window.ptr))
+	glfwGetCursorPos(state->window.ptr, &xmouse, &ymouse);
+	while(!glfwWindowShouldClose(state->window.ptr))
 	{
 		glfwPollEvents();
-        state.timer.frame_start = glfwGetTime();
+        state->timer.frame_start = glfwGetTime();
 		
 		xmouseold = xmouse;
 		ymouseold = ymouse;
-		glfwGetCursorPos(state.window.ptr, &xmouse, &ymouse);
-        if(!state.in_editor)
+		glfwGetCursorPos(state->window.ptr, &xmouse, &ymouse);
+        if(!state->in_editor)
             camera_mouse_moved(&ctx->cam, xmouse - xmouseold, ymouse - ymouseold);
         
         ctx->spot.position = ctx->cam.position;
         ctx->spot.direction = ctx->cam.front;
 		
-		buttons_update(state.kbuttons, ARRAY_LEN(state.kbuttons));
-		buttons_update(state.mbuttons, ARRAY_LEN(state.mbuttons));
+		buttons_update(state->kbuttons, ARRAY_LEN(state->kbuttons));
+		buttons_update(state->mbuttons, ARRAY_LEN(state->mbuttons));
 		
+        get_frustum_planes(ctx);
+        
 		lookat = look_at(add(ctx->cam.front, ctx->cam.position), ctx->cam.position, ctx->cam.up);
         ctx->lookat = lookat;
-		if(state.kbuttons[GLFW_KEY_P].pressed)
+		if(state->kbuttons[GLFW_KEY_P].pressed)
         {
-            glfwSetInputMode(state.window.ptr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            glfwSetInputMode(state->window.ptr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         }
         
-        if(state.kbuttons[GLFW_KEY_E].pressed)
+        if(state->kbuttons[GLFW_KEY_E].pressed)
         {
-            state.in_editor = !state.in_editor;
+            state->in_editor = !state->in_editor;
             
-            if(state.in_editor) {
-                glfwSetInputMode(state.window.ptr, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            if(state->in_editor) {
+                glfwSetInputMode(state->window.ptr, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
             } else {
-                glfwSetInputMode(state.window.ptr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+                glfwSetInputMode(state->window.ptr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
             }
         }
         
-        if(state.kbuttons[GLFW_KEY_H].pressed)
+        if(state->kbuttons[GLFW_KEY_H].pressed)
         {
             ctx->draw_hitboxes = !ctx->draw_hitboxes;
         }
         
+        if(state->in_editor && state->mbuttons[GLFW_MOUSE_BUTTON_LEFT].pressed)
+        {
+            f32 xndc = (2.0f * xmouse) / state->window.width - 1.0f;
+            f32 yndc = (2.0f * ((f64)state->window.height - ymouse)) / state->window.height - 1.0f;
+            Vec4 clip_space = Vec4(xndc, yndc, -1.0f, 1.0f);
+            
+            Mat4 proj_inversed = inverse(ctx->proj);
+            Vec4 eye_space = mul(proj_inversed, clip_space);
+            eye_space = Vec4(eye_space.x, eye_space.y, -1.0f, 0.0f);
+            Mat4 view_inversed = inverse(ctx->lookat);
+            Vec4 world_space = mul(view_inversed, eye_space);
+            
+            Vec3 editor_ray = noz(Vec3(world_space.x, world_space.y, world_space.z));
+            
+			u64 start = rdtsc();
+			bool entity_hit = ray_intersect_entity(ctx->cam.position, editor_ray, monkey);
+			u64 end = rdtsc();
+			
+			u64 hit_clocks = end - start;
+			printf("EntityHit = %d | %lu clocks/call\n", entity_hit, hit_clocks);
+        }
+        
 		float movement_scalar = 0.1f;
-		if(state.kbuttons[GLFW_KEY_W].down) {
+		if(state->kbuttons[GLFW_KEY_W].down) {
 			ctx->cam.position = add(ctx->cam.position, scale(ctx->cam.front, movement_scalar));
-		} if(state.kbuttons[GLFW_KEY_S].down) {
+		} if(state->kbuttons[GLFW_KEY_S].down) {
 			ctx->cam.position = sub(ctx->cam.position, scale(ctx->cam.front, movement_scalar));
-		} if(state.kbuttons[GLFW_KEY_D].down) {
+		} if(state->kbuttons[GLFW_KEY_D].down) {
 			ctx->cam.position = add(ctx->cam.position, scale(ctx->cam.right, movement_scalar));
-		} if(state.kbuttons[GLFW_KEY_A].down) {
+		} if(state->kbuttons[GLFW_KEY_A].down) {
 			ctx->cam.position = sub(ctx->cam.position, scale(ctx->cam.right, movement_scalar));
 		}
 		
-		if(state.kbuttons[GLFW_KEY_SPACE].pressed)
+		if(state->kbuttons[GLFW_KEY_SPACE].pressed)
 		{
 			ray_line = line_from_direction(ctx->cam.position, ctx->cam.front, 10.0f);
 			
 			u64 start = rdtsc();
-			bool entity_hit = ray_intersect_entity(ctx->cam.position, ctx->cam.front, &monkey);
+			bool entity_hit = ray_intersect_entity(ctx->cam.position, ctx->cam.front, monkey);
 			u64 end = rdtsc();
 			
 			u64 hit_clocks = end - start;
 			printf("EntityHit = %d | %lu clocks/call\n", entity_hit, hit_clocks);
 		}
         
-        if(state.in_editor)
+        if(state->in_editor)
         {
             ImGui_ImplOpenGL3_NewFrame();
             ImGui_ImplGlfw_NewFrame();
@@ -462,8 +486,8 @@ int main()
             ImGui::End();
         }
         
-        monkey.rotate = create_qrot(to_radians(glfwGetTime() * 14.0f) * 8.0f, Vec3(1.0f, 0.0f, 0.0f));
-        backpack.rotate = create_qrot(to_radians(glfwGetTime() * 8.0f) * 13.0f, Vec3(1.0f, 0.4f, 0.2f));
+        monkey->rotate = create_qrot(to_radians(glfwGetTime() * 14.0f) * 8.0f, Vec3(1.0f, 0.0f, 0.0f));
+        backpack->rotate = create_qrot(to_radians(glfwGetTime() * 8.0f) * 13.0f, Vec3(1.0f, 0.4f, 0.2f));
         
         ctx->point_light.position = Vec3(5.0f * cosf(glfwGetTime()), 0.0f, 5.0f * sinf(glfwGetTime()));
         
@@ -475,40 +499,40 @@ int main()
         
         render_push_skybox(rqueue, skybox);
         
-        render_push_model_newest(rqueue, backpack);
-        render_push_model_newest(rqueue, crysis_guy);
-        render_push_model_newest(rqueue, cyborg);
+        render_push_model_newest(rqueue, *backpack);
+        render_push_model_newest(rqueue, *crysis_guy);
+        render_push_model_newest(rqueue, *cyborg);
         
-        render_push_model(rqueue, monkey);
-        render_push_model(rqueue, floor);
+        render_push_model(rqueue, *monkey);
+        render_push_model(rqueue, *floor);
         
         if(ctx->draw_hitboxes)
         {
-            render_push_hitbox(rqueue, monkey);
-            render_push_hitbox(rqueue, backpack);
-            render_push_hitbox(rqueue, crysis_guy);
-            render_push_hitbox(rqueue, cyborg);
+            for(u32 i = 0; i < state->entities_len; i++)
+            {
+                render_push_hitbox(rqueue, state->entities[i]);
+            }
         }
         render_push_ui(rqueue, crosshair);
 		
         render_end(rqueue, ctx);
         
-        if(state.in_editor)
+        if(state->in_editor)
         {
             ImGui::Render();
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         }
         
-		glfwSwapBuffers(state.window.ptr);
+		glfwSwapBuffers(state->window.ptr);
         
-        state.timer.frame_end = glfwGetTime();
-        state.timer.since_last_second += state.timer.frame_end - state.timer.frame_start;
-        state.timer.frames++;
-        if(state.timer.since_last_second >= 1.0)
+        state->timer.frame_end = glfwGetTime();
+        state->timer.since_last_second += state->timer.frame_end - state->timer.frame_start;
+        state->timer.frames++;
+        if(state->timer.since_last_second >= 1.0)
         {
-            window_debug_title(&state.window, state.timer);
-            state.timer.since_last_second -= 1.0;
-            state.timer.frames = 0;
+            window_debug_title(&state->window, state->timer);
+            state->timer.since_last_second -= 1.0;
+            state->timer.frames = 0;
         }
 	}
 	

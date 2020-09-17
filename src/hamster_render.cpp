@@ -673,7 +673,6 @@ static void
 render_end(RenderQueue *queue, RenderContext *ctx)
 {
     render_prepass(ctx);
-    get_frustum_planes(ctx);
     
     render_draw_sun_depth(queue, ctx);
     

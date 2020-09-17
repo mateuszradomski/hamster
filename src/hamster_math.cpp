@@ -980,6 +980,22 @@ subs(Mat4 a, f32 scalar)
 }
 
 inline static Mat4
+scale(Mat4 a, f32 scalar)
+{
+    Mat4 result = { 0 };
+    
+	for(u32 index = 0;
+		index < MATRIX4_ELEMENTS;
+		++index)
+	{
+		result.a1d[index] = a.a1d[index] * scalar;
+	}
+	
+    
+    return result;
+}
+
+inline static Mat4
 muls(Mat4 a, f32 scalar)
 {
 	Mat4 result = { 0 };
@@ -1045,6 +1061,53 @@ mul(Mat4 a, Vec4 v)
 	result.w = v.x * a.a[0][3] + v.y * a.a[1][3] + v.z * a.a[2][3] + v.w * a.a[3][3];
 	
 	return result;
+}
+
+static Mat4
+inverse(Mat4 v)
+{
+    f32 a = v.a[0][0], e = v.a[1][0], i = v.a[2][0], m = v.a[3][0],
+    b = v.a[0][1], f = v.a[1][1], j = v.a[2][1], n = v.a[3][1],
+    c = v.a[0][2], g = v.a[1][2], k = v.a[2][2], o = v.a[3][2],
+    d = v.a[0][3], h = v.a[1][3], l = v.a[2][3], p = v.a[3][3];
+    
+    f32 dfill[6] = {};
+    dfill[0] = k * p - o * l; dfill[1] = j * p - l * n; dfill[2] = j * o - n * k;
+    dfill[3] = i * p - m * l; dfill[4] = i * o - m * k; dfill[5] = i * n - m * j;
+    
+    Mat4 result = {};
+    result.a[0][0] =   f * dfill[0] - g * dfill[1] + h * dfill[2];
+    result.a[1][0] = -(e * dfill[0] - g * dfill[3] + h * dfill[4]);
+    result.a[2][0] =   e * dfill[1] - f * dfill[3] + h * dfill[5];
+    result.a[3][0] = -(e * dfill[2] - f * dfill[4] + g * dfill[5]);
+    
+    result.a[0][1] = -(b * dfill[0] - c * dfill[1] + d * dfill[2]);
+    result.a[1][1] =   a * dfill[0] - c * dfill[3] + d * dfill[4];
+    result.a[2][1] = -(a * dfill[1] - b * dfill[3] + d * dfill[5]);
+    result.a[3][1] =   a * dfill[2] - b * dfill[4] + c * dfill[5];
+    
+    dfill[0] = g * p - o * h; dfill[1] = f * p - n * h; dfill[2] = f * o - n * g;
+    dfill[3] = e * p - m * h; dfill[4] = e * o - m * g; dfill[5] = e * n - m * f;
+    
+    result.a[0][2] =   b * dfill[0] - c * dfill[1] + d * dfill[2];
+    result.a[1][2] = -(a * dfill[0] - c * dfill[3] + d * dfill[4]);
+    result.a[2][2] =   a * dfill[1] - b * dfill[3] + d * dfill[5];
+    result.a[3][2] = -(a * dfill[2] - b * dfill[4] + c * dfill[5]);
+    
+    dfill[0] = g * l - k * h; dfill[1] = f * l - j * h; dfill[2] = f * k - j * g;
+    dfill[3] = e * l - i * h; dfill[4] = e * k - i * g; dfill[5] = e * j - i * f;
+    
+    result.a[0][3] = -(b * dfill[0] - c * dfill[1] + d * dfill[2]);
+    result.a[1][3] =   a * dfill[0] - c * dfill[3] + d * dfill[4];
+    result.a[2][3] = -(a * dfill[1] - b * dfill[3] + d * dfill[5]);
+    result.a[3][3] =   a * dfill[2] - b * dfill[4] + c * dfill[5];
+    
+    f32 det = 1.0f / (a * result.a[0][0] + b * result.a[1][0] + 
+                      c * result.a[2][0] + d * result.a[3][0]);
+    
+    result = scale(result, det);
+    
+    return result;
 }
 
 static Mat4

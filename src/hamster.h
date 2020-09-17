@@ -29,6 +29,9 @@ struct ProgramState
     bool in_editor;
 	Button kbuttons[GLFW_KEY_LAST];
 	Button mbuttons[GLFW_MOUSE_BUTTON_LAST];
+    
+    Entity entities[8];
+    u32 entities_len;
 };
 
 void opengl_error_callback(GLenum source, GLenum type, GLuint id, GLenum severity,
