@@ -172,6 +172,9 @@ struct RenderContext
     u32 shadow_map_height;
     Mat4 light_proj_view;
     
+    GLuint white_texture;
+    GLuint black_texture;
+    
     Spotlight spot;
     DirectLight sun;
     PointLight point_light;

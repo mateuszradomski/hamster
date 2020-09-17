@@ -137,16 +137,16 @@ int main()
 	glfwSetKeyCallback(state->window.ptr, keyboard_button_callback);
 	glfwSetMouseButtonCallback(state->window.ptr, mouse_button_callback);
 	
-	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+	//glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 	glDebugMessageCallback(opengl_error_callback, 0);
 	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
     
     NOT_USED(tpoints);
     
     OBJParseFlags flags = OBJ_PARSE_FLAG_EMPTY;
-    FLAG_SET(flags, OBJ_PARSE_FLAG_GEN_TANGENTS, OBJParseFlags);
-    FLAG_SET(flags, OBJ_PARSE_FLAG_GEN_BITANGETS, OBJParseFlags);
-    FLAG_SET(flags, OBJ_PARSE_FLAG_FLIP_UVS, OBJParseFlags);
+    FLAG_SET(flags, OBJ_PARSE_FLAG_GEN_TANGENTS);
+    FLAG_SET(flags, OBJ_PARSE_FLAG_GEN_BITANGETS);
+    FLAG_SET(flags, OBJ_PARSE_FLAG_FLIP_UVS);
     f64 start = glfwGetTime();
     const char *filename = "data/model.obj";
 	OBJModel obj = obj_parse(filename, flags);
@@ -159,7 +159,7 @@ int main()
     printf("[%s] materials loaded in %f\n\n", filename, glfwGetTime() - start);
     obj_model_destory(&obj);
     
-    FLAG_UNSET(flags, OBJ_PARSE_FLAG_FLIP_UVS, OBJParseFlags);
+    FLAG_UNSET(flags, OBJ_PARSE_FLAG_FLIP_UVS);
     start = glfwGetTime();
     filename = "data/backpack/backpack.obj";
     obj = obj_parse(filename, flags);
@@ -172,12 +172,10 @@ int main()
     printf("[%s] materials loaded in %f\n\n", filename, glfwGetTime() - start);
     obj_model_destory(&obj);
     
-    monkey_model.texture = backpack_model.texture = texture_create_solid(1.0f, 1.0f, 1.0f, 1.0f);
-    
     flags = OBJ_PARSE_FLAG_EMPTY;
-    FLAG_SET(flags, OBJ_PARSE_FLAG_GEN_TANGENTS, OBJParseFlags);
-    FLAG_SET(flags, OBJ_PARSE_FLAG_GEN_BITANGETS, OBJParseFlags);
-    FLAG_SET(flags, OBJ_PARSE_FLAG_FLIP_UVS, OBJParseFlags);
+    FLAG_SET(flags, OBJ_PARSE_FLAG_GEN_TANGENTS);
+    FLAG_SET(flags, OBJ_PARSE_FLAG_GEN_BITANGETS);
+    FLAG_SET(flags, OBJ_PARSE_FLAG_FLIP_UVS);
     start = glfwGetTime();
     filename = "data/nanosuit/nanosuit.obj";
     obj = obj_parse(filename, flags);
@@ -187,14 +185,13 @@ int main()
     printf("[%s] loaded in %f\n", filename, glfwGetTime() - start);
     start = glfwGetTime();
     model_load_obj_materials(&crysis_model, obj.materials, obj.materials_len, filename);
-    crysis_model.texture = monkey_model.texture;
     printf("[%s] materials loaded in %f\n\n", filename, glfwGetTime() - start);
     obj_model_destory(&obj);
     
     flags = OBJ_PARSE_FLAG_EMPTY;
-    FLAG_SET(flags, OBJ_PARSE_FLAG_GEN_TANGENTS, OBJParseFlags);
-    FLAG_SET(flags, OBJ_PARSE_FLAG_GEN_BITANGETS, OBJParseFlags);
-    FLAG_SET(flags, OBJ_PARSE_FLAG_FLIP_UVS, OBJParseFlags);
+    FLAG_SET(flags, OBJ_PARSE_FLAG_GEN_TANGENTS);
+    FLAG_SET(flags, OBJ_PARSE_FLAG_GEN_BITANGETS);
+    FLAG_SET(flags, OBJ_PARSE_FLAG_FLIP_UVS);
     start = glfwGetTime();
     filename = "data/cyborg/cyborg.obj";
     obj = obj_parse(filename, flags);
@@ -204,7 +201,6 @@ int main()
     printf("[%s] loaded in %f\n", filename, glfwGetTime() - start);
     start = glfwGetTime();
     model_load_obj_materials(&cyborg_model, obj.materials, obj.materials_len, filename);
-    cyborg_model.texture = monkey_model.texture;
     printf("[%s] materials loaded in %f\n\n", filename, glfwGetTime() - start);
     obj_model_destory(&obj);
     
@@ -241,6 +237,11 @@ int main()
     RenderContext ctx_ = {};
     RenderContext *ctx = &ctx_;
     render_load_programs(ctx);
+    
+    ctx->white_texture = texture_create_solid(1.0f, 1.0f, 1.0f, 1.0f);
+    ctx->black_texture = texture_create_solid(0.0f, 0.0f, 0.0f, 1.0f);
+    
+    ctx->use_mapped_normals = true;
     
 	ctx->cam.position = Vec3(0.0f, 0.0f, 3.0f);
 	ctx->cam.yaw = asinf(-1.0f); // Where we look

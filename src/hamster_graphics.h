@@ -5,7 +5,8 @@
 
 #define OBJ_MAX_MATERIALS 10
 
-enum OBJParseFlags
+typedef u32 OBJParseFlags;
+enum
 {
     OBJ_PARSE_FLAG_EMPTY = 0x0,
     OBJ_PARSE_FLAG_TRIANGULATE = 0x1,
@@ -14,7 +15,8 @@ enum OBJParseFlags
     OBJ_PARSE_FLAG_FLIP_UVS = 0x8,
 };
 
-enum OBJMeshFlags
+typedef u32 OBJMeshFlags;
+enum
 {
     OBJ_MESH_FLAG_FACE_HAS_VERTEX = 0x1,
     OBJ_MESH_FLAG_FACE_HAS_TEXTURE = 0x2,
@@ -135,14 +137,16 @@ struct Hitbox
 	Vec3 size;
 };
 
-enum ModelFlags
+typedef u32 ModelFlags;
+enum
 {
 	MODEL_FLAGS_GOURAUD_SHADED = 0x1,
 	MODEL_FLAGS_MESH_NORMALS_SHADED = 0x2,
 	MODEL_FLAGS_DRAW_HITBOXES = 0x4,
 };
 
-enum MaterialFlags
+typedef u32 MaterialFlags;
+enum
 {
     MATERIAL_FLAGS_HAS_DIFFUSE_MAP = 0x1,
     MATERIAL_FLAGS_HAS_SPECULAR_MAP = 0x2,
@@ -171,8 +175,6 @@ struct Model
     u32 hitboxes_len;
     u32 materials_len;
     ModelFlags flags;
-	
-	GLuint texture;
 };
 
 struct Line

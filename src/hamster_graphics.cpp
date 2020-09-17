@@ -174,13 +174,13 @@ obj_parse(const char *filename, OBJParseFlags flags)
                 }
                 
                 if(face_parts >= 1) {
-                    FLAG_SET(current_mesh->flags, OBJ_MESH_FLAG_FACE_HAS_VERTEX, OBJMeshFlags);
+                    FLAG_SET(current_mesh->flags, OBJ_MESH_FLAG_FACE_HAS_VERTEX);
                 }
                 if(face_parts == 2 || face_set == 3) {
-                    FLAG_SET(current_mesh->flags, OBJ_MESH_FLAG_FACE_HAS_TEXTURE, OBJMeshFlags);
+                    FLAG_SET(current_mesh->flags, OBJ_MESH_FLAG_FACE_HAS_TEXTURE);
                 }
                 if(face_parts >= 3) {
-                    FLAG_SET(current_mesh->flags, OBJ_MESH_FLAG_FACE_HAS_NORMAL, OBJMeshFlags);
+                    FLAG_SET(current_mesh->flags, OBJ_MESH_FLAG_FACE_HAS_NORMAL);
                 }
                 
                 // NOTE(mateusz): For minus one see note above, for minus two we are getting the number of triangles for this face.
@@ -416,7 +416,7 @@ model_load_obj_materials(Model *model, OBJMaterial *materials, u32 count, const 
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
             
-            FLAG_SET(new_material->flags, MATERIAL_FLAGS_HAS_DIFFUSE_MAP, MaterialFlags);
+            FLAG_SET(new_material->flags, MATERIAL_FLAGS_HAS_DIFFUSE_MAP);
         }
         
         if(!string_empty(obj_mtl->specular_map_filename))
@@ -427,7 +427,7 @@ model_load_obj_materials(Model *model, OBJMaterial *materials, u32 count, const 
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
             
-            FLAG_SET(new_material->flags, MATERIAL_FLAGS_HAS_SPECULAR_MAP, MaterialFlags);
+            FLAG_SET(new_material->flags, MATERIAL_FLAGS_HAS_SPECULAR_MAP);
         }
         
         if(!string_empty(obj_mtl->normal_map_filename))
@@ -438,7 +438,7 @@ model_load_obj_materials(Model *model, OBJMaterial *materials, u32 count, const 
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
             
-            FLAG_SET(new_material->flags, MATERIAL_FLAGS_HAS_NORMAL_MAP, MaterialFlags);
+            FLAG_SET(new_material->flags, MATERIAL_FLAGS_HAS_NORMAL_MAP);
         }
     }
 }
@@ -472,7 +472,19 @@ model_create_debug_floor()
     };
     
     Model model = {};
-    model.texture = texture_create_from_file("data/wood.png");
+    model.materials = (Material *)malloc(sizeof(Material)); model.materials[0] = {};
+    model.materials_len = 1;
+    
+    Material *mat = model.materials;
+    const char *mat_name = "Default";
+    strcpy(mat->name, mat_name);
+    
+    mat->specular_exponent = 1.0f;
+    Vec3 one = Vec3(1.0f, 1.0f, 1.0f);
+    mat->ambient_component = mat->diffuse_component = mat->specular_component = one;
+    
+    mat->diffuse_map = texture_create_from_file("data/wood.png");
+    FLAG_SET(mat->flags, MATERIAL_FLAGS_HAS_DIFFUSE_MAP);
     
     model.meshes = (Mesh *)malloc(sizeof(Mesh));
     model.meshes[model.meshes_len++] = {};
@@ -480,6 +492,7 @@ model_create_debug_floor()
     
     mesh->vertices = vs;
     mesh->vertices_len = 4;
+    strcpy(mesh->material_name, mat_name);
     
     mesh->indices = (u32 *)malloc(sizeof(indices));
     for(u32 i = 0; i < ARRAY_LEN(indices); i++)
@@ -549,8 +562,8 @@ model_create_from_obj(OBJModel *obj)
         model_finalize_mesh(mesh);
     }
     
-    FLAG_SET(model.flags, MODEL_FLAGS_MESH_NORMALS_SHADED, ModelFlags);
-    FLAG_UNSET(model.flags, MODEL_FLAGS_GOURAUD_SHADED, ModelFlags);
+    FLAG_SET(model.flags, MODEL_FLAGS_MESH_NORMALS_SHADED);
+    FLAG_UNSET(model.flags, MODEL_FLAGS_GOURAUD_SHADED);
     
     return model;
 }
@@ -673,7 +686,6 @@ model_destory(Model model)
     
     for(u32 i = 0; i < model.materials_len; i++)
     {
-        glDeleteTextures(1, &model.texture);
         glDeleteTextures(1, &model.materials[i].diffuse_map);
         glDeleteTextures(1, &model.materials[i].specular_map);
         glDeleteTextures(1, &model.materials[i].normal_map);

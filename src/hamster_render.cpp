@@ -457,8 +457,7 @@ render_draw_queue(RenderQueue *queue, RenderContext *ctx)
                         continue;
                     }
                     glBindVertexArray(model->meshes[i].vao);
-                    glActiveTexture(GL_TEXTURE0);
-                    glBindTexture(GL_TEXTURE_2D, model->texture);
+                    
                     drawn++;
                     Mesh *mesh = &model->meshes[i];
                     Material *material = NULL;
@@ -475,20 +474,20 @@ render_draw_queue(RenderQueue *queue, RenderContext *ctx)
                     {
                         if(material->flags & MATERIAL_FLAGS_HAS_DIFFUSE_MAP)
                         {
-                            glUniform1i(glGetUniformLocation(program_id, "diffuse_map"), 1);
-                            glActiveTexture(GL_TEXTURE1);
+                            glUniform1i(glGetUniformLocation(program_id, "diffuse_map"), 0);
+                            glActiveTexture(GL_TEXTURE0);
                             glBindTexture(GL_TEXTURE_2D, material->diffuse_map);
                         }
                         if(material->flags & MATERIAL_FLAGS_HAS_SPECULAR_MAP)
                         {
-                            glUniform1i(glGetUniformLocation(program_id, "specular_map"), 2);
-                            glActiveTexture(GL_TEXTURE2);
+                            glUniform1i(glGetUniformLocation(program_id, "specular_map"), 1);
+                            glActiveTexture(GL_TEXTURE1);
                             glBindTexture(GL_TEXTURE_2D, material->specular_map);
                         }
                         if(material->flags & MATERIAL_FLAGS_HAS_NORMAL_MAP)
                         {
-                            glUniform1i(glGetUniformLocation(program_id, "normal_map"), 3);
-                            glActiveTexture(GL_TEXTURE3);
+                            glUniform1i(glGetUniformLocation(program_id, "normal_map"), 2);
+                            glActiveTexture(GL_TEXTURE2);
                             glBindTexture(GL_TEXTURE_2D, material->normal_map);
                         }
                         
@@ -557,8 +556,6 @@ render_draw_queue(RenderQueue *queue, RenderContext *ctx)
                 for(u32 i = 0; i < model->meshes_len; i++)
                 {
                     glBindVertexArray(model->meshes[i].vao);
-                    glActiveTexture(GL_TEXTURE0);
-                    glBindTexture(GL_TEXTURE_2D, model->texture);
                     
                     Mesh *mesh = &model->meshes[i];
                     Material *material = NULL;
@@ -573,6 +570,25 @@ render_draw_queue(RenderQueue *queue, RenderContext *ctx)
                     
                     if(material)
                     {
+                        if(material->flags & MATERIAL_FLAGS_HAS_DIFFUSE_MAP)
+                        {
+                            glUniform1i(glGetUniformLocation(program_id, "diffuse_map"), 0);
+                            glActiveTexture(GL_TEXTURE0);
+                            glBindTexture(GL_TEXTURE_2D, material->diffuse_map);
+                        }
+                        if(material->flags & MATERIAL_FLAGS_HAS_SPECULAR_MAP)
+                        {
+                            glUniform1i(glGetUniformLocation(program_id, "specular_map"), 1);
+                            glActiveTexture(GL_TEXTURE1);
+                            glBindTexture(GL_TEXTURE_2D, material->specular_map);
+                        }
+                        if(material->flags & MATERIAL_FLAGS_HAS_NORMAL_MAP)
+                        {
+                            glUniform1i(glGetUniformLocation(program_id, "normal_map"), 2);
+                            glActiveTexture(GL_TEXTURE2);
+                            glBindTexture(GL_TEXTURE_2D, material->normal_map);
+                        }
+                        
                         opengl_set_uniform(program_id, "material.ambient_component", material->ambient_component);
                         opengl_set_uniform(program_id, "material.diffuse_component", material->diffuse_component);
                         opengl_set_uniform(program_id, "material.specular_component", material->specular_component);

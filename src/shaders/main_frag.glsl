@@ -56,7 +56,6 @@ uniform SpotLight spotlight;
 uniform DirectionalLight direct_light;
 uniform PointLight point_light;
 uniform Material material;
-uniform sampler2D tex_sampler;
 uniform sampler2D diffuse_map;
 uniform sampler2D specular_map;
 uniform sampler2D normal_map;
@@ -198,6 +197,6 @@ void main()
         vec3 result = spot_shade + ((1.0 - shadow) * direct_shade) + point_shade;
         result = clamp(result, 0.0, 1.0);
         
-        pixel_color = texture(tex_sampler, pixel_texuv) * vec4(result, 1.0);
+        pixel_color = vec4(result, 1.0);
     }
 }
