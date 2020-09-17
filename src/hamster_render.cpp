@@ -185,7 +185,7 @@ render_prepass(RenderContext *ctx)
 static void
 get_frustum_planes(RenderContext *ctx)
 {
-    Mat4 vp = mul(ctx->proj, ctx->lookat);
+    Mat4 vp = mul(ctx->proj, ctx->view);
     
     ctx->frustum_planes[FrustumPlane_Left].normal.x = vp.a[0][3] + vp.a[0][0];
     ctx->frustum_planes[FrustumPlane_Left].normal.y = vp.a[1][3] + vp.a[1][0];
@@ -241,7 +241,7 @@ render_draw_queue(RenderQueue *queue, RenderContext *ctx)
                 auto uniloc = &ctx->program_uniforms[ShaderProgram_Skybox];
                 
                 glUseProgram(program_id);
-                Mat4 view_no_translation = ctx->lookat;
+                Mat4 view_no_translation = ctx->view;
                 view_no_translation.columns[3] = Vec4(0.0f, 0.0f, 0.0f, 1.0f);
                 opengl_set_uniform(uniloc->view, view_no_translation);
                 opengl_set_uniform(uniloc->proj, ctx->proj);
@@ -280,7 +280,7 @@ render_draw_queue(RenderQueue *queue, RenderContext *ctx)
                 glVertexAttribPointer(0, 3, GL_FLOAT, GL_TRUE, 3 * sizeof(float), nullptr);
                 glEnableVertexAttribArray(0);
                 
-                opengl_set_uniform(uniloc->view, ctx->lookat);
+                opengl_set_uniform(uniloc->view, ctx->view);
                 opengl_set_uniform(uniloc->proj, ctx->proj);
                 // TODO(mateusz): Write a diffrent line shader so we don't have to
                 // cover ourselvs with setting the model to identify.
@@ -299,7 +299,7 @@ render_draw_queue(RenderQueue *queue, RenderContext *ctx)
                 auto uniloc = &ctx->program_uniforms[ShaderProgram_Line];
                 glUseProgram(program_id);
                 
-                opengl_set_uniform(uniloc->view, ctx->lookat);
+                opengl_set_uniform(uniloc->view, ctx->view);
                 opengl_set_uniform(uniloc->proj, ctx->proj);
                 
                 RenderEntryHitbox *entry = (RenderEntryHitbox *)header;
@@ -403,7 +403,7 @@ render_draw_queue(RenderQueue *queue, RenderContext *ctx)
                 auto uniloc = &ctx->program_uniforms[ShaderProgram_Basic];
                 glUseProgram(program_id);
                 
-                opengl_set_uniform(uniloc->view, ctx->lookat);
+                opengl_set_uniform(uniloc->view, ctx->view);
                 opengl_set_uniform(uniloc->proj, ctx->proj);
                 
                 opengl_set_uniform(uniloc->view_pos, ctx->cam.position);
@@ -517,7 +517,7 @@ render_draw_queue(RenderQueue *queue, RenderContext *ctx)
                 auto uniloc = &ctx->program_uniforms[ShaderProgram_Simple];
                 glUseProgram(program_id);
                 
-                opengl_set_uniform(program_id, "view", ctx->lookat);
+                opengl_set_uniform(program_id, "view", ctx->view);
                 opengl_set_uniform(program_id, "proj", ctx->proj);
                 
                 opengl_set_uniform(program_id, "view_pos", ctx->cam.position);

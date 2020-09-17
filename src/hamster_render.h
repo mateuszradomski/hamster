@@ -183,7 +183,7 @@ struct RenderContext
     bool show_normal_map;
     bool use_mapped_normals;
     
-    Mat4 lookat;
+    Mat4 view;
     Mat4 proj;
     Mat4 ortho;
 };

@@ -23,8 +23,7 @@
 // TODO(mateusz): As a learning expierience try to implement png reading yourself.
 // PNG reading is quite a chore, just because of the zlib compressed IDAT chunks,
 // maybe just use zlib and decode the rest yourself.
-#define STB_IMAGE_IMPLEMENTATION
-#include "includes/stb_image.h"
+#include "libs/stb/stb_image.h"
 
 #include "hamster_math.h"
 #include "hamster_util.h"
@@ -273,10 +272,9 @@ int main()
     RenderQueue rqueue_ = render_create_queue();
     RenderQueue *rqueue = &rqueue_;
     
-    Mat4 lookat = look_at(ctx->cam.front, ctx->cam.position, ctx->cam.up);
-	f32 aspect_ratio = (f32)state->window.width/(f32)state->window.height;
+    f32 aspect_ratio = (f32)state->window.width/(f32)state->window.height;
     Mat4 proj = create_perspective(aspect_ratio, 90.0f, 0.1f, 100.0f);
-    ctx->lookat = lookat;
+    ctx->view = look_at(ctx->cam.front, ctx->cam.position, ctx->cam.up);
     ctx->proj = proj;
     ctx->ortho = create_orthographic(aspect_ratio, 0.01f, 100.0f);
     
@@ -359,8 +357,9 @@ int main()
 		
         get_frustum_planes(ctx);
         
-		lookat = look_at(add(ctx->cam.front, ctx->cam.position), ctx->cam.position, ctx->cam.up);
-        ctx->lookat = lookat;
+        ctx->view = look_at(add(ctx->cam.front, ctx->cam.position),
+                            ctx->cam.position, ctx->cam.up);
+        
 		if(state->kbuttons[GLFW_KEY_P].pressed)
         {
             glfwSetInputMode(state->window.ptr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -377,10 +376,7 @@ int main()
             }
         }
         
-        if(state->kbuttons[GLFW_KEY_H].pressed)
-        {
-            ctx->draw_hitboxes = !ctx->draw_hitboxes;
-        }
+        if(state->kbuttons[GLFW_KEY_H].pressed) { ctx->draw_hitboxes = !ctx->draw_hitboxes; }
         
         if(state->in_editor && state->mbuttons[GLFW_MOUSE_BUTTON_LEFT].pressed)
         {
@@ -391,7 +387,7 @@ int main()
             Mat4 proj_inversed = inverse(ctx->proj);
             Vec4 eye_space = mul(proj_inversed, clip_space);
             eye_space = Vec4(eye_space.x, eye_space.y, -1.0f, 0.0f);
-            Mat4 view_inversed = inverse(ctx->lookat);
+            Mat4 view_inversed = inverse(ctx->view);
             Vec4 world_space = mul(view_inversed, eye_space);
             
             Vec3 editor_ray = noz(Vec3(world_space.x, world_space.y, world_space.z));
