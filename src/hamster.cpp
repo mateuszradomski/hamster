@@ -20,7 +20,7 @@
 #include <libs/imgui/imgui_impl_glfw.h>
 #include <libs/imgui/imgui_impl_opengl3.h>
 
-// TODO: As a learning expierience try to implement png reading yourself.
+// TODO(mateusz): As a learning expierience try to implement png reading yourself.
 // PNG reading is quite a chore, just because of the zlib compressed IDAT chunks,
 // maybe just use zlib and decode the rest yourself.
 #define STB_IMAGE_IMPLEMENTATION
@@ -397,35 +397,56 @@ int main()
             Vec3 editor_ray = noz(Vec3(world_space.x, world_space.y, world_space.z));
             
 			u64 start = rdtsc();
-			bool entity_hit = ray_intersect_entity(ctx->cam.position, editor_ray, monkey);
+			bool entity_hit = false;
+            for(u32 i = 0; i < state->entities_len; i++)
+            {
+                if(ray_intersect_entity(ctx->cam.position, editor_ray, state->entities + i))
+                {
+                    entity_hit = true;
+                    state->picked_entity = state->entities + i;
+                    break;
+                }
+            }
+            
 			u64 end = rdtsc();
 			
 			u64 hit_clocks = end - start;
 			printf("EntityHit = %d | %lu clocks/call\n", entity_hit, hit_clocks);
         }
         
-		float movement_scalar = 0.1f;
-		if(state->kbuttons[GLFW_KEY_W].down) {
-			ctx->cam.position = add(ctx->cam.position, scale(ctx->cam.front, movement_scalar));
-		} if(state->kbuttons[GLFW_KEY_S].down) {
-			ctx->cam.position = sub(ctx->cam.position, scale(ctx->cam.front, movement_scalar));
-		} if(state->kbuttons[GLFW_KEY_D].down) {
-			ctx->cam.position = add(ctx->cam.position, scale(ctx->cam.right, movement_scalar));
-		} if(state->kbuttons[GLFW_KEY_A].down) {
-			ctx->cam.position = sub(ctx->cam.position, scale(ctx->cam.right, movement_scalar));
-		}
-		
-		if(state->kbuttons[GLFW_KEY_SPACE].pressed)
-		{
-			ray_line = line_from_direction(ctx->cam.position, ctx->cam.front, 10.0f);
-			
-			u64 start = rdtsc();
-			bool entity_hit = ray_intersect_entity(ctx->cam.position, ctx->cam.front, monkey);
-			u64 end = rdtsc();
-			
-			u64 hit_clocks = end - start;
-			printf("EntityHit = %d | %lu clocks/call\n", entity_hit, hit_clocks);
-		}
+        {
+            float movement_scalar = 0.1f;
+            Vec3 *pos;
+            Vec3 straight, right, up;
+            if(state->in_editor && state->picked_entity)
+            {
+                pos = &state->picked_entity->position;
+                up = Vec3(0.0f, 1.0f, 0.0f);
+                right = Vec3(-1.0f, 0.0f, 0.0f);
+                straight = Vec3(0.0f, 0.0f, 1.0f);
+            }
+            else
+            {
+                pos = &ctx->cam.position;
+                up = ctx->cam.up;
+                right = ctx->cam.right;
+                straight = ctx->cam.front;
+            }
+            
+            if(state->kbuttons[GLFW_KEY_W].down) {
+                *pos = add(*pos, scale(straight, movement_scalar));
+            } if(state->kbuttons[GLFW_KEY_S].down) {
+                *pos = sub(*pos, scale(straight, movement_scalar));
+            } if(state->kbuttons[GLFW_KEY_D].down) {
+                *pos = add(*pos, scale(right, movement_scalar));
+            } if(state->kbuttons[GLFW_KEY_A].down) {
+                *pos = sub(*pos, scale(right, movement_scalar));
+            } if(state->kbuttons[GLFW_KEY_SPACE].down) {
+                *pos = add(*pos, scale(up, movement_scalar));
+            } if(state->kbuttons[GLFW_KEY_LEFT_SHIFT].down) {
+                *pos = sub(*pos, scale(up, movement_scalar));
+            }
+        }
         
         if(state->in_editor)
         {
@@ -514,7 +535,7 @@ int main()
             }
         }
         render_push_ui(rqueue, crosshair);
-		
+        
         render_end(rqueue, ctx);
         
         if(state->in_editor)
@@ -523,7 +544,7 @@ int main()
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         }
         
-		glfwSwapBuffers(state->window.ptr);
+        glfwSwapBuffers(state->window.ptr);
         
         state->timer.frame_end = glfwGetTime();
         state->timer.since_last_second += state->timer.frame_end - state->timer.frame_start;
@@ -534,8 +555,8 @@ int main()
             state->timer.since_last_second -= 1.0;
             state->timer.frames = 0;
         }
-	}
-	
+    }
+    
     render_destory_queue(rqueue);
     
     model_destory(monkey_model);
@@ -544,6 +565,6 @@ int main()
     model_destory(cyborg_model);
     model_destory(floor_model);
     glfwTerminate();
-	
-	return 0;
+    
+    return 0;
 }

@@ -32,6 +32,7 @@ struct ProgramState
     
     Entity entities[8];
     u32 entities_len;
+    Entity *picked_entity;
 };
 
 void opengl_error_callback(GLenum source, GLenum type, GLuint id, GLenum severity,
