@@ -95,7 +95,7 @@ keyboard_button_callback(GLFWwindow *window, int key, int scancode, int action, 
 {
 	assert(key != GLFW_KEY_UNKNOWN);
 	ProgramState *state = (ProgramState *)glfwGetWindowUserPointer(window);
-	NOT_USED(mods); // NOTE: I guess we would use it somewhere??
+	NOT_USED(mods); // NOTE(mateusz): I guess we would use it somewhere??
     NOT_USED(scancode); // That is unused.
     
     if(action == GLFW_PRESS) {
@@ -110,7 +110,7 @@ mouse_button_callback(GLFWwindow *window, int key, int action, int mods)
 {
 	assert(key != GLFW_KEY_UNKNOWN);
 	ProgramState *state = (ProgramState *)glfwGetWindowUserPointer(window);
-	NOT_USED(mods); // NOTE: I guess we would use it somewhere??
+	NOT_USED(mods); // NOTE(mateusz): I guess we would use it somewhere??
 	
 	if(action == GLFW_PRESS) {
 		state->mbuttons[key].down = true;
@@ -137,9 +137,14 @@ int main()
 	glfwSetKeyCallback(state->window.ptr, keyboard_button_callback);
 	glfwSetMouseButtonCallback(state->window.ptr, mouse_button_callback);
 	
-	//glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+    // NOTE(mateusz): This doesn't work, I guess that the Linux Intel driver is
+    // not supporting this feature. Just stick to checkinf for errors while
+    // setting the uniforms.
+#if 0    
+	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 	glDebugMessageCallback(opengl_error_callback, 0);
 	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
+#endif
     
     NOT_USED(tpoints);
     
@@ -278,6 +283,10 @@ int main()
     ctx->view = look_at(ctx->cam.front, ctx->cam.position, ctx->cam.up);
     ctx->proj = proj;
     ctx->ortho = create_orthographic(aspect_ratio, 0.01f, 100.0f);
+    
+    assert(monkey_model.materials_len == 1);
+    monkey_model.materials[0].diffuse_map = ctx->white_texture;
+    FLAG_SET(monkey_model.materials[0].flags, MATERIAL_FLAGS_HAS_DIFFUSE_MAP);
     
     glGenFramebuffers(1, &ctx->hdr_fbo);
     
@@ -513,7 +522,10 @@ int main()
         to_point_light.point1 = ctx->point_light.position;
         
         render_push_line(rqueue, ray_line);
-        render_push_line(rqueue, to_point_light);
+        if(ctx->draw_hitboxes)
+        {
+            render_push_line(rqueue, to_point_light);
+        }
         
         render_push_skybox(rqueue, skybox);
         

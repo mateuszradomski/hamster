@@ -149,9 +149,35 @@ float eval_shadow(vec4 light_moved_pixel_pos)
     
     float closest = texture(shadow_map, projected_uv.xy).r;
     float current = projected_uv.z;
+    bool multisampled_shadow = true;
+    int sampling_square_length = 3;
     
     float bias = 0.005;
-    float result = current - bias > closest ? 1.0 : 0.0;
+    float result = 0.0f;
+    if(multisampled_shadow)
+    {
+        float strength = 0.0f;
+        vec2 inverse_tex_size = 1.0 / textureSize(shadow_map, 0);
+        int sample_start = -(sampling_square_length - 1) / 2;
+        int sample_end = -sample_start;
+        
+        for(int y = sample_start; y <= sample_end; y++)
+        {
+            for(int x = sample_start; x <= sample_end; x++)
+            {
+                vec2 sampling_point = projected_uv.xy + vec2(x, y) * inverse_tex_size;
+                float sample = texture(shadow_map, sampling_point).r;
+                strength += current - bias > sample ? 1.0f : 0.0f;
+            }
+        }
+        
+        float sampling_area = (sampling_square_length * sampling_square_length);
+        result = strength * (1.0f / sampling_area);
+    }
+    else
+    {
+        result = current - bias > closest ? 1.0 : 0.0;
+    }
     
     if(projected_uv.z > 1.0)
         return 0.0;
