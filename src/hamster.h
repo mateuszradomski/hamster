@@ -30,6 +30,8 @@ struct ProgramState
 	Button kbuttons[GLFW_KEY_LAST];
 	Button mbuttons[GLFW_MOUSE_BUTTON_LAST];
     
+    RenderContext ctx;
+    
     Entity entities[8];
     u32 entities_len;
     Entity *picked_entity;

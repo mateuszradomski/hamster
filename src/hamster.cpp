@@ -120,6 +120,19 @@ mouse_button_callback(GLFWwindow *window, int key, int action, int mods)
 }
 
 static void
+window_resize_callback(GLFWwindow *window, int width, int height)
+{
+    ProgramState *state = (ProgramState *)glfwGetWindowUserPointer(window);
+    
+    state->window.width = width;
+    state->window.height = height;
+    
+    RenderContext *ctx = &state->ctx;
+    ctx->aspect_ratio = (f32)width / (f32)height;
+    FLAG_SET(ctx->flags, RENDER_WINDOW_RESIZED);
+}
+
+static void
 buttons_update(Button *buttons, u32 length)
 {
 	for(u32 i = 0; i < length; i++)
@@ -129,6 +142,75 @@ buttons_update(Button *buttons, u32 length)
 	}
 }
 
+static void
+imgui_start_frame(ProgramState *state)
+{
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+    
+    ImGui::Begin("Editor");
+    
+    RenderContext *ctx = &state->ctx;
+    // TODO(mateusz): Make it work with flags
+    //ImGui::Checkbox("Use mapped normals", &ctx->use_mapped_normals);
+    //ImGui::Checkbox("Shade with normal map", &ctx->show_normal_map);
+    if(ImGui::TreeNode("Spotlight"))
+    {
+        ImGui::SliderFloat("spot.cutoff", &ctx->spot.cutoff, 0.0f, 90.0f);
+        ImGui::SliderFloat("spot.outer_cutoff", &ctx->spot.outer_cutoff, 0.0f, 90.0f);
+        ImGui::SliderFloat("spot.ambient", &ctx->spot.ambient_part.x, 0.0f, 1.0f);
+        ctx->spot.ambient_part.y = ctx->spot.ambient_part.z = ctx->spot.ambient_part.x;
+        ImGui::SliderFloat("spot.diffuse", &ctx->spot.diffuse_part.x, 0.0f, 1.0f);
+        ctx->spot.diffuse_part.y = ctx->spot.diffuse_part.z = ctx->spot.diffuse_part.x;
+        ImGui::SliderFloat("spot.specular", &ctx->spot.specular_part.x, 0.0f, 1.0f);
+        ctx->spot.specular_part.y = ctx->spot.specular_part.z = ctx->spot.specular_part.x;
+        ImGui::SliderFloat("spot.atten_const", &ctx->spot.atten_const, 0.0f, 1.0f);
+        ImGui::SliderFloat("spot.atten_linear", &ctx->spot.atten_linear, 0.0f, 1.0f);
+        ImGui::SliderFloat("spot.atten_quad", &ctx->spot.atten_quad, 0.0f, 1.0f);
+        ImGui::TreePop();
+    }
+    if(ImGui::TreeNode("Pointlight"))
+    {
+        ImGui::SliderFloat3("point.position", ctx->point_light.position.m, -10.0f, 10.0f);
+        
+        ImGui::SliderFloat("point.ambient", &ctx->point_light.ambient_part.x, 0.0f, 1.0f);
+        ctx->point_light.ambient_part.y = ctx->point_light.ambient_part.z = ctx->point_light.ambient_part.x;
+        ImGui::SliderFloat("point.diffuse", &ctx->point_light.diffuse_part.x, 0.0f, 1.0f);
+        ctx->point_light.diffuse_part.y = ctx->point_light.diffuse_part.z = ctx->point_light.diffuse_part.x;
+        ImGui::SliderFloat("point.specular", &ctx->point_light.specular_part.x, 0.0f, 1.0f);
+        ctx->point_light.specular_part.y = ctx->point_light.specular_part.z = ctx->point_light.specular_part.x;
+        ImGui::SliderFloat("point.atten_const", &ctx->point_light.atten_const, 0.0f, 1.0f);
+        ImGui::SliderFloat("point.atten_linear", &ctx->point_light.atten_linear, 0.0f, 1.0f);
+        ImGui::SliderFloat("point.atten_quad", &ctx->point_light.atten_quad, 0.0f, 1.0f);
+        ImGui::TreePop();
+    }
+    
+    if(ImGui::TreeNode("Directional light / Sun"))
+    {
+        ImGui::SliderFloat3("sun.direction", ctx->sun.direction.m, -1.0f, 1.0f);
+        
+        ImGui::SliderFloat("sun.ambient", &ctx->sun.ambient_part.x, 0.0f, 1.0f);
+        ctx->sun.ambient_part.y = ctx->sun.ambient_part.z = ctx->sun.ambient_part.x;
+        ImGui::SliderFloat("sun.diffuse", &ctx->sun.diffuse_part.x, 0.0f, 1.0f);
+        ctx->sun.diffuse_part.y = ctx->sun.diffuse_part.z = ctx->sun.diffuse_part.x;
+        ImGui::SliderFloat("sun.specular", &ctx->sun.specular_part.x, 0.0f, 1.0f);
+        
+        ImGui::TreePop();
+    }
+    
+    ImGui::SameLine();
+    
+    ImGui::End();
+}
+
+static void
+imgui_end_frame()
+{
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+}
+
 int main()
 {
     ProgramState *state = (ProgramState *)malloc(sizeof(ProgramState)); *state = {};
@@ -136,6 +218,7 @@ int main()
 	glfwSetWindowUserPointer(state->window.ptr, state);
 	glfwSetKeyCallback(state->window.ptr, keyboard_button_callback);
 	glfwSetMouseButtonCallback(state->window.ptr, mouse_button_callback);
+    glfwSetWindowSizeCallback(state->window.ptr, window_resize_callback);
 	
     // NOTE(mateusz): This doesn't work, I guess that the Linux Intel driver is
     // not supporting this feature. Just stick to checkinf for errors while
@@ -239,14 +322,13 @@ int main()
 	floor->size = Vec3(10.0f, 1.0f, 10.0f);
 	floor->model = &floor_model;
 	
-    RenderContext ctx_ = {};
-    RenderContext *ctx = &ctx_;
+    RenderContext *ctx = &state->ctx;
     render_load_programs(ctx);
     
     ctx->white_texture = texture_create_solid(1.0f, 1.0f, 1.0f, 1.0f);
     ctx->black_texture = texture_create_solid(0.0f, 0.0f, 0.0f, 1.0f);
     
-    ctx->use_mapped_normals = true;
+    FLAG_SET(ctx->flags, RENDER_USE_MAPPED_NORMALS);
     
 	ctx->cam.position = Vec3(0.0f, 0.0f, 3.0f);
 	ctx->cam.yaw = asinf(-1.0f); // Where we look
@@ -275,14 +357,17 @@ int main()
     ctx->point_light.atten_linear = 0.022;
     ctx->point_light.atten_quad = 0.0019;
     
+    ctx->aspect_ratio = (f32)state->window.width/(f32)state->window.height;
+    ctx->cam.fov = 90.0f;
+    ctx->perspective_near = 0.1f;
+    ctx->perspective_far = 100.0f;
+    ctx->view = look_at(ctx->cam.front, ctx->cam.position, ctx->cam.up);
+    ctx->proj = create_perspective(ctx->aspect_ratio, ctx->cam.fov,
+                                   ctx->perspective_near, ctx->perspective_far);
+    ctx->ortho = create_orthographic(ctx->aspect_ratio, 0.01f, 100.0f);
+    
     RenderQueue rqueue_ = render_create_queue();
     RenderQueue *rqueue = &rqueue_;
-    
-    f32 aspect_ratio = (f32)state->window.width/(f32)state->window.height;
-    Mat4 proj = create_perspective(aspect_ratio, 90.0f, 0.1f, 100.0f);
-    ctx->view = look_at(ctx->cam.front, ctx->cam.position, ctx->cam.up);
-    ctx->proj = proj;
-    ctx->ortho = create_orthographic(aspect_ratio, 0.01f, 100.0f);
     
     assert(monkey_model.materials_len == 1);
     monkey_model.materials[0].diffuse_map = ctx->white_texture;
@@ -307,12 +392,11 @@ int main()
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     
     ctx->shadow_map_height = 1024;
-    ctx->aspect_ratio = aspect_ratio;
     glGenFramebuffers(1, &ctx->sun_fbo);
     glGenTextures(1, &ctx->sun_depth_map);
     glBindTexture(GL_TEXTURE_2D, ctx->sun_depth_map);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
-                 ctx->shadow_map_height * aspect_ratio, ctx->shadow_map_height,
+                 ctx->shadow_map_height * ctx->aspect_ratio, ctx->shadow_map_height,
                  0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -364,8 +448,6 @@ int main()
 		
 		buttons_update(state->kbuttons, ARRAY_LEN(state->kbuttons));
 		buttons_update(state->mbuttons, ARRAY_LEN(state->mbuttons));
-		
-        get_frustum_planes(ctx);
         
         ctx->view = look_at(add(ctx->cam.front, ctx->cam.position),
                             ctx->cam.position, ctx->cam.up);
@@ -386,7 +468,10 @@ int main()
             }
         }
         
-        if(state->kbuttons[GLFW_KEY_H].pressed) { ctx->draw_hitboxes = !ctx->draw_hitboxes; }
+        if(state->kbuttons[GLFW_KEY_H].pressed)
+        {
+            FLAG_NEGATE(ctx->flags, RENDER_DRAW_HITBOXES);
+        }
         
         if(state->in_editor && state->mbuttons[GLFW_MOUSE_BUTTON_LEFT].pressed)
         {
@@ -456,61 +541,7 @@ int main()
         
         if(state->in_editor)
         {
-            ImGui_ImplOpenGL3_NewFrame();
-            ImGui_ImplGlfw_NewFrame();
-            ImGui::NewFrame();
-            
-            ImGui::Begin("Editor");
-            
-            ImGui::Checkbox("Use mapped normals", &ctx->use_mapped_normals);
-            ImGui::Checkbox("Shade with normal map", &ctx->show_normal_map);
-            if(ImGui::TreeNode("Spotlight"))
-            {
-                ImGui::SliderFloat("spot.cutoff", &ctx->spot.cutoff, 0.0f, 90.0f);
-                ImGui::SliderFloat("spot.outer_cutoff", &ctx->spot.outer_cutoff, 0.0f, 90.0f);
-                ImGui::SliderFloat("spot.ambient", &ctx->spot.ambient_part.x, 0.0f, 1.0f);
-                ctx->spot.ambient_part.y = ctx->spot.ambient_part.z = ctx->spot.ambient_part.x;
-                ImGui::SliderFloat("spot.diffuse", &ctx->spot.diffuse_part.x, 0.0f, 1.0f);
-                ctx->spot.diffuse_part.y = ctx->spot.diffuse_part.z = ctx->spot.diffuse_part.x;
-                ImGui::SliderFloat("spot.specular", &ctx->spot.specular_part.x, 0.0f, 1.0f);
-                ctx->spot.specular_part.y = ctx->spot.specular_part.z = ctx->spot.specular_part.x;
-                ImGui::SliderFloat("spot.atten_const", &ctx->spot.atten_const, 0.0f, 1.0f);
-                ImGui::SliderFloat("spot.atten_linear", &ctx->spot.atten_linear, 0.0f, 1.0f);
-                ImGui::SliderFloat("spot.atten_quad", &ctx->spot.atten_quad, 0.0f, 1.0f);
-                ImGui::TreePop();
-            }
-            if(ImGui::TreeNode("Pointlight"))
-            {
-                ImGui::SliderFloat3("point.position", ctx->point_light.position.m, -10.0f, 10.0f);
-                
-                ImGui::SliderFloat("point.ambient", &ctx->point_light.ambient_part.x, 0.0f, 1.0f);
-                ctx->point_light.ambient_part.y = ctx->point_light.ambient_part.z = ctx->point_light.ambient_part.x;
-                ImGui::SliderFloat("point.diffuse", &ctx->point_light.diffuse_part.x, 0.0f, 1.0f);
-                ctx->point_light.diffuse_part.y = ctx->point_light.diffuse_part.z = ctx->point_light.diffuse_part.x;
-                ImGui::SliderFloat("point.specular", &ctx->point_light.specular_part.x, 0.0f, 1.0f);
-                ctx->point_light.specular_part.y = ctx->point_light.specular_part.z = ctx->point_light.specular_part.x;
-                ImGui::SliderFloat("point.atten_const", &ctx->point_light.atten_const, 0.0f, 1.0f);
-                ImGui::SliderFloat("point.atten_linear", &ctx->point_light.atten_linear, 0.0f, 1.0f);
-                ImGui::SliderFloat("point.atten_quad", &ctx->point_light.atten_quad, 0.0f, 1.0f);
-                ImGui::TreePop();
-            }
-            
-            if(ImGui::TreeNode("Directional light / Sun"))
-            {
-                ImGui::SliderFloat3("sun.direction", ctx->sun.direction.m, -1.0f, 1.0f);
-                
-                ImGui::SliderFloat("sun.ambient", &ctx->sun.ambient_part.x, 0.0f, 1.0f);
-                ctx->sun.ambient_part.y = ctx->sun.ambient_part.z = ctx->sun.ambient_part.x;
-                ImGui::SliderFloat("sun.diffuse", &ctx->sun.diffuse_part.x, 0.0f, 1.0f);
-                ctx->sun.diffuse_part.y = ctx->sun.diffuse_part.z = ctx->sun.diffuse_part.x;
-                ImGui::SliderFloat("sun.specular", &ctx->sun.specular_part.x, 0.0f, 1.0f);
-                
-                ImGui::TreePop();
-            }
-            
-            ImGui::SameLine();
-            
-            ImGui::End();
+            imgui_start_frame(state);
         }
         
         monkey->rotate = create_qrot(to_radians(glfwGetTime() * 14.0f) * 8.0f, Vec3(1.0f, 0.0f, 0.0f));
@@ -522,7 +553,7 @@ int main()
         to_point_light.point1 = ctx->point_light.position;
         
         render_push_line(rqueue, ray_line);
-        if(ctx->draw_hitboxes)
+        if(FLAG_IS_SET(ctx->flags, RENDER_DRAW_HITBOXES))
         {
             render_push_line(rqueue, to_point_light);
         }
@@ -536,7 +567,7 @@ int main()
         render_push_model(rqueue, *monkey);
         render_push_model(rqueue, *floor);
         
-        if(ctx->draw_hitboxes)
+        if(FLAG_IS_SET(ctx->flags, RENDER_DRAW_HITBOXES))
         {
             for(u32 i = 0; i < state->entities_len; i++)
             {
@@ -545,12 +576,11 @@ int main()
         }
         render_push_ui(rqueue, crosshair);
         
-        render_end(rqueue, ctx);
+        render_end(rqueue, ctx, state->window.width, state->window.height);
         
         if(state->in_editor)
         {
-            ImGui::Render();
-            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+            imgui_end_frame();
         }
         
         glfwSwapBuffers(state->window.ptr);

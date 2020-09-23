@@ -6,7 +6,9 @@
 #define ALLOC_CHUNK_SIZE 32
 #define ARRAY_LEN(a) ((sizeof((a)))/(sizeof((a[0]))))
 #define FLAG_SET(flag, value) ((flag) |= (value))
+#define FLAG_IS_SET(flag, value) ((flag) & (value) ? 1 : 0)
 #define FLAG_UNSET(flag, value) ((flag) &= (~(value)))
+#define FLAG_NEGATE(flag, value) ((flag) = (((flag) & ~value) ^ (value & ~((flag) & value))))
 #define NOT_USED(v) ((void)(v))
 
 #define KB(x) (1024 * (x))

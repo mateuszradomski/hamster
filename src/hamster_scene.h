@@ -3,6 +3,17 @@
 #ifndef HAMSTER_SCENE_H
 #define HAMSTER_SCENE_H
 
+enum FrustumPlane
+{
+    FrustumPlane_Left,
+    FrustumPlane_Right,
+    FrustumPlane_Bottom,
+    FrustumPlane_Top,
+    FrustumPlane_Near,
+    FrustumPlane_Far,
+    FrustumPlane_ElementCount,
+};
+
 struct Camera
 {
 	Vec3 position;
@@ -12,6 +23,9 @@ struct Camera
 	
 	f32 yaw;
 	f32 pitch;
+    f32 fov;
+    
+    Plane frustum_planes[FrustumPlane_ElementCount];
 };
 
 struct Spotlight

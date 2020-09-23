@@ -148,15 +148,13 @@ struct RenderQueue
 	u32 len;
 };
 
-enum FrustumPlane
+typedef u32 RenderContextFlags;
+enum 
 {
-    FrustumPlane_Left,
-    FrustumPlane_Right,
-    FrustumPlane_Bottom,
-    FrustumPlane_Top,
-    FrustumPlane_Near,
-    FrustumPlane_Far,
-    FrustumPlane_ElementCount,
+    RENDER_WINDOW_RESIZED = 0x1,
+    RENDER_DRAW_HITBOXES = 0x2,
+    RENDER_SHOW_NORMAL_MAP = 0x4,
+    RENDER_USE_MAPPED_NORMALS = 0x8,
 };
 
 struct RenderContext
@@ -180,11 +178,13 @@ struct RenderContext
     PointLight point_light;
     Camera cam;
     f32 aspect_ratio;
-    Plane frustum_planes[FrustumPlane_ElementCount];
+    f32 perspective_far;
+    f32 perspective_near;
     
-    bool draw_hitboxes;
-    bool show_normal_map;
-    bool use_mapped_normals;
+    //bool draw_hitboxes;
+    //bool show_normal_map;
+    //bool use_mapped_normals;
+    RenderContextFlags flags;
     
     Mat4 view;
     Mat4 proj;
@@ -203,10 +203,10 @@ static void render_push_ui(RenderQueue *queue, UIElement element);
 static void render_push_model_newest(RenderQueue *queue, Entity entity);
 static void render_push_model(RenderQueue *queue, Entity entity);
 
-static void render_prepass(RenderContext *ctx);
+static void render_prepass(RenderContext *ctx, i32 window_width, i32 window_height);
 static void get_frustum_planes(RenderContext *ctx);
 static void render_draw_queue(RenderQueue *queue, RenderContext *ctx);
-static void render_end(RenderQueue *queue, RenderContext *ctx);
+static void render_end(RenderQueue *queue, RenderContext *ctx, i32 window_width, i32 window_height);
 
 static void render_load_programs(RenderContext *ctx);
 

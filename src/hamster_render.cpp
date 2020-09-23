@@ -152,8 +152,26 @@ render_load_programs(RenderContext *ctx)
 }
 
 static void
-render_prepass(RenderContext *ctx)
+render_prepass(RenderContext *ctx, i32 window_width, i32 window_height)
 {
+    get_frustum_planes(ctx);
+    
+    if(FLAG_IS_SET(ctx->flags, RENDER_WINDOW_RESIZED))
+    {
+        ctx->proj = create_perspective(ctx->aspect_ratio, ctx->cam.fov,
+                                       ctx->perspective_near, ctx->perspective_far);
+        
+        glBindTexture(GL_TEXTURE_2D, ctx->color_buffer);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, (f32)window_width, (f32)window_height, 0, GL_RGBA, GL_FLOAT, NULL);
+        
+        glBindRenderbuffer(GL_RENDERBUFFER, ctx->rbo_depth);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, (f32)window_width, (f32)window_height);
+        
+        assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+        
+        FLAG_NEGATE(ctx->flags, RENDER_WINDOW_RESIZED);
+    }
+    
     for(u32 i = 0; i < (u32)ShaderProgram_LastElement; i++)
     {
         ShaderProgram *prog = &ctx->programs[i];
@@ -186,42 +204,43 @@ static void
 get_frustum_planes(RenderContext *ctx)
 {
     Mat4 vp = mul(ctx->proj, ctx->view);
+    Plane *planes = ctx->cam.frustum_planes;
     
-    ctx->frustum_planes[FrustumPlane_Left].normal.x = vp.a[0][3] + vp.a[0][0];
-    ctx->frustum_planes[FrustumPlane_Left].normal.y = vp.a[1][3] + vp.a[1][0];
-    ctx->frustum_planes[FrustumPlane_Left].normal.z = vp.a[2][3] + vp.a[2][0];
-    ctx->frustum_planes[FrustumPlane_Left].d = vp.a[3][3] + vp.a[3][0];
+    planes[FrustumPlane_Left].normal.x = vp.a[0][3] + vp.a[0][0];
+    planes[FrustumPlane_Left].normal.y = vp.a[1][3] + vp.a[1][0];
+    planes[FrustumPlane_Left].normal.z = vp.a[2][3] + vp.a[2][0];
+    planes[FrustumPlane_Left].d = vp.a[3][3] + vp.a[3][0];
     
-    ctx->frustum_planes[FrustumPlane_Right].normal.x = vp.a[0][3] - vp.a[0][0];
-    ctx->frustum_planes[FrustumPlane_Right].normal.y = vp.a[1][3] - vp.a[1][0];
-    ctx->frustum_planes[FrustumPlane_Right].normal.z = vp.a[2][3] - vp.a[2][0];
-    ctx->frustum_planes[FrustumPlane_Right].d = vp.a[3][3] - vp.a[3][0];
+    planes[FrustumPlane_Right].normal.x = vp.a[0][3] - vp.a[0][0];
+    planes[FrustumPlane_Right].normal.y = vp.a[1][3] - vp.a[1][0];
+    planes[FrustumPlane_Right].normal.z = vp.a[2][3] - vp.a[2][0];
+    planes[FrustumPlane_Right].d = vp.a[3][3] - vp.a[3][0];
     
-    ctx->frustum_planes[FrustumPlane_Bottom].normal.x = vp.a[0][3] + vp.a[0][1];
-    ctx->frustum_planes[FrustumPlane_Bottom].normal.y = vp.a[1][3] + vp.a[1][1];
-    ctx->frustum_planes[FrustumPlane_Bottom].normal.z = vp.a[2][3] + vp.a[2][1];
-    ctx->frustum_planes[FrustumPlane_Bottom].d = vp.a[3][3] + vp.a[3][1];
+    planes[FrustumPlane_Bottom].normal.x = vp.a[0][3] + vp.a[0][1];
+    planes[FrustumPlane_Bottom].normal.y = vp.a[1][3] + vp.a[1][1];
+    planes[FrustumPlane_Bottom].normal.z = vp.a[2][3] + vp.a[2][1];
+    planes[FrustumPlane_Bottom].d = vp.a[3][3] + vp.a[3][1];
     
-    ctx->frustum_planes[FrustumPlane_Top].normal.x = vp.a[0][3] - vp.a[0][1];
-    ctx->frustum_planes[FrustumPlane_Top].normal.y = vp.a[1][3] - vp.a[1][1];
-    ctx->frustum_planes[FrustumPlane_Top].normal.z = vp.a[2][3] - vp.a[2][1];
-    ctx->frustum_planes[FrustumPlane_Top].d = vp.a[3][3] - vp.a[3][1];
+    planes[FrustumPlane_Top].normal.x = vp.a[0][3] - vp.a[0][1];
+    planes[FrustumPlane_Top].normal.y = vp.a[1][3] - vp.a[1][1];
+    planes[FrustumPlane_Top].normal.z = vp.a[2][3] - vp.a[2][1];
+    planes[FrustumPlane_Top].d = vp.a[3][3] - vp.a[3][1];
     
-    ctx->frustum_planes[FrustumPlane_Near].normal.x = vp.a[0][3] + vp.a[0][2];
-    ctx->frustum_planes[FrustumPlane_Near].normal.y = vp.a[1][3] + vp.a[1][2];
-    ctx->frustum_planes[FrustumPlane_Near].normal.z = vp.a[2][3] + vp.a[2][2];
-    ctx->frustum_planes[FrustumPlane_Near].d = vp.a[3][3] + vp.a[3][2];
+    planes[FrustumPlane_Near].normal.x = vp.a[0][3] + vp.a[0][2];
+    planes[FrustumPlane_Near].normal.y = vp.a[1][3] + vp.a[1][2];
+    planes[FrustumPlane_Near].normal.z = vp.a[2][3] + vp.a[2][2];
+    planes[FrustumPlane_Near].d = vp.a[3][3] + vp.a[3][2];
     
-    ctx->frustum_planes[FrustumPlane_Far].normal.x = vp.a[0][3] - vp.a[0][2];
-    ctx->frustum_planes[FrustumPlane_Far].normal.y = vp.a[1][3] - vp.a[1][2];
-    ctx->frustum_planes[FrustumPlane_Far].normal.z = vp.a[2][3] - vp.a[2][2];
-    ctx->frustum_planes[FrustumPlane_Far].d = vp.a[3][3] - vp.a[3][2];
+    planes[FrustumPlane_Far].normal.x = vp.a[0][3] - vp.a[0][2];
+    planes[FrustumPlane_Far].normal.y = vp.a[1][3] - vp.a[1][2];
+    planes[FrustumPlane_Far].normal.z = vp.a[2][3] - vp.a[2][2];
+    planes[FrustumPlane_Far].d = vp.a[3][3] - vp.a[3][2];
     
     for(u32 i = 0; i < FrustumPlane_ElementCount; i++)
     {
-        f32 nozf = inverse_len(ctx->frustum_planes[i].normal);
-        ctx->frustum_planes[i].normal = scale(ctx->frustum_planes[i].normal, nozf);
-        ctx->frustum_planes[i].d *= nozf;
+        f32 nozf = inverse_len(planes[i].normal);
+        planes[i].normal = scale(planes[i].normal, nozf);
+        planes[i].d *= nozf;
     }
 }
 
@@ -439,8 +458,8 @@ render_draw_queue(RenderQueue *queue, RenderContext *ctx)
                 glActiveTexture(GL_TEXTURE4);
                 glBindTexture(GL_TEXTURE_2D, ctx->sun_depth_map);
                 
-                opengl_set_uniform(uniloc->show_normal_map, ctx->show_normal_map);
-                opengl_set_uniform(uniloc->use_mapped_normals, ctx->use_mapped_normals);
+                opengl_set_uniform(uniloc->show_normal_map, FLAG_IS_SET(ctx->flags, RENDER_SHOW_NORMAL_MAP));
+                opengl_set_uniform(uniloc->use_mapped_normals, FLAG_IS_SET(ctx->flags, RENDER_USE_MAPPED_NORMALS));
                 
                 RenderEntryModelNewest *entry = (RenderEntryModelNewest *)header;
                 
@@ -452,7 +471,7 @@ render_draw_queue(RenderQueue *queue, RenderContext *ctx)
                 Model *model = entry->model;
                 for(u32 i = 0; i < model->meshes_len; i++)
                 {
-                    if(!hitbox_in_frustum(model->hitboxes + i, ctx->frustum_planes, transform))
+                    if(!hitbox_in_frustum(model->hitboxes + i, ctx->cam.frustum_planes, transform))
                     {
                         continue;
                     }
@@ -542,8 +561,8 @@ render_draw_queue(RenderQueue *queue, RenderContext *ctx)
                 glActiveTexture(GL_TEXTURE2);
                 glBindTexture(GL_TEXTURE_2D, ctx->sun_depth_map);
                 
-                opengl_set_uniform(program_id, "show_normal_map", ctx->show_normal_map);
-                opengl_set_uniform(program_id, "use_mapped_normals", ctx->use_mapped_normals);
+                opengl_set_uniform(program_id, "show_normal_map", FLAG_IS_SET(ctx->flags, RENDER_SHOW_NORMAL_MAP));
+                opengl_set_uniform(program_id, "use_mapped_normals", FLAG_IS_SET(ctx->flags, RENDER_USE_MAPPED_NORMALS));
                 
                 RenderEntryModel *entry = (RenderEntryModel *)header;
                 
@@ -686,13 +705,13 @@ render_draw_sun_depth(RenderQueue *queue, RenderContext *ctx)
 }
 
 static void 
-render_end(RenderQueue *queue, RenderContext *ctx)
+render_end(RenderQueue *queue, RenderContext *ctx, i32 window_width, i32 window_height)
 {
-    render_prepass(ctx);
+    render_prepass(ctx, window_width, window_height);
     
     render_draw_sun_depth(queue, ctx);
     
-    glViewport(0, 0, 1280, 720);
+    glViewport(0, 0, window_width, window_height);
     glBindFramebuffer(GL_FRAMEBUFFER, ctx->hdr_fbo);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     render_draw_queue(queue, ctx);
