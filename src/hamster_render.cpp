@@ -61,6 +61,18 @@ render_push_hitbox(RenderQueue *queue, Entity entity)
 }
 
 static void
+render_push_hitbox(RenderQueue *queue, Hitbox *hbox)
+{
+    RenderEntryHitbox *entry = render_push_entry(queue, RenderEntryHitbox);
+    
+    entry->position = Vec3(0.0f, 0.0f, 0.0f);
+    entry->size = Vec3(1.0f, 1.0f, 1.0f);
+    entry->orientation = create_qrot(0.0f, Vec3(0.0f, 1.0f, 0.0f));
+    entry->hbox = hbox;
+    entry->hbox_len = 1;
+}
+
+static void
 render_push_ui(RenderQueue *queue, UIElement element)
 {
     RenderEntryUI *entry = render_push_entry(queue, RenderEntryUI);

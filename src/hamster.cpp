@@ -152,9 +152,15 @@ imgui_start_frame(ProgramState *state)
     ImGui::Begin("Editor");
     
     RenderContext *ctx = &state->ctx;
-    // TODO(mateusz): Make it work with flags
-    //ImGui::Checkbox("Use mapped normals", &ctx->use_mapped_normals);
-    //ImGui::Checkbox("Shade with normal map", &ctx->show_normal_map);
+    bool use_mapped_normals = FLAG_IS_SET(ctx->flags, RENDER_USE_MAPPED_NORMALS);
+    bool show_normal_map = FLAG_IS_SET(ctx->flags, RENDER_SHOW_NORMAL_MAP);
+    ImGui::Checkbox("Use mapped normals", &use_mapped_normals);
+    ImGui::Checkbox("Shade with normal map", &show_normal_map);
+    if(use_mapped_normals != FLAG_IS_SET(ctx->flags, RENDER_USE_MAPPED_NORMALS))
+        FLAG_NEGATE(ctx->flags, RENDER_USE_MAPPED_NORMALS);
+    if(show_normal_map != FLAG_IS_SET(ctx->flags, RENDER_SHOW_NORMAL_MAP))
+        FLAG_NEGATE(ctx->flags, RENDER_SHOW_NORMAL_MAP);
+    
     if(ImGui::TreeNode("Spotlight"))
     {
         ImGui::SliderFloat("spot.cutoff", &ctx->spot.cutoff, 0.0f, 90.0f);
@@ -485,16 +491,17 @@ int main()
             Mat4 view_inversed = inverse(ctx->view);
             Vec4 world_space = mul(view_inversed, eye_space);
             
-            Vec3 editor_ray = noz(Vec3(world_space.x, world_space.y, world_space.z));
+            Vec3 editor_ray_origin = ctx->cam.position;
+            Vec3 editor_ray_dir = noz(Vec3(world_space.x, world_space.y, world_space.z));
             
 			u64 start = rdtsc();
 			bool entity_hit = false;
             for(u32 i = 0; i < state->entities_len; i++)
             {
-                if(ray_intersect_entity(ctx->cam.position, editor_ray, state->entities + i))
+                if(ray_intersect_entity(editor_ray_origin, editor_ray_dir, state->entities + i))
                 {
                     entity_hit = true;
-                    state->picked_entity = state->entities + i;
+                    state->edit_picked.entity = state->entities + i;
                     break;
                 }
             }
@@ -503,15 +510,44 @@ int main()
 			
 			u64 hit_clocks = end - start;
 			printf("EntityHit = %d | %lu clocks/call\n", entity_hit, hit_clocks);
+            
+            if(!entity_hit && state->edit_picked.entity)
+            {
+                EditorPickedEntity *picked = &state->edit_picked;
+                AxisClickResult xaxis = {};
+                AxisClickResult yaxis = {};
+                AxisClickResult zaxis = {};
+                
+                xaxis.clicked = ray_intersect_hitbox(editor_ray_origin, editor_ray_dir,
+                                                     &picked->x_line_hbox, &xaxis.distance);
+                yaxis.clicked = ray_intersect_hitbox(editor_ray_origin, editor_ray_dir,
+                                                     &picked->y_line_hbox, &yaxis.distance);
+                zaxis.clicked = ray_intersect_hitbox(editor_ray_origin, editor_ray_dir,
+                                                     &picked->z_line_hbox, &zaxis.distance);
+                
+                xaxis.direction = Vec3(1.0f, 0.0f, 0.0f);
+                yaxis.direction = Vec3(0.0f, 1.0f, 0.0f);
+                zaxis.direction = Vec3(0.0f, 0.0f, 1.0f);
+                
+                if(xaxis.clicked || yaxis.clicked || zaxis.clicked)
+                {
+                    picked->xpicked = xmouse;
+                    picked->ypicked = ymouse;
+                    picked->click_state = CLICKED_HOLDING;
+                    picked->last_axis = closest_click_result(xaxis, yaxis, zaxis);
+                }
+            }
         }
+        
+        editor_tick(state);
         
         {
             float movement_scalar = 0.1f;
             Vec3 *pos;
             Vec3 straight, right, up;
-            if(state->in_editor && state->picked_entity)
+            if(state->in_editor && state->edit_picked.entity)
             {
-                pos = &state->picked_entity->position;
+                pos = &state->edit_picked.entity->position;
                 up = Vec3(0.0f, 1.0f, 0.0f);
                 right = Vec3(-1.0f, 0.0f, 0.0f);
                 straight = Vec3(0.0f, 0.0f, 1.0f);
@@ -556,6 +592,31 @@ int main()
         if(FLAG_IS_SET(ctx->flags, RENDER_DRAW_HITBOXES))
         {
             render_push_line(rqueue, to_point_light);
+        }
+        
+        if(state->in_editor && state->edit_picked.entity)
+        {
+            EditorPickedEntity *picked = &state->edit_picked;
+            
+            picked->x_line = line_from_direction(picked->entity->position,
+                                                 Vec3(1.0f, 0.0f, 0.0f), 2.0f);
+            picked->y_line = line_from_direction(picked->entity->position,
+                                                 Vec3(0.0f, 1.0f, 0.0f), 2.0f);
+            picked->z_line = line_from_direction(picked->entity->position,
+                                                 Vec3(0.0f, 0.0f, 1.0f), 2.0f);
+            
+            f32 hbox_r = 0.1f;
+            picked->x_line_hbox = hitbox_as_cylinder(picked->x_line, hbox_r);
+            picked->y_line_hbox = hitbox_as_cylinder(picked->y_line, hbox_r);
+            picked->z_line_hbox = hitbox_as_cylinder(picked->z_line, hbox_r);
+            
+            render_push_line(rqueue, picked->x_line);
+            render_push_line(rqueue, picked->y_line);
+            render_push_line(rqueue, picked->z_line);
+            
+            render_push_hitbox(rqueue, &picked->x_line_hbox);
+            render_push_hitbox(rqueue, &picked->y_line_hbox);
+            render_push_hitbox(rqueue, &picked->z_line_hbox);
         }
         
         render_push_skybox(rqueue, skybox);

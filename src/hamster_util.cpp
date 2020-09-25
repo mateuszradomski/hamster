@@ -203,6 +203,29 @@ string_get_char_count(char *str, char c)
     return result;
 }
 
+static void
+sort(void *array, u32 count, u32 elem_size, bool (* swap_func)(void *, void *))
+{
+    // TODO(mateusz): Quick sort
+    assert(elem_size < 512);
+    u8 swap_buffer[512] = {};
+    
+    for(u32 i = 0; i < count - 1; i++)
+    {
+        for(u32 j = 0; j < count - 1; j++)
+        {
+            void *elem0 = (u8 *)array + j * elem_size;
+            void *elem1 = (u8 *)array + (j + 1) * elem_size;
+            if(swap_func(elem0, elem1))
+            {
+                memcpy(swap_buffer, elem0, elem_size);
+                memcpy(elem0, elem1, elem_size);
+                memcpy(elem1, swap_buffer, elem_size);
+            }
+        }
+    }
+}
+
 static time_t
 get_file_stamp(const char *filename)
 {
@@ -216,6 +239,27 @@ get_file_stamp(const char *filename)
     printf("get_file_stamp not implemeted for this platform [%s : %d]\n", __FILE__, __LINE__);
     return 0;
 #endif
+}
+
+static void 
+editor_tick(ProgramState *state)
+{
+    if(!state->in_editor) { return; }
+    
+    EditorPickedEntity *picked = &state->edit_picked;
+    if(!state->mbuttons[GLFW_MOUSE_BUTTON_LEFT].down && FLAG_IS_SET(picked->click_state, CLICKED_HOLDING))
+    {
+        printf("No longer holding the axis\n");
+        FLAG_SET(picked->click_state, CLICKED_LET_GO);
+        FLAG_UNSET(picked->click_state, CLICKED_HOLDING);
+    }
+    
+    if(state->edit_picked.entity)
+    {
+        Entity *entity = state->edit_picked.entity;
+        
+        NOT_USED(entity);
+    }
 }
 
 #if 0

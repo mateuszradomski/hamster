@@ -209,14 +209,12 @@ static void render_draw_queue(RenderQueue *queue, RenderContext *ctx);
 static void render_end(RenderQueue *queue, RenderContext *ctx, i32 window_width, i32 window_height);
 
 static void render_load_programs(RenderContext *ctx);
-
 static bool program_shader_ok(GLuint shader);
 static bool program_ok(GLuint program);
 static ShaderProgram program_create_from_file(const char *vertex_filename, const char *fragment_filename);
 
 static void camera_calculate_vectors(Camera *cam);
 static void camera_mouse_moved(Camera *cam, f32 dx, f32 dy);
-
 
 static void opengl_set_uniform(GLuint location, i32 v);
 static void opengl_set_uniform(GLuint location, f32 val);

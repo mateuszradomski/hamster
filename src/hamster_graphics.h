@@ -192,6 +192,39 @@ struct Entity
 	Model *model;
 };
 
+struct AxisClickResult
+{
+    Vec3 direction;
+    f32 distance;
+    bool clicked;
+};
+
+typedef u32 EditorClickState;
+enum
+{
+    NOT_YET_CLICKED = 0x0,
+    CLICKED_HOLDING = 0x1,
+    CLICKED_LET_GO  = 0x2,
+};
+
+struct EditorPickedEntity
+{
+    Entity *entity;
+    
+    EditorClickState click_state;
+    AxisClickResult last_axis;
+    f32 xpicked;
+    f32 ypicked;
+    
+    Line x_line;
+    Line y_line;
+    Line z_line;
+    
+    Hitbox x_line_hbox;
+    Hitbox y_line_hbox;
+    Hitbox z_line_hbox;
+};
+
 struct Cubemap
 {
     GLuint vao;
@@ -225,8 +258,10 @@ static void model_gouraud_shade(Model *model);
 static void model_mesh_normals_shade(Model *model);
 
 static Hitbox hitbox_create_from_mesh(Mesh *mesh);
+static Hitbox hitbox_as_cylinder(Line line, Vec3 r);
 static bool hitbox_in_frustum(Hitbox *hbox, Plane *planes, Mat4 transform);
 
+static Vec2 to_screen_point(Vec3 point);
 static Line line_from_direction(Vec3 origin, Vec3 direction, f32 line_length);
 
 static Cubemap cubemap_create_skybox();
@@ -238,6 +273,8 @@ static bool ray_intersect_model(Vec3 ray_origin, Vec3 ray_direction, Model *mode
 static bool ray_intersect_mesh_transformed(Vec3 ray_origin, Vec3 ray_direction, Model *model, Mat4 transform);
 static bool ray_intersect_hitbox(Vec3 ray_origin, Vec3 ray_direction, Hitbox *hbox);
 static bool ray_intersect_entity(Vec3 ray_origin, Vec3 ray_direction, Entity *entity);
+
+static AxisClickResult closest_click_result(AxisClickResult xaxis, AxisClickResult yaxis, AxisClickResult zaxis);
 
 static Vec3 triangle_normal(Vec3 v0, Vec3 v1, Vec3 v2);
 

@@ -801,6 +801,17 @@ hitbox_create_from_mesh(Mesh *mesh)
     return result;
 }
 
+static Hitbox
+hitbox_as_cylinder(Line line, f32 r)
+{
+    Hitbox result = {};
+    
+    result.refpoint = subs(line.point0, r);
+    result.size = adds(sub(line.point1, line.point0), r);
+    
+    return result;
+}
+
 static bool
 hitbox_in_frustum(Hitbox *hbox, Plane *planes, Mat4 transform)
 {
@@ -819,6 +830,15 @@ hitbox_in_frustum(Hitbox *hbox, Plane *planes, Mat4 transform)
     
     return true;
 }
+
+#if 0
+static Vec2 
+to_screen_point(Vec3 point, Mat4 view, Mat4 proj)
+{
+    Vec4 in_eye = mul(view, point);
+    Vec4 in_proj = 
+}
+#endif
 
 static Line
 line_from_direction(Vec3 origin, Vec3 direction, f32 line_length)
@@ -971,7 +991,7 @@ ui_element_create(Vec2 position, Vec2 size, const char *texture_filename)
 // https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/ray-triangle-intersection-geometric-solution
 static bool
 ray_intersect_triangle(Vec3 ray_origin, Vec3 ray_direction,
-                       Vec3 v0, Vec3 v1, Vec3 v2, Vec3 normal)
+                       Vec3 v0, Vec3 v1, Vec3 v2, Vec3 normal, f32 *dist_result)
 {
     f32 zero_treshold = 0.0001f;
     f32 denom = inner(normal, ray_direction);
@@ -989,8 +1009,23 @@ ray_intersect_triangle(Vec3 ray_origin, Vec3 ray_direction,
     Vec3 c0 = sub(plane_hit, v0); 
     Vec3 c1 = sub(plane_hit, v1);
     Vec3 c2 = sub(plane_hit, v2);
-    return (inner(normal, cross(edge0, c0)) > 0.0f && inner(normal, cross(edge1, c1)) > 0.0f &&
-            inner(normal, cross(edge2, c2)) > 0.0f);
+    bool hit = inner(normal, cross(edge0, c0)) > 0.0f && inner(normal, cross(edge1, c1)) > 0.0f &&
+        inner(normal, cross(edge2, c2)) > 0.0f;
+    
+    if(hit) {
+        *dist_result = ray_dist;
+    }
+    
+    return hit;
+}
+
+static bool
+ray_intersect_triangle(Vec3 ray_origin, Vec3 ray_direction,
+                       Vec3 v0, Vec3 v1, Vec3 v2, Vec3 normal)
+{
+    f32 tmp;
+    
+    return ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal, &tmp);
 }
 
 static bool
@@ -1053,7 +1088,7 @@ ray_intersect_mesh_transformed(Vec3 ray_origin, Vec3 ray_direction, Mesh *mesh, 
 }
 
 static bool
-ray_intersect_hitbox(Vec3 ray_origin, Vec3 ray_direction, Hitbox *hbox)
+ray_intersect_hitbox(Vec3 ray_origin, Vec3 ray_direction, Hitbox *hbox, f32 *dist_result)
 {
     // NOTE(mateusz): We are using intersect triangle here because it's already
     // implemented but if it's too slow look into square intersection. But I don't
@@ -1081,78 +1116,87 @@ ray_intersect_hitbox(Vec3 ray_origin, Vec3 ray_direction, Hitbox *hbox)
     v2 = vertices[6];
     // NOTE(mateusz): If slow, on the pararell faces we can just negate the normal
     normal = triangle_normal(v0, v1, v2);
-    if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal)) { return true; }
+    if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal, dist_result)) { return true; }
     
     v0 = vertices[6];
     v1 = vertices[5];
     v2 = vertices[7];
-    if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal)) { return true; }
+    if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal, dist_result)) { return true; }
     
     // Back face
     v0 = vertices[0];
     v1 = vertices[1];
     v2 = vertices[2];
     normal = triangle_normal(v0, v1, v2);
-    if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal)) { return true; }
+    if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal, dist_result)) { return true; }
     
     v0 = vertices[1];
     v1 = vertices[4];
     v2 = vertices[2];
-    if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal)) { return true; }
+    if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal, dist_result)) { return true; }
     
     // Left face
     v0 = vertices[0];
     v1 = vertices[2];
     v2 = vertices[3];
     normal = triangle_normal(v0, v1, v2);
-    if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal)) { return true; }
+    if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal, dist_result)) { return true; }
     
     v2 = vertices[3];
     v1 = vertices[2];
     v0 = vertices[5];
-    if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal)) { return true; }
+    if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal, dist_result)) { return true; }
     
     // Right face
     v0 = vertices[1];
     v1 = vertices[4];
     v2 = vertices[6];
     normal = triangle_normal(v0, v1, v2);
-    if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal)) { return true; }
+    if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal, dist_result)) { return true; }
     
     v0 = vertices[6];
     v1 = vertices[4];
     v2 = vertices[7];
-    if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal)) { return true; }
+    if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal, dist_result)) { return true; }
     
     // Top face
     v0 = vertices[2];
     v1 = vertices[5];
     v2 = vertices[4];
     normal = triangle_normal(v0, v1, v2);
-    if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal)) { return true; }
+    if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal, dist_result)) { return true; }
     
     v0 = vertices[4];
     v1 = vertices[5];
     v2 = vertices[7];
-    if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal)) { return true; }
+    if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal, dist_result)) { return true; }
     
     // Bottom face
     v0 = vertices[0];
     v1 = vertices[1];
     v2 = vertices[3];
     normal = triangle_normal(v0, v1, v2);
-    if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal)) { return true; }
+    if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal, dist_result)) { return true; }
     
     v0 = vertices[1];
     v1 = vertices[3];
     v2 = vertices[6];
-    if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal)) { return true; }
+    if(ray_intersect_triangle(ray_origin, ray_direction, v0, v1, v2, normal, dist_result)) { return true; }
     
     return false;
 }
 
+
+static bool
+ray_intersect_hitbox(Vec3 ray_origin, Vec3 ray_direction, Hitbox *hbox)
+{
+    f32 tmp;
+    
+    return ray_intersect_hitbox(ray_origin, ray_direction, hbox, &tmp);
+}
+
 // NOTE(mateusz): This is in no way a final function, it should really be called
-// debug somehow. Real intersections will be working a bit different.
+// debug somehow. Real intersections will be working a bit different. //// HOW???
 static bool 
 ray_intersect_entity(Vec3 ray_origin, Vec3 ray_direction, Entity *entity)
 {
@@ -1173,6 +1217,64 @@ ray_intersect_entity(Vec3 ray_origin, Vec3 ray_direction, Entity *entity)
     }
     
     return false;
+}
+
+static bool
+click_result_swap_func(void *elem0, void *elem1)
+{
+    AxisClickResult *c0 = (AxisClickResult *)elem0;
+    AxisClickResult *c1 = (AxisClickResult *)elem1;
+    
+    if(c0->clicked && c1->clicked)
+    {
+        return c0->distance > c1->distance;
+    }
+    else if(c0->clicked)
+    {
+        return false;
+    }
+    else if(c1->clicked)
+    {
+        return true;
+    }
+    
+    return true;
+}
+
+static AxisClickResult 
+closest_click_result(AxisClickResult xaxis, AxisClickResult yaxis, AxisClickResult zaxis)
+{
+    AxisClickResult closest = {};
+    
+    AxisClickResult axis[] = {
+        xaxis, yaxis, zaxis,
+    };
+    
+    u32 clicked_count = 0;
+    for(u32 i = 0; i < ARRAY_LEN(axis); i++)
+    {
+        clicked_count += axis[i].clicked ? 1 : 0;
+    }
+    
+    if(clicked_count == 1)
+    {
+        for(u32 i = 0; i < ARRAY_LEN(axis); i++)
+        {
+            if(axis[i].clicked)
+            {
+                closest = axis[i];
+                break;
+            }
+        }
+    }
+    else
+    {
+        sort(axis, ARRAY_LEN(axis), sizeof(axis[0]), click_result_swap_func);
+        
+        closest = axis[0];
+    }
+    
+    return closest;
 }
 
 // NOTE(mateusz): This funictons returns normalized normal and takes a counter-clockwise
