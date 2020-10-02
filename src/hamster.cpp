@@ -435,19 +435,22 @@ int main()
     glCullFace(GL_BACK);
     glFrontFace(GL_CCW);
     
-    f64 xmouse, ymouse;
-	f64 xmouseold, ymouseold;
-	glfwGetCursorPos(state->window.ptr, &xmouse, &ymouse);
+    CursorPosition *cursor = &state->cursor_position;
+	glfwGetCursorPos(state->window.ptr, &cursor->x, &cursor->y);
 	while(!glfwWindowShouldClose(state->window.ptr))
 	{
 		glfwPollEvents();
         state->timer.frame_start = glfwGetTime();
 		
-		xmouseold = xmouse;
-		ymouseold = ymouse;
-		glfwGetCursorPos(state->window.ptr, &xmouse, &ymouse);
+		cursor->xold = cursor->x;
+		cursor->yold = cursor->y;
+		glfwGetCursorPos(state->window.ptr, &cursor->x, &cursor->y);
         if(!state->in_editor)
-            camera_mouse_moved(&ctx->cam, xmouse - xmouseold, ymouse - ymouseold);
+        {
+            camera_mouse_moved(&ctx->cam,
+                               cursor->x - cursor->xold,
+                               cursor->y - cursor->yold);
+        }
         
         ctx->spot.position = ctx->cam.position;
         ctx->spot.direction = ctx->cam.front;
@@ -481,7 +484,7 @@ int main()
         
         if(state->in_editor && state->mbuttons[GLFW_MOUSE_BUTTON_LEFT].pressed)
         {
-            Vec2 ndc = screen_to_ndc(xmouse, ymouse,
+            Vec2 ndc = screen_to_ndc(cursor->x, cursor->y,
                                      state->window.width, state->window.height);
             
             Mat4 proj_inversed = inverse(ctx->proj);
@@ -513,8 +516,8 @@ int main()
                 
                 if(axis_hit)
                 {
-                    picked->xpicked = xmouse;
-                    picked->ypicked = ymouse;
+                    picked->xpicked = cursor->x;
+                    picked->ypicked = cursor->y;
                     picked->click_state = CLICKED_HOLDING;
                     picked->original_position = picked->entity->position;
                     picked->last_axis = closest_click_result(xaxis, yaxis, zaxis);
@@ -543,66 +546,6 @@ int main()
         }
         
         editor_tick(state);
-        
-        if(FLAG_IS_SET(state->edit_picked.click_state, CLICKED_HOLDING))
-        {
-            EditorPickedEntity *picked = &state->edit_picked;
-            Mat4 proj = state->ctx.proj;
-            Mat4 view = state->ctx.view;
-            
-            Vec2 entity_on_screen = world_point_to_screen(picked->original_position,
-                                                          proj, view);
-            
-            Vec3 entity_axis = add(picked->original_position,
-                                   picked->last_axis.direction);
-            Vec2 entity_axis_on_screen = world_point_to_screen(entity_axis, proj, view);
-            
-            //Vec2 window_dim = Vec2(state->window.width, state->window.height);
-            Vec2 ndc_now = screen_to_ndc(xmouse, ymouse,
-                                         state->window.width, state->window.height);
-            Vec2 ndc_picked = screen_to_ndc(picked->xpicked, picked->ypicked,
-                                            state->window.width, state->window.height);
-            
-            Vec2 delta_mouse = sub(ndc_now, ndc_picked);
-            Vec2 axis_direction = noz(sub(entity_axis_on_screen, entity_on_screen));
-            
-            f32 length_moved = inner(axis_direction, delta_mouse);
-            
-            Vec2 screen_point = add(ndc_picked, scale(axis_direction, length_moved));
-            
-            Mat4 proj_inversed = inverse(ctx->proj);
-            Mat4 view_inversed = inverse(ctx->view);
-            Vec3 ray_to_cursor_along_axis = ndc_to_ray_direction(screen_point,
-                                                                 proj_inversed, view_inversed);
-            
-            Vec3 new_basis = sub(picked->original_position, state->ctx.cam.position);
-            
-            Vec3 t2 = div(new_basis, ray_to_cursor_along_axis);
-            Vec3 mask = hadamard(t2, abs(picked->last_axis.direction));
-            t2 = sub(t2, mask);
-            
-            i32 contributing_parts = 0;
-            for(u32 i = 0; i < ARRAY_LEN(t2.m); i++)
-            {
-                if(t2.m[i] != 0.0f)
-                {
-                    contributing_parts += 1;
-                }
-            }
-            
-            f32 t2_scalar = (t2.x + t2.y + t2.z) / (f32)contributing_parts;
-            
-            Vec3 reversed_new_basis = sub(state->ctx.cam.position, picked->original_position);
-            Vec3 scaled_ray_along_axis = scale(ray_to_cursor_along_axis, t2_scalar);
-            Vec3 t1 = hadamard(add(reversed_new_basis, scaled_ray_along_axis),
-                               picked->last_axis.direction);
-            
-            f32 t1_scalar = t1.x + t1.y + t1.z;
-            Vec3 new_position = add(picked->original_position,
-                                    scale(picked->last_axis.direction, t1_scalar));
-            
-            picked->entity->position = new_position;
-        }
         
         {
             float movement_scalar = 0.1f;

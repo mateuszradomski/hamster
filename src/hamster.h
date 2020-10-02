@@ -21,6 +21,14 @@ struct Button
 	u8 pressed : 1;
 };
 
+struct CursorPosition
+{
+    f64 x;
+    f64 y;
+    f64 xold;
+    f64 yold;
+};
+
 struct ProgramState
 {
 	Window window;
@@ -29,7 +37,7 @@ struct ProgramState
     bool in_editor;
 	Button kbuttons[GLFW_KEY_LAST];
 	Button mbuttons[GLFW_MOUSE_BUTTON_LAST];
-    
+    CursorPosition cursor_position;
     RenderContext ctx;
     
     Entity entities[8];
