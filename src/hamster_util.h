@@ -18,6 +18,9 @@
 #define TIMER_START(id) clock_gettime(CLOCK_REALTIME, &tpoints[(id)].start);
 #define TIMER_END(id) clock_gettime(CLOCK_REALTIME, &tpoints[(id)].end); printf("Timer %d finished in %ld us\n", (id), (tpoints[(id)].end.tv_nsec - tpoints[(id)].start.tv_nsec) / 1000);
 
+#define PRINT_V2(label, v2) printf("%s = { %f, %f }\n", label, (v2).x, (v2).y)
+#define PRINT_V3(label, v3) printf("%s = { %f, %f, %f }\n", label, (v3).x, (v3).y, (v3).z)
+
 struct TimePoints
 {
     struct timespec start;

@@ -831,14 +831,52 @@ hitbox_in_frustum(Hitbox *hbox, Plane *planes, Mat4 transform)
     return true;
 }
 
-#if 0
-static Vec2 
-to_screen_point(Vec3 point, Mat4 view, Mat4 proj)
+static Vec2
+world_point_to_screen(Vec3 world_point, Mat4 proj, Mat4 view)
 {
-    Vec4 in_eye = mul(view, point);
-    Vec4 in_proj = 
+    Vec3 result = {};
+    
+    result = mul(proj, mul(view, world_point));
+    result = scale(result, 1.0f / result.z); // Perspective division.
+    
+    return Vec2(result.x, result.y);
 }
-#endif
+
+static Vec3
+ndc_to_ray_direction(Vec2 ndc, Mat4 proj_inversed, Mat4 view_inversed)
+{
+    Vec3 result = {};
+    
+    Vec4 clip_space = Vec4(ndc.x, ndc.y, -1.0f, 1.0f);
+    Vec4 eye_space = mul(proj_inversed, clip_space);
+    eye_space = Vec4(eye_space.x, eye_space.y, -1.0f, 0.0f);
+    Vec4 world_space = mul(view_inversed, eye_space);
+    
+    result = noz(Vec3(world_space.x, world_space.y, world_space.z));
+    
+    return result;
+}
+
+static Vec2
+screen_to_ndc(f32 xmouse, f32 ymouse, f32 width, f32 height)
+{
+    Vec2 result = {};
+    
+    result.x = (2.0f * xmouse) / width - 1.0f;
+    result.y = (2.0f * ((f64)height - ymouse)) / height - 1.0f;
+    
+    return result;
+}
+
+static Vec2
+screen_to_ndc(Vec2 mouse, Vec2 win_dim)
+{
+    Vec2 result = {};
+    
+    result = screen_to_ndc(mouse.x, mouse.y, win_dim.x, win_dim.y);
+    
+    return result;
+}
 
 static Line
 line_from_direction(Vec3 origin, Vec3 direction, f32 line_length)
@@ -1000,7 +1038,7 @@ ray_intersect_triangle(Vec3 ray_origin, Vec3 ray_direction,
     f32 dist = -inner(normal, v0);
     f32 ray_dist = -(inner(normal, ray_origin) + dist) / denom;
     if(ray_dist < zero_treshold && ray_dist > -zero_treshold) { return false; }
-    
+    \
     Vec3 edge0 = sub(v1, v0);
     Vec3 edge1 = sub(v2, v1);
     Vec3 edge2 = sub(v0, v2);

@@ -183,6 +183,12 @@ struct Line
     Vec3 point1;
 };
 
+struct Line2D
+{
+    Vec2 point0;
+    Vec2 point1;
+};
+
 struct Entity
 {
 	Vec3 position;
@@ -215,6 +221,7 @@ struct EditorPickedEntity
     AxisClickResult last_axis;
     f32 xpicked;
     f32 ypicked;
+    Vec3 original_position;
     
     Line x_line;
     Line y_line;
@@ -261,7 +268,9 @@ static Hitbox hitbox_create_from_mesh(Mesh *mesh);
 static Hitbox hitbox_as_cylinder(Line line, Vec3 r);
 static bool hitbox_in_frustum(Hitbox *hbox, Plane *planes, Mat4 transform);
 
-static Vec2 to_screen_point(Vec3 point);
+static Vec2 world_point_to_screen(Vec3 world, Mat4 proj, Mat4 view);
+static Vec3 ndc_to_ray_direction(Vec2 ndc, Mat4 proj_inversed, Mat4 view_inversed);
+static Vec2 screen_to_ndc(f32 xmouse, f32 ymouse, f32 width, f32 height);
 static Line line_from_direction(Vec3 origin, Vec3 direction, f32 line_length);
 
 static Cubemap cubemap_create_skybox();

@@ -244,10 +244,9 @@ get_file_stamp(const char *filename)
 static void 
 editor_tick(ProgramState *state)
 {
-    if(!state->in_editor) { return; }
-    
     EditorPickedEntity *picked = &state->edit_picked;
-    if(!state->mbuttons[GLFW_MOUSE_BUTTON_LEFT].down && FLAG_IS_SET(picked->click_state, CLICKED_HOLDING))
+    if((!state->in_editor || !state->mbuttons[GLFW_MOUSE_BUTTON_LEFT].down) &&
+       FLAG_IS_SET(picked->click_state, CLICKED_HOLDING))
     {
         printf("No longer holding the axis\n");
         FLAG_SET(picked->click_state, CLICKED_LET_GO);

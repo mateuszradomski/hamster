@@ -481,37 +481,17 @@ int main()
         
         if(state->in_editor && state->mbuttons[GLFW_MOUSE_BUTTON_LEFT].pressed)
         {
-            f32 xndc = (2.0f * xmouse) / state->window.width - 1.0f;
-            f32 yndc = (2.0f * ((f64)state->window.height - ymouse)) / state->window.height - 1.0f;
-            Vec4 clip_space = Vec4(xndc, yndc, -1.0f, 1.0f);
+            Vec2 ndc = screen_to_ndc(xmouse, ymouse,
+                                     state->window.width, state->window.height);
             
             Mat4 proj_inversed = inverse(ctx->proj);
-            Vec4 eye_space = mul(proj_inversed, clip_space);
-            eye_space = Vec4(eye_space.x, eye_space.y, -1.0f, 0.0f);
             Mat4 view_inversed = inverse(ctx->view);
-            Vec4 world_space = mul(view_inversed, eye_space);
             
             Vec3 editor_ray_origin = ctx->cam.position;
-            Vec3 editor_ray_dir = noz(Vec3(world_space.x, world_space.y, world_space.z));
+            Vec3 editor_ray_dir = ndc_to_ray_direction(ndc, proj_inversed, view_inversed);
             
-			u64 start = rdtsc();
-			bool entity_hit = false;
-            for(u32 i = 0; i < state->entities_len; i++)
-            {
-                if(ray_intersect_entity(editor_ray_origin, editor_ray_dir, state->entities + i))
-                {
-                    entity_hit = true;
-                    state->edit_picked.entity = state->entities + i;
-                    break;
-                }
-            }
-            
-			u64 end = rdtsc();
-			
-			u64 hit_clocks = end - start;
-			printf("EntityHit = %d | %lu clocks/call\n", entity_hit, hit_clocks);
-            
-            if(!entity_hit && state->edit_picked.entity)
+            bool axis_hit = false;
+            if(state->edit_picked.entity)
             {
                 EditorPickedEntity *picked = &state->edit_picked;
                 AxisClickResult xaxis = {};
@@ -525,21 +505,104 @@ int main()
                 zaxis.clicked = ray_intersect_hitbox(editor_ray_origin, editor_ray_dir,
                                                      &picked->z_line_hbox, &zaxis.distance);
                 
-                xaxis.direction = Vec3(1.0f, 0.0f, 0.0f);
-                yaxis.direction = Vec3(0.0f, 1.0f, 0.0f);
-                zaxis.direction = Vec3(0.0f, 0.0f, 1.0f);
+                axis_hit = xaxis.clicked || yaxis.clicked || zaxis.clicked;
                 
-                if(xaxis.clicked || yaxis.clicked || zaxis.clicked)
+                xaxis.direction = Vec3(1.0f, 0.0f, 0.0f);
+                yaxis.direction = Vec3(0.0f, -1.0f, 0.0f);
+                zaxis.direction = Vec3(0.0f, 0.0f, -1.0f);
+                
+                if(axis_hit)
                 {
                     picked->xpicked = xmouse;
                     picked->ypicked = ymouse;
                     picked->click_state = CLICKED_HOLDING;
+                    picked->original_position = picked->entity->position;
                     picked->last_axis = closest_click_result(xaxis, yaxis, zaxis);
                 }
+            }
+            
+            if(!axis_hit)
+            {
+                u64 start = rdtsc();
+                bool entity_hit = false;
+                for(u32 i = 0; i < state->entities_len; i++)
+                {
+                    if(ray_intersect_entity(editor_ray_origin, editor_ray_dir, state->entities + i))
+                    {
+                        entity_hit = true;
+                        state->edit_picked.entity = state->entities + i;
+                        break;
+                    }
+                }
+                
+                u64 end = rdtsc();
+                
+                u64 hit_clocks = end - start;
+                printf("EntityHit = %d | %lu clocks/call\n", entity_hit, hit_clocks);
             }
         }
         
         editor_tick(state);
+        
+        if(FLAG_IS_SET(state->edit_picked.click_state, CLICKED_HOLDING))
+        {
+            EditorPickedEntity *picked = &state->edit_picked;
+            Mat4 proj = state->ctx.proj;
+            Mat4 view = state->ctx.view;
+            
+            Vec2 entity_on_screen = world_point_to_screen(picked->original_position,
+                                                          proj, view);
+            
+            Vec3 entity_axis = add(picked->original_position,
+                                   picked->last_axis.direction);
+            Vec2 entity_axis_on_screen = world_point_to_screen(entity_axis, proj, view);
+            
+            //Vec2 window_dim = Vec2(state->window.width, state->window.height);
+            Vec2 ndc_now = screen_to_ndc(xmouse, ymouse,
+                                         state->window.width, state->window.height);
+            Vec2 ndc_picked = screen_to_ndc(picked->xpicked, picked->ypicked,
+                                            state->window.width, state->window.height);
+            
+            Vec2 delta_mouse = sub(ndc_now, ndc_picked);
+            Vec2 axis_direction = noz(sub(entity_axis_on_screen, entity_on_screen));
+            
+            f32 length_moved = inner(axis_direction, delta_mouse);
+            
+            Vec2 screen_point = add(ndc_picked, scale(axis_direction, length_moved));
+            
+            Mat4 proj_inversed = inverse(ctx->proj);
+            Mat4 view_inversed = inverse(ctx->view);
+            Vec3 ray_to_cursor_along_axis = ndc_to_ray_direction(screen_point,
+                                                                 proj_inversed, view_inversed);
+            
+            Vec3 new_basis = sub(picked->original_position, state->ctx.cam.position);
+            
+            Vec3 t2 = div(new_basis, ray_to_cursor_along_axis);
+            Vec3 mask = hadamard(t2, abs(picked->last_axis.direction));
+            t2 = sub(t2, mask);
+            
+            i32 contributing_parts = 0;
+            for(u32 i = 0; i < ARRAY_LEN(t2.m); i++)
+            {
+                if(t2.m[i] != 0.0f)
+                {
+                    contributing_parts += 1;
+                }
+            }
+            
+            f32 t2_scalar = (t2.x + t2.y + t2.z) / (f32)contributing_parts;
+            
+            Vec3 reversed_new_basis = sub(state->ctx.cam.position, picked->original_position);
+            Vec3 scaled_ray_along_axis = scale(ray_to_cursor_along_axis, t2_scalar);
+            Vec3 t1 = hadamard(add(reversed_new_basis, scaled_ray_along_axis),
+                               picked->last_axis.direction);
+            
+            f32 t1_scalar = t1.x + t1.y + t1.z;
+            Vec3 new_position = add(picked->original_position,
+                                    scale(picked->last_axis.direction, t1_scalar));
+            
+            picked->entity->position = new_position;
+        }
         
         {
             float movement_scalar = 0.1f;
@@ -614,9 +677,11 @@ int main()
             render_push_line(rqueue, picked->y_line);
             render_push_line(rqueue, picked->z_line);
             
+#if 0
             render_push_hitbox(rqueue, &picked->x_line_hbox);
             render_push_hitbox(rqueue, &picked->y_line_hbox);
             render_push_hitbox(rqueue, &picked->z_line_hbox);
+#endif
         }
         
         render_push_skybox(rqueue, skybox);
