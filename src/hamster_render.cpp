@@ -807,69 +807,76 @@ program_ok(GLuint program)
 static ShaderProgram
 program_create_from_files(u32 vertex_count, u32 fragment_count, ...)
 {
-    assert(vertex_count == 1);
-    assert(fragment_count == 1);
-
     va_list valist = {};
     u32 last = vertex_count + fragment_count;
     va_start(valist, last);
-
-    char *vertex_filename = va_arg(valist, char *);
-    char *fragment_filename = va_arg(valist, char *);
 
     ShaderProgram program = {};
     program.vertex_count = vertex_count;
     program.fragment_count = fragment_count;
 
+    // TODO(mateusz): @mem-leak 
     program.vertex_filenames = (const char **)malloc(vertex_count * sizeof(program.vertex_filenames[0]));
     program.fragment_filenames = (const char **)malloc(fragment_count * sizeof(program.fragment_filenames[0]));
-    program.vertex_filenames[0] = vertex_filename;
-    program.fragment_filenames[0] = fragment_filename;
-    
     program.vertex_stamps = (time_t *)malloc(vertex_count * sizeof(program.vertex_stamps[0]));
     program.fragment_stamps = (time_t *)malloc(fragment_count * sizeof(program.fragment_stamps[0]));
-    program.vertex_stamps[0] = get_file_stamp(vertex_filename);
-    program.fragment_stamps[0] = get_file_stamp(fragment_filename);
-    
-    FILE *f = fopen(vertex_filename, "r");
-    assert(f);
-    char *vertex_src = read_file_to_string(f);
-    fclose(f);
-    
-    f = fopen(fragment_filename, "r");
-    assert(f);
-    char *fragment_src = read_file_to_string(f);
-    fclose(f);
-    
-    GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex_shader, 1, &vertex_src, NULL);
-    glCompileShader(vertex_shader);
-    if(!program_shader_ok(vertex_shader))
-    {
-        printf("Error in file [%s]\n", vertex_filename);
-        program.id = 0;
-        return program;
-    }
-    
-    GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment_shader, 1, &fragment_src, NULL);
-    glCompileShader(fragment_shader);
-    if(!program_shader_ok(fragment_shader))
-    {
-        printf("Error in file [%s]\n", fragment_filename);
-        program.id = 0;
-        return program;
-    }
-    
+
     program.id = glCreateProgram();
-    glAttachShader(program.id, vertex_shader);
-    glAttachShader(program.id, fragment_shader);
+    for(u32 i = 0; i < vertex_count; i++)
+    {
+        char *vertex_filename = va_arg(valist, char *);
+        program.vertex_filenames[i] = vertex_filename;
+        program.vertex_stamps[i] = get_file_stamp(vertex_filename);
+
+        FILE *f = fopen(vertex_filename, "r");
+        assert(f);
+        char *vertex_src = read_file_to_string(f);
+        fclose(f);
+
+        GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+        glShaderSource(vertex_shader, 1, &vertex_src, NULL);
+        glCompileShader(vertex_shader);
+        if(!program_shader_ok(vertex_shader))
+        {
+            printf("Error in file [%s]\n", vertex_filename);
+            glDeleteProgram(program.id);
+            program.id = 0;
+            return program;
+        }
+
+        glAttachShader(program.id, vertex_shader);
+        free(vertex_src);
+    }
+
+    for(u32 i = 0; i < fragment_count; i++)
+    {
+        char *fragment_filename = va_arg(valist, char *);
+        program.fragment_filenames[i] = fragment_filename;
+        program.fragment_stamps[i] = get_file_stamp(fragment_filename);
+
+        FILE *f = fopen(fragment_filename, "r");
+        assert(f);
+        char *fragment_src = read_file_to_string(f);
+        fclose(f);
+
+        GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
+        glShaderSource(fragment_shader, 1, &fragment_src, NULL);
+        glCompileShader(fragment_shader);
+        if(!program_shader_ok(fragment_shader))
+        {
+            printf("Error in file [%s]\n", fragment_filename);
+            glDeleteProgram(program.id);
+            program.id = 0;
+            return program;
+        }
+
+        glAttachShader(program.id, fragment_shader);
+        free(fragment_src);
+    }
+    
     glLinkProgram(program.id);
     assert(program_ok(program.id));
     
-    free(vertex_src);
-    free(fragment_src);
-
     va_end(valist);
     
     return program;
