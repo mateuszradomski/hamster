@@ -3,6 +3,7 @@
 #include <cstring>
 #include <cassert>
 #include <ctime>
+#include <cstdarg>
 
 // NOTE(mateusz): Unix systems only!
 #ifdef __linux__

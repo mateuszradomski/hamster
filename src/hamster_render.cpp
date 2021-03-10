@@ -148,14 +148,14 @@ render_load_uniforms(RenderContext *ctx, i32 index)
 static void
 render_load_programs(RenderContext *ctx)
 {
-    ctx->programs[ShaderProgram_Basic] = program_create_from_file(MAIN_VERTEX_FILENAME, MAIN_FRAG_FILENAME);
-    ctx->programs[ShaderProgram_Simple] = program_create_from_file(SIMPLE_VERTEX_FILENAME, SIMPLE_FRAG_FILENAME);
-    ctx->programs[ShaderProgram_Skybox] = program_create_from_file(SKYBOX_VERTEX_FILENAME, SKYBOX_FRAG_FILENAME);
-    ctx->programs[ShaderProgram_UI] = program_create_from_file(UI_VERTEX_FILENAME, UI_FRAG_FILENAME);
-    ctx->programs[ShaderProgram_Line] = program_create_from_file(MAIN_VERTEX_FILENAME, LINE_FRAG_FILENAME);
+    ctx->programs[ShaderProgram_Basic] = program_create_from_files(1, 1, MAIN_VERTEX_FILENAME, MAIN_FRAG_FILENAME);
+    ctx->programs[ShaderProgram_Simple] = program_create_from_files(1, 1, SIMPLE_VERTEX_FILENAME, SIMPLE_FRAG_FILENAME);
+    ctx->programs[ShaderProgram_Skybox] = program_create_from_files(1, 1, SKYBOX_VERTEX_FILENAME, SKYBOX_FRAG_FILENAME);
+    ctx->programs[ShaderProgram_UI] = program_create_from_files(1, 1, UI_VERTEX_FILENAME, UI_FRAG_FILENAME);
+    ctx->programs[ShaderProgram_Line] = program_create_from_files(1, 1, MAIN_VERTEX_FILENAME, LINE_FRAG_FILENAME);
     ctx->programs[ShaderProgram_HDR] = 
-        program_create_from_file(HDR_VERTEX_FILENAME, HDR_FRAG_FILENAME);
-    ctx->programs[ShaderProgram_SunDepth] = program_create_from_file(SUN_DEPTH_VERTEX_FILENAME, SUN_DEPTH_FRAG_FILENAME);
+        program_create_from_files(1, 1, HDR_VERTEX_FILENAME, HDR_FRAG_FILENAME);
+    ctx->programs[ShaderProgram_SunDepth] = program_create_from_files(1, 1, SUN_DEPTH_VERTEX_FILENAME, SUN_DEPTH_FRAG_FILENAME);
     
     for(u32 i = 0; i < (u32)ShaderProgram_LastElement; i++)
     {
@@ -193,7 +193,7 @@ render_prepass(RenderContext *ctx, i32 window_width, i32 window_height)
         
         if(vstamp > prog->vertex_stamp || fstamp > prog->fragment_stamp)
         {
-            ShaderProgram new_program = program_create_from_file(prog->vertex_filename, prog->fragment_filename);
+            ShaderProgram new_program = program_create_from_files(1, 1, prog->vertex_filename, prog->fragment_filename);
             
             if(new_program.id != 0)
             {
@@ -804,8 +804,18 @@ program_ok(GLuint program)
 }
 
 static ShaderProgram
-program_create_from_file(const char *vertex_filename, const char *fragment_filename)
+program_create_from_files(u32 vertex_count, u32 fragment_count, ...)
 {
+    assert(vertex_count == 1);
+    assert(fragment_count == 1);
+
+    va_list valist = {};
+    u32 last = vertex_count + fragment_count;
+    va_start(valist, last);
+
+    char *vertex_filename = va_arg(valist, char *);
+    char *fragment_filename = va_arg(valist, char *);
+
     ShaderProgram program = {};
     program.vertex_filename = vertex_filename;
     program.fragment_filename = fragment_filename;
@@ -851,6 +861,8 @@ program_create_from_file(const char *vertex_filename, const char *fragment_filen
     
     free(vertex_src);
     free(fragment_src);
+
+    va_end(valist);
     
     return program;
 }
