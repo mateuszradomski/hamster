@@ -148,7 +148,7 @@ render_load_uniforms(RenderContext *ctx, i32 index)
 static void
 render_load_programs(RenderContext *ctx)
 {
-    ctx->programs[ShaderProgram_Basic] = program_create_from_files(1, 1, MAIN_VERTEX_FILENAME, MAIN_FRAG_FILENAME);
+    ctx->programs[ShaderProgram_Basic] = program_create_from_files(1, 2, MAIN_VERTEX_FILENAME, LIGHT_FRAG_FILENAME, MAIN_FRAG_FILENAME);
     ctx->programs[ShaderProgram_Simple] = program_create_from_files(1, 1, SIMPLE_VERTEX_FILENAME, SIMPLE_FRAG_FILENAME);
     ctx->programs[ShaderProgram_Skybox] = program_create_from_files(1, 1, SKYBOX_VERTEX_FILENAME, SKYBOX_FRAG_FILENAME);
     ctx->programs[ShaderProgram_UI] = program_create_from_files(1, 1, UI_VERTEX_FILENAME, UI_FRAG_FILENAME);

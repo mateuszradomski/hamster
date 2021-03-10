@@ -7,6 +7,7 @@
 #define MAIN_FRAG_FILENAME "src/shaders/main_frag.glsl"
 #define SIMPLE_VERTEX_FILENAME "src/shaders/simple_vertex.glsl"
 #define SIMPLE_FRAG_FILENAME "src/shaders/simple_frag.glsl"
+#define LIGHT_FRAG_FILENAME "src/shaders/lights.glsl"
 #define LINE_FRAG_FILENAME "src/shaders/line_vertex.glsl"
 #define UI_VERTEX_FILENAME "src/shaders/ui_vertex.glsl"
 #define UI_FRAG_FILENAME "src/shaders/ui_frag.glsl"

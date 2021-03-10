@@ -1,5 +1,5 @@
 CXX=g++
-CFLAGS=-Wall -Wextra -Wno-class-memaccess -Wno-strict-aliasing -Wno-unused-function -I./
+CFLAGS=-Wall -Wextra -Wno-class-memaccess -Wno-strict-aliasing -Wno-unused-function -Wno-varargs -I./
 DEFINES=-DGCC_COMPILE
 LDFLAGS=-lglfw -lGL -lGLEW
 OBJFILES=libs/imgui/*.o libs/stb/stb.o
