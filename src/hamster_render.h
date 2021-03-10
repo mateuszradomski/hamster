@@ -215,6 +215,7 @@ static void render_load_programs(RenderContext *ctx);
 static bool program_shader_ok(GLuint shader);
 static bool program_ok(GLuint program);
 static ShaderProgram program_create_from_files(u32 vertex_count, u32 fragment_count, ...);
+static ShaderProgram program_create_from_file_arrays(u32 vertex_count, u32 fragment_count, const char **vertex_filenames, const char **fragment_filenames);
 
 static void camera_calculate_vectors(Camera *cam);
 static void camera_mouse_moved(Camera *cam, f32 dx, f32 dy);

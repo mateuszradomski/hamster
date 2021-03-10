@@ -189,25 +189,52 @@ render_prepass(RenderContext *ctx, i32 window_width, i32 window_height)
         ShaderProgram *prog = &ctx->programs[i];
         
         // TODO(mateusz): use vertex and fragment count
-        time_t vstamp = get_file_stamp(prog->vertex_filenames[0]);
-        time_t fstamp = get_file_stamp(prog->fragment_filenames[0]);
-        
-        if(vstamp > prog->vertex_stamps[0] || fstamp > prog->fragment_stamps[0])
+        bool refresh = false;
+        for(u32 i = 0; i < prog->vertex_count; i++)
         {
-            ShaderProgram new_program = program_create_from_files(1, 1, prog->vertex_filenames[0], prog->fragment_filenames[0]);
+            time_t vstamp = get_file_stamp(prog->vertex_filenames[i]);
+            if(vstamp > prog->vertex_stamps[i])
+            {
+                prog->vertex_stamps[i] = vstamp;
+                refresh = true;
+                break;
+            }
+        }
+
+        for(u32 i = 0; !refresh && i < prog->fragment_count; i++)
+        {
+            time_t fstamp = get_file_stamp(prog->fragment_filenames[i]);
+            if(fstamp > prog->fragment_stamps[i])
+            {
+                prog->fragment_stamps[i] = fstamp;
+                refresh = true;
+                break;
+            }
+        }
+
+        if(refresh)
+        {
+            ShaderProgram new_program = program_create_from_file_arrays(prog->vertex_count, prog->fragment_count,
+                                                                        prog->vertex_filenames, prog->fragment_filenames);
             
             if(new_program.id != 0)
             {
                 glDeleteProgram(prog->id);
                 
-                printf("Reloaded program from [%s] and [%s]\n", prog->vertex_filenames[0], prog->fragment_filenames[0]);
+                printf("(%f): Reloaded program from {", glfwGetTime());
+                for(u32 i = 0; i < prog->vertex_count; i++)
+                {
+                    printf(" [%s] ", prog->vertex_filenames[i]);
+                }
+                printf("} and {");
+                for(u32 i = 0; i < prog->fragment_count; i++)
+                {
+                    printf(" [%s] ", prog->fragment_filenames[i]);
+                }
+                printf("}\n");
+
                 *prog = new_program;
                 render_load_uniforms(ctx, i);
-            }
-            else
-            {
-                prog->vertex_stamps[0] = vstamp;
-                prog->fragment_stamps[0] = fstamp;
             }
         }
     }
@@ -805,12 +832,8 @@ program_ok(GLuint program)
 }
 
 static ShaderProgram
-program_create_from_files(u32 vertex_count, u32 fragment_count, ...)
+program_create_from_file_arrays(u32 vertex_count, u32 fragment_count, const char **vertex_filenames, const char **fragment_filenames)
 {
-    va_list valist = {};
-    u32 last = vertex_count + fragment_count;
-    va_start(valist, last);
-
     ShaderProgram program = {};
     program.vertex_count = vertex_count;
     program.fragment_count = fragment_count;
@@ -824,7 +847,7 @@ program_create_from_files(u32 vertex_count, u32 fragment_count, ...)
     program.id = glCreateProgram();
     for(u32 i = 0; i < vertex_count; i++)
     {
-        char *vertex_filename = va_arg(valist, char *);
+        const char *vertex_filename = vertex_filenames[i];
         program.vertex_filenames[i] = vertex_filename;
         program.vertex_stamps[i] = get_file_stamp(vertex_filename);
 
@@ -850,7 +873,7 @@ program_create_from_files(u32 vertex_count, u32 fragment_count, ...)
 
     for(u32 i = 0; i < fragment_count; i++)
     {
-        char *fragment_filename = va_arg(valist, char *);
+        const char *fragment_filename = fragment_filenames[i];
         program.fragment_filenames[i] = fragment_filename;
         program.fragment_stamps[i] = get_file_stamp(fragment_filename);
 
@@ -877,9 +900,36 @@ program_create_from_files(u32 vertex_count, u32 fragment_count, ...)
     glLinkProgram(program.id);
     assert(program_ok(program.id));
     
+    return program;
+}
+
+static ShaderProgram
+program_create_from_files(u32 vertex_count, u32 fragment_count, ...)
+{
+    va_list valist = {};
+    u32 last = vertex_count + fragment_count;
+    va_start(valist, last);
+
+    const char **vertex_filenames = (const char **)malloc(vertex_count * sizeof(vertex_filenames[0]));
+    const char **fragment_filenames = (const char **)malloc(fragment_count * sizeof(fragment_filenames[0]));
+
+    for(u32 i = 0; i < vertex_count; i++)
+    {
+        vertex_filenames[i] = va_arg(valist, char *);
+    }
+
+    for(u32 i = 0; i < fragment_count; i++)
+    {
+        fragment_filenames[i] = va_arg(valist, char *);
+    }
+
+    ShaderProgram result = program_create_from_file_arrays(vertex_count, fragment_count, vertex_filenames, fragment_filenames);
+
+    free(vertex_filenames);
+    free(fragment_filenames);
     va_end(valist);
     
-    return program;
+    return result;
 }
 
 static void
