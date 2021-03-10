@@ -32,10 +32,12 @@ enum ShaderProgram_Id
 struct ShaderProgram
 {
     GLuint id;
-    const char *vertex_filename;
-    const char *fragment_filename;
-    time_t vertex_stamp;
-    time_t fragment_stamp;
+    u32 vertex_count;
+    u32 fragment_count;
+    const char **vertex_filenames;
+    const char **fragment_filenames;
+    time_t *vertex_stamps;
+    time_t *fragment_stamps;
 };
 
 struct ShaderProgramUniforms

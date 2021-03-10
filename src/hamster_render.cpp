@@ -188,25 +188,26 @@ render_prepass(RenderContext *ctx, i32 window_width, i32 window_height)
     {
         ShaderProgram *prog = &ctx->programs[i];
         
-        time_t vstamp = get_file_stamp(prog->vertex_filename);
-        time_t fstamp = get_file_stamp(prog->fragment_filename);
+        // TODO(mateusz): use vertex and fragment count
+        time_t vstamp = get_file_stamp(prog->vertex_filenames[0]);
+        time_t fstamp = get_file_stamp(prog->fragment_filenames[0]);
         
-        if(vstamp > prog->vertex_stamp || fstamp > prog->fragment_stamp)
+        if(vstamp > prog->vertex_stamps[0] || fstamp > prog->fragment_stamps[0])
         {
-            ShaderProgram new_program = program_create_from_files(1, 1, prog->vertex_filename, prog->fragment_filename);
+            ShaderProgram new_program = program_create_from_files(1, 1, prog->vertex_filenames[0], prog->fragment_filenames[0]);
             
             if(new_program.id != 0)
             {
                 glDeleteProgram(prog->id);
                 
-                printf("Reloaded program from [%s] and [%s]\n", prog->vertex_filename, prog->fragment_filename);
+                printf("Reloaded program from [%s] and [%s]\n", prog->vertex_filenames[0], prog->fragment_filenames[0]);
                 *prog = new_program;
                 render_load_uniforms(ctx, i);
             }
             else
             {
-                prog->vertex_stamp = vstamp;
-                prog->fragment_stamp = fstamp;
+                prog->vertex_stamps[0] = vstamp;
+                prog->fragment_stamps[0] = fstamp;
             }
         }
     }
@@ -817,11 +818,18 @@ program_create_from_files(u32 vertex_count, u32 fragment_count, ...)
     char *fragment_filename = va_arg(valist, char *);
 
     ShaderProgram program = {};
-    program.vertex_filename = vertex_filename;
-    program.fragment_filename = fragment_filename;
+    program.vertex_count = vertex_count;
+    program.fragment_count = fragment_count;
+
+    program.vertex_filenames = (const char **)malloc(vertex_count * sizeof(program.vertex_filenames[0]));
+    program.fragment_filenames = (const char **)malloc(fragment_count * sizeof(program.fragment_filenames[0]));
+    program.vertex_filenames[0] = vertex_filename;
+    program.fragment_filenames[0] = fragment_filename;
     
-    program.vertex_stamp = get_file_stamp(vertex_filename);
-    program.fragment_stamp = get_file_stamp(fragment_filename);
+    program.vertex_stamps = (time_t *)malloc(vertex_count * sizeof(program.vertex_stamps[0]));
+    program.fragment_stamps = (time_t *)malloc(fragment_count * sizeof(program.fragment_stamps[0]));
+    program.vertex_stamps[0] = get_file_stamp(vertex_filename);
+    program.fragment_stamps[0] = get_file_stamp(fragment_filename);
     
     FILE *f = fopen(vertex_filename, "r");
     assert(f);
