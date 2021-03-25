@@ -1,0 +1,8 @@
+libs/
+bin/
+data/
+.vscode/
+project.4coder
+build.sh
+todo.txt
+imgui.ini
