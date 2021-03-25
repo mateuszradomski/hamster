@@ -505,6 +505,117 @@ model_create_debug_floor()
     return model;
 }
 
+static Model *
+model_create_sponge()
+{
+    Model *model = (Model *)malloc(sizeof(Model));
+    memset(model, 0, sizeof(Model));
+
+    Vertices vs = {};
+    vs.positions = (Vec3 *)malloc(36 * sizeof(Vec3));
+    vs.normals = (Vec3 *)malloc(36 * sizeof(Vec3));
+    
+    vs.normals[0] = Vec3(0.0f, 1.0f, 0.0f);
+    vs.normals[1] = Vec3(0.0f, 1.0f, 0.0f);
+    vs.normals[2] = Vec3(0.0f, 1.0f, 0.0f);
+    vs.normals[3] = Vec3(0.0f, 1.0f, 0.0f);
+
+    int i = 0;
+    vs.positions[i++] = Vec3(-0.5f, -0.5f, -0.5f);
+    vs.positions[i++] = Vec3( 0.5f, -0.5f, -0.5f);
+    vs.positions[i++] = Vec3( 0.5f,  0.5f, -0.5f);
+    vs.positions[i++] = Vec3( 0.5f,  0.5f, -0.5f);
+    vs.positions[i++] = Vec3(-0.5f,  0.5f, -0.5f);
+    vs.positions[i++] = Vec3(-0.5f, -0.5f, -0.5f);
+    vs.positions[i++] = Vec3(-0.5f, -0.5f,  0.5f);
+    vs.positions[i++] = Vec3( 0.5f, -0.5f,  0.5f);
+    vs.positions[i++] = Vec3( 0.5f,  0.5f,  0.5f);
+    vs.positions[i++] = Vec3( 0.5f,  0.5f,  0.5f);
+    vs.positions[i++] = Vec3(-0.5f,  0.5f,  0.5f);
+    vs.positions[i++] = Vec3(-0.5f, -0.5f,  0.5f);
+    vs.positions[i++] = Vec3(-0.5f,  0.5f,  0.5f);
+    vs.positions[i++] = Vec3(-0.5f,  0.5f, -0.5f);
+    vs.positions[i++] = Vec3(-0.5f, -0.5f, -0.5f);
+    vs.positions[i++] = Vec3(-0.5f, -0.5f, -0.5f);
+    vs.positions[i++] = Vec3(-0.5f, -0.5f,  0.5f);
+    vs.positions[i++] = Vec3(-0.5f,  0.5f,  0.5f);
+    vs.positions[i++] = Vec3( 0.5f,  0.5f,  0.5f);
+    vs.positions[i++] = Vec3( 0.5f,  0.5f, -0.5f);
+    vs.positions[i++] = Vec3( 0.5f, -0.5f, -0.5f);
+    vs.positions[i++] = Vec3( 0.5f, -0.5f, -0.5f);
+    vs.positions[i++] = Vec3( 0.5f, -0.5f,  0.5f);
+    vs.positions[i++] = Vec3( 0.5f,  0.5f,  0.5f);
+    vs.positions[i++] = Vec3(-0.5f, -0.5f, -0.5f);
+    vs.positions[i++] = Vec3( 0.5f, -0.5f, -0.5f);
+    vs.positions[i++] = Vec3( 0.5f, -0.5f,  0.5f);
+    vs.positions[i++] = Vec3( 0.5f, -0.5f,  0.5f);
+    vs.positions[i++] = Vec3(-0.5f, -0.5f,  0.5f);
+    vs.positions[i++] = Vec3(-0.5f, -0.5f, -0.5f);
+    vs.positions[i++] = Vec3(-0.5f,  0.5f, -0.5f);
+    vs.positions[i++] = Vec3( 0.5f,  0.5f, -0.5f);
+    vs.positions[i++] = Vec3( 0.5f,  0.5f,  0.5f);
+    vs.positions[i++] = Vec3( 0.5f,  0.5f,  0.5f);
+    vs.positions[i++] = Vec3(-0.5f,  0.5f,  0.5f);
+    vs.positions[i++] = Vec3(-0.5f,  0.5f, -0.5f);
+
+    int j = 0;
+    vs.normals[j++] = Vec3(0.0f,  0.0f, -1.0f);
+    vs.normals[j++] = Vec3(0.0f,  0.0f, -1.0f);
+    vs.normals[j++] = Vec3(0.0f,  0.0f, -1.0f);
+    vs.normals[j++] = Vec3(0.0f,  0.0f, -1.0f);
+    vs.normals[j++] = Vec3(0.0f,  0.0f, -1.0f);
+    vs.normals[j++] = Vec3(0.0f,  0.0f, -1.0f);
+    vs.normals[j++] = Vec3(0.0f,  0.0f, 1.0f);
+    vs.normals[j++] = Vec3(0.0f,  0.0f, 1.0f);
+    vs.normals[j++] = Vec3(0.0f,  0.0f, 1.0f);
+    vs.normals[j++] = Vec3(0.0f,  0.0f, 1.0f);
+    vs.normals[j++] = Vec3(0.0f,  0.0f, 1.0f);
+    vs.normals[j++] = Vec3(0.0f,  0.0f, 1.0f);
+    vs.normals[j++] = Vec3(-1.0f,  0.0f,  0.0f);
+    vs.normals[j++] = Vec3(-1.0f,  0.0f,  0.0f);
+    vs.normals[j++] = Vec3(-1.0f,  0.0f,  0.0f);
+    vs.normals[j++] = Vec3(-1.0f,  0.0f,  0.0f);
+    vs.normals[j++] = Vec3(-1.0f,  0.0f,  0.0f);
+    vs.normals[j++] = Vec3(-1.0f,  0.0f,  0.0f);
+    vs.normals[j++] = Vec3(1.0f,  0.0f,  0.0f);
+    vs.normals[j++] = Vec3(1.0f,  0.0f,  0.0f);
+    vs.normals[j++] = Vec3(1.0f,  0.0f,  0.0f);
+    vs.normals[j++] = Vec3(1.0f,  0.0f,  0.0f);
+    vs.normals[j++] = Vec3(1.0f,  0.0f,  0.0f);
+    vs.normals[j++] = Vec3(1.0f,  0.0f,  0.0f);
+    vs.normals[j++] = Vec3(0.0f, -1.0f,  0.0f);
+    vs.normals[j++] = Vec3(0.0f, -1.0f,  0.0f);
+    vs.normals[j++] = Vec3(0.0f, -1.0f,  0.0f);
+    vs.normals[j++] = Vec3(0.0f, -1.0f,  0.0f);
+    vs.normals[j++] = Vec3(0.0f, -1.0f,  0.0f);
+    vs.normals[j++] = Vec3(0.0f, -1.0f,  0.0f);
+    vs.normals[j++] = Vec3(0.0f,  1.0f,  0.0f);
+    vs.normals[j++] = Vec3(0.0f,  1.0f,  0.0f);
+    vs.normals[j++] = Vec3(0.0f,  1.0f,  0.0f);
+    vs.normals[j++] = Vec3(0.0f,  1.0f,  0.0f);
+    vs.normals[j++] = Vec3(0.0f,  1.0f,  0.0f);
+    vs.normals[j++] = Vec3(0.0f,  1.0f,  0.0);
+
+    model->meshes = (Mesh *)malloc(sizeof(Mesh));
+    model->meshes[model->meshes_len++] = {};
+    Mesh *mesh = model->meshes;
+    
+    mesh->vertices = vs;
+    mesh->vertices_len = 36;
+    
+    mesh->indices = (u32 *)malloc(36 * sizeof(mesh->indices[0]));
+    for(u32 i = 0; i < 36; i++)
+    {
+        mesh->indices[mesh->indices_len++] = i;
+    }
+
+    model->hitboxes = (Hitbox *)malloc(sizeof(model->hitboxes[0]));
+    model->hitboxes[model->hitboxes_len++] = hitbox_create_from_mesh(mesh);
+    model_finalize_mesh(mesh);
+
+    return model;
+}
+
 static Model
 model_create_from_obj(OBJModel *obj)
 {

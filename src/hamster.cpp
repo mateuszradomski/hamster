@@ -143,6 +143,16 @@ buttons_update(Button *buttons, u32 length)
 	}
 }
 
+static Entity *
+state_push_entity(ProgramState *state)
+{
+    Entity *result = 0x0;
+
+    result = &state->entities[state->entities_len++];
+
+    return result;
+}
+
 static void
 imgui_start_frame(ProgramState *state)
 {
@@ -328,7 +338,12 @@ int main()
 	floor->position = Vec3(0.0f, -2.0f, 0.0f);
 	floor->size = Vec3(10.0f, 1.0f, 10.0f);
 	floor->model = &floor_model;
-	
+
+    Entity *sponge = state_push_entity(state);
+    sponge->position = Vec3(5.0f, 0.0f, -2.0f);
+	sponge->size = Vec3(1.0f, 1.0f, 1.0f);
+    sponge->model = model_create_sponge();
+
     RenderContext *ctx = &state->ctx;
     render_load_programs(ctx);
     
@@ -432,9 +447,9 @@ int main()
     
     set_vsync(true);
     
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
-    glFrontFace(GL_CCW);
+    // glEnable(GL_CULL_FACE);
+    // glCullFace(GL_BACK);
+    // glFrontFace(GL_CCW);
     
     CursorPosition *cursor = &state->cursor_position;
 	glfwGetCursorPos(state->window.ptr, &cursor->x, &cursor->y);
@@ -636,7 +651,8 @@ int main()
         
         render_push_model(rqueue, *monkey);
         render_push_model(rqueue, *floor);
-        
+        render_push_model(rqueue, *sponge);
+
         if(FLAG_IS_SET(ctx->flags, RENDER_DRAW_HITBOXES))
         {
             for(u32 i = 0; i < state->entities_len; i++)

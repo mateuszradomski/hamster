@@ -55,4 +55,6 @@ static void keyboard_button_callback(GLFWwindow *window, int key, int scancode, 
 static void mouse_button_callback(GLFWwindow *window, int key, int action, int mods);
 static void buttons_update(Button *buttons, u32 length);
 
+static Entity *state_push_entity(ProgramState *state);
+
 #endif //HAMSTER_H
