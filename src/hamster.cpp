@@ -215,6 +215,11 @@ imgui_start_frame(ProgramState *state)
         
         ImGui::TreePop();
     }
+
+    if(ImGui::Button("Menger sponge: divide"))
+    {
+        printf("Dividing...\n");
+    }
     
     ImGui::SameLine();
     
@@ -339,9 +344,16 @@ int main()
 	floor->size = Vec3(10.0f, 1.0f, 10.0f);
 	floor->model = &floor_model;
 
-    Entity *sponge = state_push_entity(state);
-    sponge->position = Vec3(5.0f, 0.0f, -2.0f);
-	sponge->size = Vec3(1.0f, 1.0f, 1.0f);
+    EntityInstanced *sponge = &state->sponge;
+    sponge->instances_count = 1;
+    sponge->positions = (Vec3 *)malloc(sizeof(sponge->positions[0]));
+    sponge->sizes = (Vec3 *)malloc(sizeof(sponge->sizes[0]));
+    sponge->rotations = (Quat *)malloc(sizeof(sponge->rotations[0]));
+    
+    sponge->positions[0] = Vec3(5.0f, 0.0f, 4.0f);
+    sponge->sizes[0] = Vec3(1.0f, 1.0f, 1.0f);
+    sponge->rotations[0] = create_qrot(to_radians(0.0f), Vec3(1.0f, 0.0f, 0.0f));
+
     sponge->model = model_create_sponge();
 
     RenderContext *ctx = &state->ctx;
@@ -651,7 +663,7 @@ int main()
         
         render_push_model(rqueue, *monkey);
         render_push_model(rqueue, *floor);
-        render_push_model(rqueue, *sponge);
+        render_push_instanced_model(rqueue, sponge);
 
         if(FLAG_IS_SET(ctx->flags, RENDER_DRAW_HITBOXES))
         {

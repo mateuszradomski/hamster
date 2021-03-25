@@ -42,6 +42,7 @@ struct ProgramState
     
     Entity entities[8];
     u32 entities_len;
+	EntityInstanced sponge;
     EditorPickedEntity edit_picked;
 };
 

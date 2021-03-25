@@ -7,6 +7,8 @@
 #define MAIN_FRAG_FILENAME "src/shaders/main_frag.glsl"
 #define SIMPLE_VERTEX_FILENAME "src/shaders/simple_vertex.glsl"
 #define SIMPLE_FRAG_FILENAME "src/shaders/simple_frag.glsl"
+#define INSTANCED_SIMPLE_VERTEX_FILENAME "src/shaders/instanced_simple_vertex.glsl"
+#define INSTANCED_SIMPLE_FRAG_FILENAME "src/shaders/instanced_simple_frag.glsl"
 #define LIGHT_FRAG_FILENAME "src/shaders/lights.glsl"
 #define LINE_FRAG_FILENAME "src/shaders/line_vertex.glsl"
 #define UI_VERTEX_FILENAME "src/shaders/ui_vertex.glsl"
@@ -22,6 +24,7 @@ enum ShaderProgram_Id
 {
     ShaderProgram_Basic,
     ShaderProgram_Simple,
+    ShaderProgram_InstancedSimple,
     ShaderProgram_Skybox,
     ShaderProgram_UI,
     ShaderProgram_Line,
@@ -89,6 +92,7 @@ enum RenderType
     RenderType_RenderEntryUI,
     RenderType_RenderEntryModelNewest,
     RenderType_RenderEntryModel,
+    RenderType_RenderEntryModelInstanced,
 };
 
 struct RenderHeader
@@ -140,6 +144,16 @@ struct RenderEntryModel
     Vec3 position;
     Vec3 size;
     Quat orientation;
+    Model *model;
+};
+
+struct RenderEntryModelInstanced
+{
+    RenderHeader header;
+    Vec3 *positions;
+    Vec3 *sizes;
+    Quat *orientations;
+    u32 instances_count;
     Model *model;
 };
 

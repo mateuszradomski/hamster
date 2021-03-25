@@ -198,6 +198,16 @@ struct Entity
 	Model *model;
 };
 
+struct EntityInstanced
+{
+    Vec3 *positions;
+    Vec3 *sizes;
+    Quat *rotations;
+    u32 instances_count;
+
+    Model *model;
+};
+
 struct AxisClickResult
 {
     Vec3 direction;

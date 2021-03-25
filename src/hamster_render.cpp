@@ -103,6 +103,18 @@ render_push_model(RenderQueue *queue, Entity entity)
 }
 
 static void
+render_push_instanced_model(RenderQueue *queue, EntityInstanced *entity)
+{
+    RenderEntryModelInstanced *entry = render_push_entry(queue, RenderEntryModelInstanced);
+    
+    entry->positions = entity->positions;
+    entry->sizes = entity->sizes;
+    entry->orientations = entity->rotations;
+    entry->instances_count = entity->instances_count;
+    entry->model = entity->model;
+}
+
+static void
 render_load_uniforms(RenderContext *ctx, i32 index)
 {
     GLuint pid = ctx->programs[index].id;
@@ -150,6 +162,7 @@ render_load_programs(RenderContext *ctx)
 {
     ctx->programs[ShaderProgram_Basic] = program_create_from_files(1, 2, MAIN_VERTEX_FILENAME, MAIN_FRAG_FILENAME, LIGHT_FRAG_FILENAME);
     ctx->programs[ShaderProgram_Simple] = program_create_from_files(1, 2, SIMPLE_VERTEX_FILENAME, SIMPLE_FRAG_FILENAME, LIGHT_FRAG_FILENAME);
+    ctx->programs[ShaderProgram_InstancedSimple] = program_create_from_files(1, 2, INSTANCED_SIMPLE_VERTEX_FILENAME, INSTANCED_SIMPLE_FRAG_FILENAME, LIGHT_FRAG_FILENAME);
     ctx->programs[ShaderProgram_Skybox] = program_create_from_files(1, 1, SKYBOX_VERTEX_FILENAME, SKYBOX_FRAG_FILENAME);
     ctx->programs[ShaderProgram_UI] = program_create_from_files(1, 1, UI_VERTEX_FILENAME, UI_FRAG_FILENAME);
     ctx->programs[ShaderProgram_Line] = program_create_from_files(1, 1, MAIN_VERTEX_FILENAME, LINE_FRAG_FILENAME);
@@ -664,6 +677,135 @@ render_draw_queue(RenderQueue *queue, RenderContext *ctx)
                     glDrawElements(GL_TRIANGLES, mesh->indices_len, GL_UNSIGNED_INT, NULL);
                 }
                 
+                header = (RenderHeader *)(++entry);
+            }break;
+            case RenderType_RenderEntryModelInstanced:
+            {
+                GLuint program_id = ctx->programs[ShaderProgram_InstancedSimple].id;
+                auto uniloc = &ctx->program_uniforms[ShaderProgram_InstancedSimple];
+                glUseProgram(program_id);
+                
+                opengl_set_uniform(program_id, "view", ctx->view);
+                opengl_set_uniform(program_id, "proj", ctx->proj);
+                
+                opengl_set_uniform(program_id, "view_pos", ctx->cam.position);
+                
+                opengl_set_uniform(program_id, "light_pos", ctx->spot.position);
+                opengl_set_uniform(program_id, "spotlight.direction", ctx->spot.direction);
+                opengl_set_uniform(program_id, "spotlight.cutoff", cosf(to_radians(ctx->spot.cutoff)));
+                opengl_set_uniform(program_id, "spotlight.outer_cutoff", cosf(to_radians(ctx->spot.outer_cutoff)));
+                opengl_set_uniform(program_id, "spotlight.ambient_component", ctx->spot.ambient_part);
+                opengl_set_uniform(program_id, "spotlight.diffuse_component", ctx->spot.diffuse_part);
+                opengl_set_uniform(program_id, "spotlight.specular_component", ctx->spot.specular_part);
+                opengl_set_uniform(program_id, "spotlight.atten_const", ctx->spot.atten_const);
+                opengl_set_uniform(program_id, "spotlight.atten_linear", ctx->spot.atten_linear);
+                opengl_set_uniform(program_id, "spotlight.atten_quad", ctx->spot.atten_quad);
+                
+                opengl_set_uniform(program_id, "direct_light.direction", Vec3(0.0f, -1.0f, 0.0f));
+                opengl_set_uniform(program_id, "direct_light.ambient_component", Vec3(0.05f, 0.05f, 0.05f));
+                opengl_set_uniform(program_id, "direct_light.diffuse_component", Vec3(0.2f, 0.2f, 0.2f));
+                opengl_set_uniform(program_id, "direct_light.specular_component", Vec3(0.4f, 0.4f, 0.4f));
+                
+                opengl_set_uniform(uniloc->light_proj_view, ctx->light_proj_view);
+                glUniform1i(uniloc->shadow_map, 2);
+                glActiveTexture(GL_TEXTURE2);
+                glBindTexture(GL_TEXTURE_2D, ctx->sun_depth_map);
+                
+                opengl_set_uniform(program_id, "show_normal_map", FLAG_IS_SET(ctx->flags, RENDER_SHOW_NORMAL_MAP));
+                opengl_set_uniform(program_id, "use_mapped_normals", FLAG_IS_SET(ctx->flags, RENDER_USE_MAPPED_NORMALS));
+                
+                RenderEntryModelInstanced *entry = (RenderEntryModelInstanced *)header;
+                u64 models_size = sizeof(Mat4) * entry->instances_count;
+                Mat4 *models = (Mat4 *)malloc(models_size);
+                for(u32 i = 0; i < entry->instances_count; i++)
+                {
+                    models[i] = Mat4(1.0f);
+                    models[i] = scale(models[i], entry->sizes[i]);
+                    models[i] = rotate_quat(models[i], entry->orientations[i]);
+                    models[i] = translate(models[i], entry->positions[i]);
+                }
+                
+                GLuint instance_vbo = 0;
+                glGenBuffers(1, &instance_vbo);
+                glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
+                // TODO(mateusz): GL_STREAM_DRAW seems like a good candidate...
+                glBufferData(GL_ARRAY_BUFFER, models_size, models, GL_STATIC_DRAW);
+
+                // Mat4 transform = scale(Mat4(1.0f), entry->size);
+                // transform = rotate_quat(transform, entry->orientation);
+                // transform = translate(transform, entry->position);
+                // opengl_set_uniform(program_id, "model", transform);
+                
+                Model *model = entry->model;
+                for(u32 i = 0; i < model->meshes_len; i++)
+                {
+                    glBindVertexArray(model->meshes[i].vao);
+
+                    glEnableVertexAttribArray(3);
+                    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(Mat4), (void *)(0x0));
+                    glEnableVertexAttribArray(4);
+                    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(Mat4), (void *)(sizeof(Vec4)));
+                    glEnableVertexAttribArray(5);
+                    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, sizeof(Mat4), (void *)(2 * sizeof(Vec4)));
+                    glEnableVertexAttribArray(6);
+                    glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(Mat4), (void *)(3 * sizeof(Vec4)));
+
+                    glVertexAttribDivisor(3, 1);
+                    glVertexAttribDivisor(4, 1);
+                    glVertexAttribDivisor(5, 1);
+                    glVertexAttribDivisor(6, 1);
+                    
+                    Mesh *mesh = &model->meshes[i];
+                    Material *material = NULL;
+                    for(u32 i = 0; i < model->materials_len; i++)
+                    {
+                        if(strings_match(mesh->material_name, model->materials[i].name))
+                        {
+                            material = &model->materials[i];
+                            break;
+                        }
+                    }
+                    
+                    if(material)
+                    {
+                        if(material->flags & MATERIAL_FLAGS_HAS_DIFFUSE_MAP)
+                        {
+                            glUniform1i(glGetUniformLocation(program_id, "diffuse_map"), 0);
+                            glActiveTexture(GL_TEXTURE0);
+                            glBindTexture(GL_TEXTURE_2D, material->diffuse_map);
+                        }
+                        if(material->flags & MATERIAL_FLAGS_HAS_SPECULAR_MAP)
+                        {
+                            glUniform1i(glGetUniformLocation(program_id, "specular_map"), 1);
+                            glActiveTexture(GL_TEXTURE1);
+                            glBindTexture(GL_TEXTURE_2D, material->specular_map);
+                        }
+                        if(material->flags & MATERIAL_FLAGS_HAS_NORMAL_MAP)
+                        {
+                            glUniform1i(glGetUniformLocation(program_id, "normal_map"), 2);
+                            glActiveTexture(GL_TEXTURE2);
+                            glBindTexture(GL_TEXTURE_2D, material->normal_map);
+                        }
+                        
+                        opengl_set_uniform(program_id, "material.ambient_component", material->ambient_component);
+                        opengl_set_uniform(program_id, "material.diffuse_component", material->diffuse_component);
+                        opengl_set_uniform(program_id, "material.specular_component", material->specular_component);
+                        opengl_set_uniform(program_id, "material.specular_exponent", material->specular_exponent);
+                    }
+                    else
+                    {
+                        Vec3 one = Vec3(1.0f, 1.0f, 1.0f);
+                        opengl_set_uniform(program_id, "material.ambient_component", one);
+                        opengl_set_uniform(program_id, "material.diffuse_component", one);
+                        opengl_set_uniform(program_id, "material.specular_component", one);
+                        opengl_set_uniform(program_id, "material.specular_exponent", 1.0f);
+                    }
+                    
+                    glDrawElementsInstanced(GL_TRIANGLES, mesh->indices_len, GL_UNSIGNED_INT, 0, entry->instances_count);
+                }
+                
+                glDeleteBuffers(1, &instance_vbo);
+                delete []models;
                 header = (RenderHeader *)(++entry);
             }break;
         }
