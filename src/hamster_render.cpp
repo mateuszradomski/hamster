@@ -107,9 +107,14 @@ render_push_instanced_model(RenderQueue *queue, EntityInstanced *entity)
 {
     RenderEntryModelInstanced *entry = render_push_entry(queue, RenderEntryModelInstanced);
     
-    entry->positions = entity->positions;
-    entry->sizes = entity->sizes;
-    entry->orientations = entity->rotations;
+    entry->positions = (Vec3 *)malloc(entity->instances_count * sizeof(entity->positions[0]));
+    entry->sizes = (Vec3 *)malloc(entity->instances_count * sizeof(entity->sizes[0]));
+    entry->orientations = (Quat *)malloc(entity->instances_count * sizeof(entity->rotations[0]));
+
+    memcpy(entry->positions, entity->positions, entity->instances_count * sizeof(entity->positions[0]));
+    memcpy(entry->sizes, entity->sizes, entity->instances_count * sizeof(entity->sizes[0]));
+    memcpy(entry->orientations, entity->rotations, entity->instances_count * sizeof(entity->rotations[0]));
+
     entry->instances_count = entity->instances_count;
     entry->model = entity->model;
 }
@@ -731,11 +736,6 @@ render_draw_queue(RenderQueue *queue, RenderContext *ctx)
                 // TODO(mateusz): GL_STREAM_DRAW seems like a good candidate...
                 glBufferData(GL_ARRAY_BUFFER, models_size, models, GL_STATIC_DRAW);
 
-                // Mat4 transform = scale(Mat4(1.0f), entry->size);
-                // transform = rotate_quat(transform, entry->orientation);
-                // transform = translate(transform, entry->position);
-                // opengl_set_uniform(program_id, "model", transform);
-                
                 Model *model = entry->model;
                 for(u32 i = 0; i < model->meshes_len; i++)
                 {
@@ -804,8 +804,13 @@ render_draw_queue(RenderQueue *queue, RenderContext *ctx)
                     glDrawElementsInstanced(GL_TRIANGLES, mesh->indices_len, GL_UNSIGNED_INT, 0, entry->instances_count);
                 }
                 
+                free(models);
                 glDeleteBuffers(1, &instance_vbo);
-                delete []models;
+
+                free(entry->positions);
+                free(entry->sizes);
+                free(entry->orientations);
+
                 header = (RenderHeader *)(++entry);
             }break;
         }

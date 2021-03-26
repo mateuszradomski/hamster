@@ -154,6 +154,43 @@ state_push_entity(ProgramState *state)
 }
 
 static void
+sponge_divide(EntityInstanced *sponge)
+{
+    u32 old_instances_count = sponge->instances_count;
+    sponge->instances_count = old_instances_count * 20;
+
+    sponge->positions = (Vec3 *)realloc(sponge->positions, sponge->instances_count * sizeof(sponge->positions[0]));
+    sponge->sizes = (Vec3 *)realloc(sponge->sizes, sponge->instances_count * sizeof(sponge->sizes[0]));
+    sponge->rotations = (Quat *)realloc(sponge->rotations, sponge->instances_count * sizeof(sponge->rotations[0]));
+
+    for(u32 i = 0; i < old_instances_count; i++)
+    {
+        u32 j = old_instances_count + (19 * i);
+        for (int x = -1; x < 2; x++)
+		{
+			for (int y = -1; y < 2; y++)
+			{
+				for (int z = -1; z < 2; z++)
+				{
+					int check = abs(x) + abs(y) + abs(z);
+					if (check > 1)
+					{
+                        u32 index = (x == 1 && y == 1 && z == 1) ? i : j;
+                        j+= 1;
+                        sponge->sizes[index] = divs(sponge->sizes[i], 3.0f);
+                        sponge->rotations[index] = Quat();
+
+                        sponge->positions[index].x = sponge->positions[i].x + x * sponge->sizes[index].x;
+                        sponge->positions[index].y = sponge->positions[i].y + y * sponge->sizes[index].y;
+                        sponge->positions[index].z = sponge->positions[i].z + z * sponge->sizes[index].z;
+					}
+				}
+			}
+		}
+    }
+}
+
+static void
 imgui_start_frame(ProgramState *state)
 {
     ImGui_ImplOpenGL3_NewFrame();
@@ -218,7 +255,10 @@ imgui_start_frame(ProgramState *state)
 
     if(ImGui::Button("Menger sponge: divide"))
     {
+        EntityInstanced *sponge = &state->sponge;
         printf("Dividing...\n");
+        sponge_divide(sponge);
+        printf("Done with %d instances.\n", sponge->instances_count);
     }
     
     ImGui::SameLine();
@@ -346,13 +386,17 @@ int main()
 
     EntityInstanced *sponge = &state->sponge;
     sponge->instances_count = 1;
-    sponge->positions = (Vec3 *)malloc(sizeof(sponge->positions[0]));
-    sponge->sizes = (Vec3 *)malloc(sizeof(sponge->sizes[0]));
-    sponge->rotations = (Quat *)malloc(sizeof(sponge->rotations[0]));
+    sponge->positions = (Vec3 *)malloc(sponge->instances_count * sizeof(sponge->positions[0]));
+    sponge->sizes = (Vec3 *)malloc(sponge->instances_count * sizeof(sponge->sizes[0]));
+    sponge->rotations = (Quat *)malloc(sponge->instances_count * sizeof(sponge->rotations[0]));
     
     sponge->positions[0] = Vec3(5.0f, 0.0f, 4.0f);
-    sponge->sizes[0] = Vec3(1.0f, 1.0f, 1.0f);
+    sponge->sizes[0] = Vec3(3.0f, 3.0f, 3.0f);
     sponge->rotations[0] = create_qrot(to_radians(0.0f), Vec3(1.0f, 0.0f, 0.0f));
+
+    // sponge->positions[1] = Vec3(5.0f, 0.0f, -4.0f);
+    // sponge->sizes[1] = Vec3(0.5f, 0.5f, 0.5f);
+    // sponge->rotations[1] = create_qrot(to_radians(45.0f), Vec3(1.0f, 1.0f, 1.0f));
 
     sponge->model = model_create_sponge();
 
