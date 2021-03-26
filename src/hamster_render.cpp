@@ -107,6 +107,7 @@ render_push_instanced_model(RenderQueue *queue, EntityInstanced *entity)
 {
     RenderEntryModelInstanced *entry = render_push_entry(queue, RenderEntryModelInstanced);
     
+#if 0
     entry->positions = (Vec3 *)malloc(entity->instances_count * sizeof(entity->positions[0]));
     entry->sizes = (Vec3 *)malloc(entity->instances_count * sizeof(entity->sizes[0]));
     entry->orientations = (Quat *)malloc(entity->instances_count * sizeof(entity->rotations[0]));
@@ -114,6 +115,11 @@ render_push_instanced_model(RenderQueue *queue, EntityInstanced *entity)
     memcpy(entry->positions, entity->positions, entity->instances_count * sizeof(entity->positions[0]));
     memcpy(entry->sizes, entity->sizes, entity->instances_count * sizeof(entity->sizes[0]));
     memcpy(entry->orientations, entity->rotations, entity->instances_count * sizeof(entity->rotations[0]));
+#else
+    entry->positions = entity->positions;
+    entry->sizes = entity->sizes;
+    entry->orientations = entity->rotations;
+#endif
 
     entry->instances_count = entity->instances_count;
     entry->model = entity->model;
@@ -726,7 +732,7 @@ render_draw_queue(RenderQueue *queue, RenderContext *ctx)
                 {
                     models[i] = Mat4(1.0f);
                     models[i] = scale(models[i], entry->sizes[i]);
-                    models[i] = rotate_quat(models[i], entry->orientations[i]);
+                    //models[i] = rotate_quat(models[i], entry->orientations[i]);
                     models[i] = translate(models[i], entry->positions[i]);
                 }
                 
@@ -807,10 +813,11 @@ render_draw_queue(RenderQueue *queue, RenderContext *ctx)
                 free(models);
                 glDeleteBuffers(1, &instance_vbo);
 
+#if 0
                 free(entry->positions);
                 free(entry->sizes);
                 free(entry->orientations);
-
+#endif
                 header = (RenderHeader *)(++entry);
             }break;
         }

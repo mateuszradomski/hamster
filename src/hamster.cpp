@@ -255,10 +255,7 @@ imgui_start_frame(ProgramState *state)
 
     if(ImGui::Button("Menger sponge: divide"))
     {
-        EntityInstanced *sponge = &state->sponge;
-        printf("Dividing...\n");
-        sponge_divide(sponge);
-        printf("Done with %d instances.\n", sponge->instances_count);
+        state->divide_sponge = true;
     }
     
     ImGui::SameLine();
@@ -665,6 +662,15 @@ int main()
         
         to_point_light.point0 = sub(ctx->cam.position, Vec3(0.1f, 0.1f, 0.1f));
         to_point_light.point1 = ctx->point_light.position;
+
+        if(state->divide_sponge)
+        {
+            state->divide_sponge = false;
+            EntityInstanced *sponge = &state->sponge;
+            printf("Dividing...\n");
+            sponge_divide(sponge);
+            printf("Done with %d instances.\n", sponge->instances_count);
+        }
         
         render_push_line(rqueue, ray_line);
         if(FLAG_IS_SET(ctx->flags, RENDER_DRAW_HITBOXES))
